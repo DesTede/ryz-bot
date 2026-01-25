@@ -5,11 +5,12 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@NoArgsConstructor
+//@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Data
 public class Conversation {
     
@@ -21,10 +22,34 @@ public class Conversation {
     
     private String tempData;
 
+    public Conversation(){}
+    
     public Conversation(String phone, ConversationState state) {
         this.phone = phone;
         this.state = state;
-        
-        
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public ConversationState getState() {
+        return state;
+    }
+
+    public void setState(ConversationState state) {
+        this.state = state;
+    }
+
+    public String getTempData() {
+        return tempData;
+    }
+
+    public void setTempData(String tempData) {
+        this.tempData = tempData;
     }
 }
