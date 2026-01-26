@@ -9,15 +9,14 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
-@Setter
-@Getter
 @Entity
 //@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Data
+//@Data
 public class Conversation {
     
     @Id
     private String phone;
+    
     
     @Enumerated(EnumType.STRING)
     private ConversationState state;
@@ -31,4 +30,27 @@ public class Conversation {
         this.state = state;
     }
 
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public ConversationState getState() {
+        return state;
+    }
+
+    public void setState(ConversationState state) {
+        this.state = state;
+    }
+
+    public String getTempData() {
+        return tempData;
+    }
+
+    public void setTempData(String tempData) {
+        this.tempData = tempData;
+    }
 }

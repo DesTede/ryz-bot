@@ -24,6 +24,7 @@ public class MessageController {
         this.deliveryOrderRepo = deliveryOrderRepo;
     }
 
+    
     @PostMapping
     public String receiveMessage(@RequestBody IncomingMessage message){
 
@@ -59,7 +60,7 @@ public class MessageController {
             case TAXI_PICKUP:
                 convoService.saveTempData(convo, message.getText());
                 convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
-//                System.out.println("state after choosing  pickup is:" + convo.getState());
+//                System.out.println("state after choosing pickup is:" + convo.getState());
                 return "לאן נוסעים? \uD83D\uDCCD";
                 
             case TAXI_DESTINATION:
@@ -86,6 +87,11 @@ public class MessageController {
             case DELIVERY_ADDRESS:
                 convoService.saveTempData(convo, message.getText());
                 convoService.updateState(convo, ConversationState.DELIVERY_NOTES);
+                System.out.println("state after delivery address is:" + convo.getState());
+                
+                return
+                        "📝 יש הערות למשלוח? (או כתוב 'אין')";
+                
                 
             case DELIVERY_NOTES:
                 String address = convo.getTempData();
@@ -101,8 +107,8 @@ public class MessageController {
                 return
                         """
                                 ✅ משלוח התקבל!
-                                                    📦 כתובת: %s
-                                                    📝 הערות: %s
+                                📦 כתובת: %s
+                                📝 הערות: %s
                         """.formatted(address, notes);
                 
             default:
