@@ -33,6 +33,10 @@ public class WhatsappResponse {
         public Text(String body) {
             this.body = body;
         }
+        
+        public String getBody(){
+            return body;
+        }
 
     }
 }
