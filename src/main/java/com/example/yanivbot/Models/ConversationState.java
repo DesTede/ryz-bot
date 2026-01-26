@@ -6,5 +6,6 @@ public enum ConversationState {
     TAXI_PICKUP,
     TAXI_DESTINATION, 
     DELIVERY_ADDRESS,
+    DELIVERY_NOTES,
     CONFIRMATION
 }
