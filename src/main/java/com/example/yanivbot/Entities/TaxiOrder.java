@@ -23,11 +23,9 @@ public class TaxiOrder {
     private  String destination;
     private LocalDateTime createdAt;
 
-    public TaxiOrder(String phone, String destination, String pickUpLocation) {
+    public TaxiOrder(String phone, String pickUpLocation, String destination) {
         this.phone = phone;
-        this.destination = destination;
         this.pickUpLocation = pickUpLocation;
-        this.createdAt = LocalDateTime.now();
-        
+        this.destination = destination;
     }
 }

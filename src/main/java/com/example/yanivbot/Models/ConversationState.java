@@ -11,6 +11,8 @@ public enum ConversationState {
     TAXI_DESTINATION,
     CONFIRMATION,
     
+    GROUP_MESSAGE,
+    
     BUSINESS_MENU,
     DELIVERY_CUSTOMER_PHONE,
     DELIVERY_ADDRESS,
