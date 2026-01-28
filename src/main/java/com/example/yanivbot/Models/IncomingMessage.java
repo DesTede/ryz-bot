@@ -1,6 +1,7 @@
 package com.example.yanivbot.Models;
 
 public class IncomingMessage {
+    
     private String phone;
     private String text;
 

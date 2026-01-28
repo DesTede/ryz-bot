@@ -1,9 +1,7 @@
 package com.example.yanivbot.Entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import com.example.yanivbot.Models.DeliveryStatus;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -18,15 +16,35 @@ public class DeliveryOrder {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
     
-    private String phone;
+    private String businessPhone;
+    private String customerPhone;
+    private String pickedUpBy;
     private String deliveryAddress;
+    private int readyInMinutes;
+    private DeliveryStatus deliveryStatus;
+    private double deliveryFee;
+    
+    @Column(length = 1000)
     private String notes;
+    
     private LocalDateTime createdAt;
 
-    public DeliveryOrder(String phone, String deliveryAddress, String notes) {
-        this.phone = phone;
+    public DeliveryOrder(String businessPhone, String customerPhone, String pickedUpBy, 
+                         String deliveryAddress, int readyInMinutes, 
+                         DeliveryStatus deliveryStatus, double deliveryFee, String notes) {
+        this.businessPhone = businessPhone;
+        this.customerPhone = customerPhone;
+        this.pickedUpBy = pickedUpBy;
         this.deliveryAddress = deliveryAddress;
+        this.readyInMinutes = readyInMinutes;
+        this.deliveryStatus = deliveryStatus;
+        this.deliveryFee = deliveryFee;
         this.notes = notes;
         this.createdAt = LocalDateTime.now();
     }
+    
+    
+    
+    
+    
 }

@@ -1,11 +1,20 @@
 package com.example.yanivbot.Models;
 
 public enum ConversationState {
-    START, 
-    CHOOSING_SERVICE,
+    START,
+
+    /**
+     * change name to TAXI_SERVICE
+     */
+    TAXI_SERVICE,
     TAXI_PICKUP,
-    TAXI_DESTINATION, 
+    TAXI_DESTINATION,
+    CONFIRMATION,
+    
+    BUSINESS_MENU,
+    DELIVERY_CUSTOMER_PHONE,
     DELIVERY_ADDRESS,
+    DELIVERY_READY_TIME,
+    DELIVERY_PRICE,
     DELIVERY_NOTES,
-    CONFIRMATION
 }
