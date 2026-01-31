@@ -1,9 +1,6 @@
 package com.example.yanivbot.Entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -22,6 +19,11 @@ public class TaxiOrder {
     private  String pickUpLocation;
     private  String destination;
     private LocalDateTime createdAt;
+    
+    @PrePersist
+    public void onCreate(){
+        this.createdAt = LocalDateTime.now();
+    }
 
     public TaxiOrder(String phone, String pickUpLocation, String destination) {
         this.phone = phone;

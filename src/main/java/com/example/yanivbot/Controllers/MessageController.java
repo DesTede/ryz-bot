@@ -1,16 +1,15 @@
 package com.example.yanivbot.Controllers;
 
 import com.example.yanivbot.Entities.Conversation;
-import com.example.yanivbot.Entities.DeliveryOrder;
-import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.ConversationState;
-import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.BusinessOwnerService;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.DeliveryOrderService;
 import com.example.yanivbot.Services.TaxiOrderService;
 import org.springframework.web.bind.annotation.*;
+
+
 
 @RestController
 @RequestMapping("/message")
@@ -30,7 +29,28 @@ public class MessageController {
         this.businessOwnerService = businessOwnerService;
         this.deliveryOrderService = deliveryOrderService;
     }
+    
+    
+    
+    @GetMapping (produces = "text/plain")
+    public String verifyWebHook(
+            @RequestParam(name = "hub.mode") String mode,
+            @RequestParam(name = "hub.verify_token") String token,
+            @RequestParam(name = "hub.challenge") String challenge
+    ){
 
+        System.out.println("Webhook verification called");
+        System.out.println("mode=" + mode);
+        System.out.println("token=" + token);
+        System.out.println("challenge=" + challenge);
+
+        if ("subscribe".equals(mode) && "yanivbot_verify".equals(token))
+            return challenge;
+
+        return "Verification failed";
+    }
+    
+    
     @PostMapping
     public String receiveMessage(@RequestBody IncomingMessage message){
 
@@ -66,7 +86,6 @@ public class MessageController {
                 if (message.getText().equals("1")) {
                     convoService.updateState(convo,ConversationState.TAXI_PICKUP);
                     return
-//                            "שלום \uD83D\uDC4B " +
                             "מאיפה לאסוף אותך? '\uD83D\uDCCD' ";
                     
                 } else if (message.getText().equals("2")){
@@ -82,11 +101,21 @@ public class MessageController {
 
                 
             case TAXI_SERVICE:
-                convoService.updateState(convo, ConversationState.TAXI_PICKUP);
-                System.out.println("state after choosing service type is:" + convo.getState());
-                return
+                if (message.getText().equals("1")) {
+                    convoService.updateState(convo, ConversationState.TAXI_PICKUP);
+                    return
 //                            "שלום \uD83D\uDC4B " +
-                        "מאיפה לאסוף אותך? '\uD83D\uDCCD' ";
+                            "מאיפה לאסוף אותך? '\uD83D\uDCCD' ";
+
+                }
+                return
+                        "בחר שירות:" +
+                                "עבור מונית לחץ - 1";
+                
+//                convoService.updateState(convo, ConversationState.TAXI_PICKUP);
+//                System.out.println("state after choosing service type is:" + convo.getState());
+//                return
+//                        "מאיפה לאסוף אותך? '\uD83D\uDCCD' ";
                     
                     
                     
@@ -147,6 +176,7 @@ public class MessageController {
                 
 //                String deliveryReply = deliveryOrderService.createDelivery(convo, phone, notes);
 //                return deliveryReply;
+                convoService.updateState(convo, ConversationState.START);
                 return deliveryOrderService.createDelivery(convo, phone, notes);
                 
                 

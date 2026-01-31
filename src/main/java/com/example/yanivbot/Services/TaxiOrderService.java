@@ -4,10 +4,12 @@ import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 public class TaxiOrderService {
     
-    private TaxiOrderRepository taxiOrderRepo;
+    private final TaxiOrderRepository taxiOrderRepo;
 
     public TaxiOrderService(TaxiOrderRepository taxiOrderRepo) {
         this.taxiOrderRepo = taxiOrderRepo;

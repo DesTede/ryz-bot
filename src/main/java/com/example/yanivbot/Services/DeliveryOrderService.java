@@ -56,8 +56,8 @@ public class DeliveryOrderService {
         }
         String customerPhone = parts[0];
         String deliveryAddress = parts[1];
-        int readyInMinutes = Integer.parseInt(parts[2]);
-        double deliveryFee = Double.parseDouble(parts[3]);
+        int readyInMinutes = Integer.parseInt(parts[2].trim());
+        double deliveryFee = Double.parseDouble(parts[3].trim());
         String finalNotes = notes.equals("אין") ? null : notes;
 
         DeliveryOrder deliveryOrder = new DeliveryOrder(
