@@ -3,12 +3,11 @@ package com.example.yanivbot.Controllers;
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
-import com.example.yanivbot.Services.BusinessOwnerService;
-import com.example.yanivbot.Services.ConversationService;
-import com.example.yanivbot.Services.DeliveryOrderService;
-import com.example.yanivbot.Services.TaxiOrderService;
+import com.example.yanivbot.Services.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 
 
 @RestController
@@ -19,15 +18,17 @@ public class MessageController {
     private final TaxiOrderService taxiOrderService;
     private final BusinessOwnerService businessOwnerService;
     private final DeliveryOrderService deliveryOrderService;
+    private final WhatsappService whatsappService;
 
     public MessageController(ConversationService convoService,
                              TaxiOrderService taxiOrderService,
                              BusinessOwnerService businessOwnerService,
-                             DeliveryOrderService deliveryOrderService) {
+                             DeliveryOrderService deliveryOrderService, WhatsappService whatsappService) {
         this.convoService = convoService;
         this.taxiOrderService = taxiOrderService;
         this.businessOwnerService = businessOwnerService;
         this.deliveryOrderService = deliveryOrderService;
+        this.whatsappService = whatsappService;
     }
     
     
@@ -49,6 +50,7 @@ public class MessageController {
 
         return "Verification failed";
     }
+
     
     
     @PostMapping
@@ -197,6 +199,18 @@ public class MessageController {
             return deliveryOrderService.claimOrder(orderId, message.getPhone());
         }
         
+        return "";
+    }
+
+    
+    private String handleTaxiDriverGroupMessage(IncomingMessage message){
+        String txt = message.getText().trim();
+
+        if (txt.matches("^לקחתי\\s+\\d+$")){
+            long orderId = Long.parseLong(txt.split("\\s+ ")[1]);
+            return taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
+        }
+
         return "";
     }
 }

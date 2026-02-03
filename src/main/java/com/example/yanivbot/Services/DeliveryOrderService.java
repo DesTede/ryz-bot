@@ -18,28 +18,6 @@ public class DeliveryOrderService {
         this.deliveryOrderRepo = deliveryOrderRepository;
     }
     
-    public String claimOrder(long orderId, String driverPhone){
-        Optional<DeliveryOrder> optionalOrder = deliveryOrderRepo.
-                findByIdAndDeliveryStatus(orderId, DeliveryStatus.CREATED);
-        
-        if (optionalOrder.isEmpty()) 
-            return "❌ Order #" + orderId + " כבר תפוס על ידי מישהו אחר!";
-        
-        DeliveryOrder order = optionalOrder.get();
-        order.setPickedUpBy(driverPhone);
-        order.setDeliveryStatus(DeliveryStatus.PICKED_UP);
-        deliveryOrderRepo.save(order);
-        
-        return """
-               ✅ הזמנה #%d תפוסה על ידי %s
-               📦 כתובת: %s
-               💰 מחיר: %.2f₪
-               """.formatted(order.getId(), driverPhone, order.getDeliveryAddress(), order.getDeliveryFee());
-
-//        return "✅ Order #" + orderId + " successfully assigned to you.";
-    }
-    
-    
     public String createDelivery(Conversation convo, String businessPhone, String notes){
         String temp = convo.getTempData();
         
@@ -81,5 +59,28 @@ public class DeliveryOrderService {
                             💰 מחיר: %.2f₪
                             📝 הערות: %s
                             """.formatted(parts[1], Double.parseDouble(parts[3]), notes);
+    }
+
+    // need to add send to group method
+    
+    public String claimOrder(long orderId, String driverPhone){
+        Optional<DeliveryOrder> optionalOrder = deliveryOrderRepo.
+                findByIdAndDeliveryStatus(orderId, DeliveryStatus.CREATED);
+
+        if (optionalOrder.isEmpty())
+            return "❌ Order #" + orderId + " כבר תפוס על ידי מישהו אחר!";
+
+        DeliveryOrder order = optionalOrder.get();
+        order.setPickedUpBy(driverPhone);
+        order.setDeliveryStatus(DeliveryStatus.PICKED_UP);
+        deliveryOrderRepo.save(order);
+
+        return """
+               ✅ הזמנה #%d תפוסה על ידי %s
+               📦 כתובת: %s
+               💰 מחיר: %.2f₪
+               """.formatted(order.getId(), driverPhone, order.getDeliveryAddress(), order.getDeliveryFee());
+
+//        return "✅ Order #" + orderId + " successfully assigned to you.";
     }
 }
