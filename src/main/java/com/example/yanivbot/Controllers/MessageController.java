@@ -56,9 +56,19 @@ public class MessageController {
     @PostMapping
     public String receiveMessage(@RequestBody IncomingMessage message){
 
-        if (message.isGroupMessage()) 
+//        if (message.isGroupMessage()) 
+//            return handleDriverGroupMessage(message);
+
+        if (message.isGroupMessage()) {
+            // check if it's taxi driver group 
+            String txt = message.getText().trim();
+            if (txt.matches("^לקחתי\\s+\\d+$")) {
+                // taxi driver claiming an order
+                return handleTaxiDriverGroupMessage(message);
+            }
+            // fallback to delivery driver group
             return handleDriverGroupMessage(message);
-        
+        }
 //        System.out.println("phone: " + message.getPhone());
         Conversation convo = convoService.getOrCreate(message.getPhone());
         
@@ -139,7 +149,9 @@ public class MessageController {
                 convo.setTempData(null);
                 convoService.updateState(convo, ConversationState.START);
                 System.out.println("state after destination is:" + convo.getState());
-                
+
+                whatsappService.sendText(message.getPhone(), "✅ הזמנת מונית התקבלה!\n" + destinationReply);
+
                 return destinationReply; 
                 
             case DELIVERY_CUSTOMER_PHONE:
@@ -179,8 +191,12 @@ public class MessageController {
 //                String deliveryReply = deliveryOrderService.createDelivery(convo, phone, notes);
 //                return deliveryReply;
                 convoService.updateState(convo, ConversationState.START);
-                return deliveryOrderService.createDelivery(convo, phone, notes);
                 
+                String deliveryReply = deliveryOrderService.createDelivery(convo, phone, notes);
+                whatsappService.sendText(phone, "✅ הזמנת משלוח התקבלה!\n" + deliveryReply);
+
+//                return deliveryOrderService.createDelivery(convo, phone, notes);
+                return deliveryReply;
                 
             default:
                 convoService.updateState(convo, ConversationState.START);
@@ -208,7 +224,14 @@ public class MessageController {
 
         if (txt.matches("^לקחתי\\s+\\d+$")){
             long orderId = Long.parseLong(txt.split("\\s+ ")[1]);
-            return taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
+            
+            String reply = taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
+
+            
+//            String customerPhone = taxiOrderService.getCustomerPhone(orderId);
+
+            whatsappService.sendText(message.getPhone(), "🚖 המונית שלך נלקחה ע״י הנהג!");
+
         }
 
         return "";

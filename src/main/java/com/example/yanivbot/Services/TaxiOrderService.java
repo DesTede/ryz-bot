@@ -18,9 +18,9 @@ public class TaxiOrderService {
 
     public String createTaxiOrder(String customerPhone, String pickUp, String destination){
         TaxiOrder taxiOrder = new TaxiOrder(customerPhone,pickUp, destination);
-        
+
         taxiOrderRepo.save(taxiOrder);
-        
+
         broadcastToDrivers(taxiOrder);
         return
                 """
@@ -64,7 +64,7 @@ public class TaxiOrderService {
         notifyCustomer(order);
         
         //message to the group
-        whatsappService.sendToGroup("🚫 הזמנה #%d נלקחה".formatted(orderId));
+//        whatsappService.sendToGroup("🚫 הזמנה #%d נלקחה".formatted(orderId));
         
         return "✅ המונית שויכה אליך";    
     }
@@ -82,6 +82,6 @@ public class TaxiOrderService {
         );
 
 //        System.out.println("Private message to" + order.getPhone() + "\n" + order.getPickUpLocation());
-        whatsappService.sendToPrivate(order.getPhone(), msg);
+//        whatsappService.sendToPrivate(order.getPhone(), msg);
     }
 }

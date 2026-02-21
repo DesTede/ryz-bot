@@ -40,4 +40,48 @@ public class TaxiOrder {
         this.destination = destination;
         this.status = status = TaxiOrderStatus.CREATED;
     }
+
+    public long getId() {
+        return id;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public String getDriverPhone() {
+        return driverPhone;
+    }
+
+    public String getPickUpLocation() {
+        return pickUpLocation;
+    }
+
+    public String getDestination() {
+        return destination;
+    }
+
+    public TaxiOrderStatus getStatus() {
+        return status;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setDriverPhone(String driverPhone) {
+        this.driverPhone = driverPhone;
+    }
+
+    public void setPickUpLocation(String pickUpLocation) {
+        this.pickUpLocation = pickUpLocation;
+    }
+
+    public void setDestination(String destination) {
+        this.destination = destination;
+    }
+
+    public void setStatus(TaxiOrderStatus status) {
+        this.status = status;
+    }
 }
