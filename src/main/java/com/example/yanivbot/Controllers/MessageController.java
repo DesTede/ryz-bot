@@ -4,6 +4,7 @@ import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.*;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,6 +34,8 @@ public class MessageController {
     
     
     
+    
+    
     @GetMapping (produces = "text/plain")
     public String verifyWebHook(
             @RequestParam(name = "hub.mode") String mode,
@@ -53,8 +56,39 @@ public class MessageController {
 
     
     
-    @PostMapping
-    public String receiveMessage(@RequestBody IncomingMessage message){
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> receiveWebhook(
+            @RequestBody Map<String, Object> payload,
+            @RequestHeader Map<String, String> headers) {
+
+        System.out.println("WEBHOOK EVENT RECEIVED");
+        System.out.println("Headers: " + headers);
+        System.out.println("Payload: " + payload);
+
+        try {
+
+            IncomingMessage message = whatsappService.parseIncomingMessage(payload);
+
+            if (message == null) {
+                return ResponseEntity.ok("EVENT_RECEIVED");
+            }
+
+            String reply = processMessage(message);
+
+            if (reply != null && !reply.isEmpty()) {
+                whatsappService.sendText(message.getPhone(), reply);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return ResponseEntity.ok("EVENT_RECEIVED");
+    }
+    
+    
+//    @PostMapping
+    private String processMessage(IncomingMessage message){
 
 //        if (message.isGroupMessage()) 
 //            return handleDriverGroupMessage(message);
@@ -71,12 +105,12 @@ public class MessageController {
         }
 //        System.out.println("phone: " + message.getPhone());
         Conversation convo = convoService.getOrCreate(message.getPhone());
-        
+
         switch (convo.getState()) {
-            
+
             case START:
                 System.out.println("state is:" + convo.getState());
-                
+
                 if (businessOwnerService.isBusinessOwner(message.getPhone())) {
                     convoService.updateState(convo, ConversationState.BUSINESS_MENU);
                     return
@@ -84,7 +118,7 @@ public class MessageController {
                                     "בחר שירות:" +
                                     "עבור מונית - 1" +
                                     " עבור יצירת משלוח - 2";
-                            
+
                 }
 //                System.out.println("state after hello is:" + convo.getState());
                 convoService.updateState(convo, ConversationState.TAXI_SERVICE);
@@ -99,19 +133,19 @@ public class MessageController {
                     convoService.updateState(convo,ConversationState.TAXI_PICKUP);
                     return
                             "מאיפה לאסוף אותך? '\uD83D\uDCCD' ";
-                    
+
                 } else if (message.getText().equals("2")){
                     convo.setTempData("");
                     convoService.updateState(convo,ConversationState.DELIVERY_CUSTOMER_PHONE);
-                    
+
                     return
                             "טלפון הלקוח \uD83D\uDCDE";
-                    
+
                 }
                 return
                         "אנא בחר 1 או 2";
 
-                
+
             case TAXI_SERVICE:
                 if (message.getText().equals("1")) {
                     convoService.updateState(convo, ConversationState.TAXI_PICKUP);
@@ -123,29 +157,29 @@ public class MessageController {
                 return
                         "בחר שירות:" +
                                 "עבור מונית לחץ - 1";
-                
+
 //                convoService.updateState(convo, ConversationState.TAXI_PICKUP);
 //                System.out.println("state after choosing service type is:" + convo.getState());
 //                return
 //                        "מאיפה לאסוף אותך? '\uD83D\uDCCD' ";
-                    
-                    
-                    
+
+
+
             case TAXI_PICKUP:
                 convoService.saveTempData(convo, message.getText());
                 convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
     //                System.out.println("state after choosing pickup is:" + convo.getState());
                     return
                         "לאן נוסעים? \uD83D\uDCCD";
-            
-                    
+
+
             case TAXI_DESTINATION:
                 String pickUp = convo.getTempData();
                 String destination = message.getText();
 
                 String destinationReply = taxiOrderService.
                         createTaxiOrder(message.getPhone(), pickUp, destination);
-                
+
                 convo.setTempData(null);
                 convoService.updateState(convo, ConversationState.START);
                 System.out.println("state after destination is:" + convo.getState());
@@ -153,58 +187,58 @@ public class MessageController {
                 whatsappService.sendText(message.getPhone(), "✅ הזמנת מונית התקבלה!\n" + destinationReply);
 
                 return destinationReply; 
-                
+
             case DELIVERY_CUSTOMER_PHONE:
                 convoService.saveTempData(convo,message.getText());
                 convoService.updateState(convo, ConversationState.DELIVERY_ADDRESS);
                 return
                         "📦 כתובת משלוח?";
-                        
+
 
             case DELIVERY_ADDRESS:
 //                convoService.saveTempData(convo, message.getText());
                 convo.setTempData(convo.getTempData() + "|" + message.getText());
                 convoService.updateState(convo, ConversationState.DELIVERY_READY_TIME);
                 System.out.println("state after delivery address is:" + convo.getState());
-                
+
                 return
                         "⏱️ עוד כמה דקות מוכן?";
-            
+
             case DELIVERY_READY_TIME:
                 convo.setTempData(convo.getTempData() + "|" + message.getText());
                 convoService.updateState(convo,ConversationState.DELIVERY_PRICE);
                 return
                         "💰 כמה לגבות מהלקוח?";
-                        
+
             case DELIVERY_PRICE:
                 convo.setTempData(convo.getTempData() + "|" + message.getText());
                 convoService.updateState(convo, ConversationState.DELIVERY_NOTES);
-                
+
                 return
                         "📝 יש הערות למשלוח? (או כתוב 'אין')";
-                
-                
+
+
             case DELIVERY_NOTES:
                 String notes = message.getText();
                 String phone = message.getPhone();
-                
+
 //                String deliveryReply = deliveryOrderService.createDelivery(convo, phone, notes);
 //                return deliveryReply;
                 convoService.updateState(convo, ConversationState.START);
-                
+
                 String deliveryReply = deliveryOrderService.createDelivery(convo, phone, notes);
                 whatsappService.sendText(phone, "✅ הזמנת משלוח התקבלה!\n" + deliveryReply);
 
 //                return deliveryOrderService.createDelivery(convo, phone, notes);
                 return deliveryReply;
-                
+
             default:
                 convoService.updateState(convo, ConversationState.START);
                 return 
                         "משהו השתבש נתחיל מחדש ";
 
         }
-        
+
     }
     
     private String handleDriverGroupMessage(IncomingMessage message){
