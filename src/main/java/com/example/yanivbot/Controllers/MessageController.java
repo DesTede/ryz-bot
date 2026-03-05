@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
 
@@ -31,7 +32,17 @@ public class MessageController {
         this.deliveryOrderService = deliveryOrderService;
         this.whatsappService = whatsappService;
     }
-    
+
+
+    @GetMapping("/start-session")
+    public ResponseEntity<String> startSession() throws UnsupportedEncodingException {
+        String testPhoneNumber = "972549711059"; // include country code, e.g., 9725xxxxxxx
+        String message = "Hello from bot — initiating session";
+
+        whatsappService.sendText(testPhoneNumber, message);
+
+        return ResponseEntity.ok("Outbound message sent to start session");
+    }
     
     
     
@@ -53,6 +64,8 @@ public class MessageController {
 
         return "Verification failed";
     }
+    
+    
 
     
     
@@ -88,7 +101,7 @@ public class MessageController {
     
     
 //    @PostMapping
-    private String processMessage(IncomingMessage message){
+    private String processMessage(IncomingMessage message) throws UnsupportedEncodingException {
 
 //        if (message.isGroupMessage()) 
 //            return handleDriverGroupMessage(message);
@@ -253,7 +266,7 @@ public class MessageController {
     }
 
     
-    private String handleTaxiDriverGroupMessage(IncomingMessage message){
+    private String handleTaxiDriverGroupMessage(IncomingMessage message) throws UnsupportedEncodingException {
         String txt = message.getText().trim();
 
         if (txt.matches("^לקחתי\\s+\\d+$")){
@@ -269,5 +282,32 @@ public class MessageController {
         }
 
         return "";
+    }
+
+    @PostMapping(value = "/twilio", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    public ResponseEntity<String> receiveTwilioWebhook(
+            @RequestParam Map<String, String> params) {
+
+        System.out.println("TWILIO WEBHOOK RECEIVED: " + params);
+
+        try {
+            String from = params.get("From").replace("whatsapp:", "");
+            String body = params.get("Body");
+
+            IncomingMessage message = new IncomingMessage();
+            message.setPhone(from);
+            message.setText(body);
+
+            String reply = processMessage(message);
+
+            if (reply != null && !reply.isEmpty()) {
+                whatsappService.sendText(from, reply);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return ResponseEntity.ok("EVENT_RECEIVED");
     }
 }
