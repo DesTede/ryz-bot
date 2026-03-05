@@ -47,7 +47,7 @@ public class TaxiOrderService {
                         order.getId()
                 );
         
-        whatsappService.sendToGroup( msg);
+//        whatsappService.sendToGroup( msg);
     }
 
     public String claimTaxiOrder(long orderId, String driverPhone) {
