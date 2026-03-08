@@ -1,22 +1,27 @@
 package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Entities.TaxiOrder;
+import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import org.springframework.stereotype.Service;
+
+import java.io.UnsupportedEncodingException;
 
 @Service
 public class TaxiOrderService {
     
     private final TaxiOrderRepository taxiOrderRepo;
     private final WhatsappService whatsappService;
+    private final DriverService driverService;
 
-    public TaxiOrderService(TaxiOrderRepository taxiOrderRepo, WhatsappService whatsappService) {
+    public TaxiOrderService(TaxiOrderRepository taxiOrderRepo, WhatsappService whatsappService, DriverService driverService) {
         this.taxiOrderRepo = taxiOrderRepo;
         this.whatsappService = whatsappService;
+        this.driverService = driverService;
     }
 
-    public String createTaxiOrder(String customerPhone, String pickUp, String destination){
+    public String createTaxiOrder(String customerPhone, String pickUp, String destination) throws UnsupportedEncodingException {
         TaxiOrder taxiOrder = new TaxiOrder(customerPhone,pickUp, destination);
 
         taxiOrderRepo.save(taxiOrder);
@@ -30,7 +35,7 @@ public class TaxiOrderService {
                 """.formatted(pickUp, destination);
     }
     
-    public void broadcastToDrivers(TaxiOrder order){
+    public void broadcastToDrivers(TaxiOrder order) throws UnsupportedEncodingException {
         String msg =
                 """
         🚕 הזמנת מונית חדשה
@@ -47,10 +52,10 @@ public class TaxiOrderService {
                         order.getId()
                 );
         
-//        whatsappService.sendToGroup( msg);
+        driverService.dispatchToDrivers(DriverType.TAXI,msg);
     }
 
-    public String claimTaxiOrder(long orderId, String driverPhone) {
+    public String claimTaxiOrder(long orderId, String driverPhone) throws UnsupportedEncodingException {
         TaxiOrder order = taxiOrderRepo.findById(orderId).orElseThrow(() -> new RuntimeException("Taxi not found"));
         
         if (order.getStatus() != TaxiOrderStatus.CREATED)
@@ -63,13 +68,13 @@ public class TaxiOrderService {
         // notify the customer 
         notifyCustomer(order);
         
-        //message to the group
-//        whatsappService.sendToGroup("🚫 הזמנה #%d נלקחה".formatted(orderId));
+        notifyOtherDrivers(orderId,driverPhone);
+        
         
         return "✅ המונית שויכה אליך";    
     }
     
-    private void notifyCustomer(TaxiOrder order) {
+    private void notifyCustomer(TaxiOrder order) throws UnsupportedEncodingException {
         String msg = """
         🚕 המונית בדרך!
         📍 מאיפה: %s
@@ -81,7 +86,19 @@ public class TaxiOrderService {
                 order.getDriverPhone()
         );
 
-//        System.out.println("Private message to" + order.getPhone() + "\n" + order.getPickUpLocation());
-//        whatsappService.sendToPrivate(order.getPhone(), msg);
+        whatsappService.sendText(order.getPhone(), msg);
+    }
+
+    private void notifyOtherDrivers(long orderId, String claimingDriverPhone) {
+        String msg = "🚫 הזמנה #%d נלקחה".formatted(orderId);
+        driverService.getActiveDrivers(DriverType.TAXI).forEach(driver -> {
+            if (!driver.getPhone().equals(claimingDriverPhone)) {
+                try {
+                    whatsappService.sendText(driver.getPhone(), msg);
+                } catch (UnsupportedEncodingException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
     }
 }
