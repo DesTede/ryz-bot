@@ -26,9 +26,11 @@ public class TaxiOrderService {
 
         taxiOrderRepo.save(taxiOrder);
 
+
         broadcastToDrivers(taxiOrder);
         return
                 """
+                הודעה ללקוח על הזמנה שנוצרה:
                 ✅ ההזמנה התקבלה!
                 🚕 מאיפה: %s
                 🎯 לאן: %s
@@ -36,14 +38,16 @@ public class TaxiOrderService {
     }
     
     public void broadcastToDrivers(TaxiOrder order) throws UnsupportedEncodingException {
+
         String msg =
                 """
+        הודעת הזמנה חדשה לנהגים קרובים
         🚕 הזמנת מונית חדשה
         🆔 %d
         📍 מאיפה: %s
         🎯 לאן: %s
 
-        כתוב:
+        ללקיחת ההזמנה השב:
         לקחתי %d
         """.formatted(
                         order.getId(),
@@ -56,7 +60,11 @@ public class TaxiOrderService {
     }
 
     public String claimTaxiOrder(long orderId, String driverPhone) throws UnsupportedEncodingException {
-        TaxiOrder order = taxiOrderRepo.findById(orderId).orElseThrow(() -> new RuntimeException("Taxi not found"));
+        
+        TaxiOrder order = taxiOrderRepo.findById(orderId).orElse(null);
+        
+        if (order == null)
+            return null;
         
         if (order.getStatus() != TaxiOrderStatus.CREATED)
             return "❌ הזמנה #" + orderId + " כבר תפוסה על ידי מישהו אחר!";
@@ -76,6 +84,7 @@ public class TaxiOrderService {
     
     private void notifyCustomer(TaxiOrder order) throws UnsupportedEncodingException {
         String msg = """
+        הודעה שנשלחת ללקוח:
         🚕 המונית בדרך!
         📍 מאיפה: %s
         🎯 לאן: %s

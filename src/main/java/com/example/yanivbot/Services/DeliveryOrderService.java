@@ -26,7 +26,7 @@ public class DeliveryOrderService {
         this.whatsappService = whatsappService;
     }
 
-    public String createDelivery(Conversation convo, String businessPhone, String notes) {
+    public String createDelivery(Conversation convo, String businessPhone, String notes) throws UnsupportedEncodingException {
         String temp = convo.getTempData();
 
         if (temp == null || temp.isBlank()) {
@@ -66,6 +66,7 @@ public class DeliveryOrderService {
         convo.setState(ConversationState.START);
 
         return """
+                הודעה על יצירת הזמנת משלוח לבעל העסק:
                 ✅ משלוח נוצר בהצלחה!
                 📦 כתובת: %s
                 💰 מחיר: %.2f₪
@@ -75,6 +76,7 @@ public class DeliveryOrderService {
 
     public void broadcastToDrivers(DeliveryOrder order) throws UnsupportedEncodingException {
         String msg = """
+                הודעה שנשלחת לכל הנהגים:
                 📦 משלוח חדש!
                 🆔 %d
                 📞 לקוח: %s
@@ -83,7 +85,7 @@ public class DeliveryOrderService {
                 💰 לגבות: %.2f₪
                 📝 הערות: %s
 
-                כתוב:
+                ללקיחת ההזמנה השב:
                 לקחתי %d
                 """.formatted(
                 order.getId(),

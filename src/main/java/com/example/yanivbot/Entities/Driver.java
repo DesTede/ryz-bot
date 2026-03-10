@@ -18,10 +18,13 @@ public class Driver {
     private long id;
     private String name;
     private String phone;
-    private boolean active;
+    private Boolean active;
     private DriverType type;
 
-    public Driver(String name, String phone, boolean active, DriverType driverType) {
+    public Driver() {
+    }
+
+    public Driver(String name, String phone, Boolean active, DriverType driverType) {
         this.name = name;
         this.phone = phone;
         this.active = active;
@@ -47,7 +50,7 @@ public class Driver {
         this.phone = phone;
     }
 
-    public boolean isActive() {
+    public Boolean isActive() {
         return active;
     }
 

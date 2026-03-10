@@ -10,5 +10,5 @@ import java.util.List;
 @Repository
 public interface DriverRepository extends JpaRepository<Driver, Long> {
     
-    List<Driver> findByActiveAndType(boolean active, DriverType type);
+    List<Driver> findByActiveAndType(Boolean active, DriverType type);
 }

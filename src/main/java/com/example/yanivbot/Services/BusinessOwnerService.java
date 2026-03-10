@@ -33,7 +33,7 @@ public class BusinessOwnerService {
     /**
      * hardcoded numbers for tests
      */
-    private static final Set<String> BusinessOwners = Set.of("972549711059");
+    private static final Set<String> BusinessOwners = Set.of("+972549711059");
     
     public boolean isBusinessOwner(String phone){
         return BusinessOwners.contains(phone);

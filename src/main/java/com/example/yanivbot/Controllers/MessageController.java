@@ -103,9 +103,15 @@ public class MessageController {
 //    @PostMapping
     private String processMessage(IncomingMessage message) throws UnsupportedEncodingException {
 
-//        if (message.isGroupMessage()) 
-//            return handleDriverGroupMessage(message);
-
+//        String txt = message.getText().trim();
+//        if (txt.matches("^לקחתי\\s+\\d+$")) {
+//            long orderId = Long.parseLong(txt.split("\\s+")[1]);
+//            // try taxi first, then delivery
+//            String taxiResult = taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
+//            if (taxiResult != null) return taxiResult;
+//            return deliveryOrderService.claimOrder(orderId, message.getPhone());
+//        }
+        
         if (message.isGroupMessage()) {
             // check if it's taxi driver group 
             String txt = message.getText().trim();
@@ -197,9 +203,9 @@ public class MessageController {
                 convoService.updateState(convo, ConversationState.START);
                 System.out.println("state after destination is:" + convo.getState());
 
-                whatsappService.sendText(message.getPhone(), "✅ הזמנת מונית התקבלה!\n" + destinationReply);
+//                whatsappService.sendText(message.getPhone(), "✅ הזמנת מונית התקבלה!\n" + destinationReply);
 
-                return destinationReply; 
+                return ""; 
 
             case DELIVERY_CUSTOMER_PHONE:
                 convoService.saveTempData(convo,message.getText());
@@ -239,11 +245,11 @@ public class MessageController {
 //                return deliveryReply;
                 convoService.updateState(convo, ConversationState.START);
 
-                String deliveryReply = deliveryOrderService.createDelivery(convo, phone, notes);
-                whatsappService.sendText(phone, "✅ הזמנת משלוח התקבלה!\n" + deliveryReply);
+                deliveryOrderService.createDelivery(convo, phone, notes);
+//                whatsappService.sendText(phone, "✅ הזמנת משלוח התקבלה!\n" + deliveryReply);
 
 //                return deliveryOrderService.createDelivery(convo, phone, notes);
-                return deliveryReply;
+                return "";
 
             default:
                 convoService.updateState(convo, ConversationState.START);
