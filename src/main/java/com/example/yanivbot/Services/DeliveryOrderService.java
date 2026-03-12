@@ -25,7 +25,7 @@ public class DeliveryOrderService {
         this.driverService = driverService;
         this.whatsappService = whatsappService;
     }
-
+ 
     public String createDelivery(Conversation convo, String businessPhone, String notes) throws UnsupportedEncodingException {
         String temp = convo.getTempData();
 
@@ -61,17 +61,19 @@ public class DeliveryOrderService {
 
         deliveryOrderRepo.save(deliveryOrder);
         broadcastToDrivers(deliveryOrder);
-
-        convo.setTempData(null);
-        convo.setState(ConversationState.START);
-
-        return """
+        
+        whatsappService.sendText(businessPhone, """
                 הודעה על יצירת הזמנת משלוח לבעל העסק:
                 ✅ משלוח נוצר בהצלחה!
                 📦 כתובת: %s
                 💰 מחיר: %.2f₪
                 📝 הערות: %s
-                """.formatted(deliveryAddress, deliveryFee, notes);
+                """.formatted(deliveryAddress, deliveryFee, notes));
+
+        convo.setTempData(null);
+        convo.setState(ConversationState.START);
+        
+        return "";
     }
 
     // need to edit after debugging

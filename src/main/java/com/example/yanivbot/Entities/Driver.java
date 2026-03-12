@@ -9,7 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@NoArgsConstructor
+//@NoArgsConstructor
 @Data
 public class Driver {
     
