@@ -74,6 +74,7 @@ public class DeliveryOrderService {
                 """.formatted(deliveryAddress, deliveryFee, notes);
     }
 
+    // need to edit after debugging
     public void broadcastToDrivers(DeliveryOrder order) throws UnsupportedEncodingException {
         String msg = """
                 הודעה שנשלחת לכל הנהגים:
