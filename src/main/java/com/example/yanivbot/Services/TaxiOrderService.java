@@ -48,7 +48,7 @@ public class TaxiOrderService {
         🎯 לאן: %s
 
         ללקיחת ההזמנה השב:
-        לקחתי %d
+        מונית %d
         """.formatted(
                         order.getId(),
                         order.getPickUpLocation(),
@@ -74,15 +74,18 @@ public class TaxiOrderService {
         taxiOrderRepo.save(order);
 
         // notify the customer 
-        notifyCustomer(order);
+        notifyTaxiCustomer(order);
         
         notifyOtherDrivers(orderId,driverPhone);
         
         
-        return "✅ המונית שויכה אליך";    
+        return "הודעה שנשלחת לנהג" +
+                "\n" +
+                "✅ נהג!" +
+                " הזמנה מספר " + orderId + " שויכה אליך";    
     }
     
-    private void notifyCustomer(TaxiOrder order) throws UnsupportedEncodingException {
+    private void notifyTaxiCustomer(TaxiOrder order) throws UnsupportedEncodingException {
         String msg = """
         הודעה שנשלחת ללקוח:
         🚕 המונית בדרך!
@@ -95,18 +98,14 @@ public class TaxiOrderService {
                 order.getDriverPhone()
         );
 
-        whatsappService.sendText(order.getPhone(), msg);
+        whatsappService.sendSafeText(order.getPhone(), msg);
     }
 
     private void notifyOtherDrivers(long orderId, String claimingDriverPhone) {
-        String msg = "🚫 הזמנה #%d נלקחה".formatted(orderId);
+        String message = "🚫 הזמנה #%d נלקחה".formatted(orderId);
         driverService.getActiveDrivers(DriverType.TAXI).forEach(driver -> {
             if (!driver.getPhone().equals(claimingDriverPhone)) {
-                try {
-                    whatsappService.sendText(driver.getPhone(), msg);
-                } catch (UnsupportedEncodingException e) {
-                    throw new RuntimeException(e);
-                }
+                whatsappService.sendSafeText(driver.getPhone(), message);
             }
         });
     }

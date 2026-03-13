@@ -2,6 +2,7 @@ package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Entities.DeliveryOrder;
+import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.DriverType;
@@ -45,7 +46,27 @@ public class DeliveryOrderService {
         String customerPhone = parts[0];
         String deliveryAddress = parts[1];
         int readyInMinutes = Integer.parseInt(parts[2].trim());
+
+        try {
+            readyInMinutes = Integer.parseInt(parts[2].trim());
+        } catch (NumberFormatException e) {
+            whatsappService.sendText(businessPhone, "❌ זמן מוכנות חייב להיות מספר. נתחיל מחדש.");
+            convo.setTempData(null);
+            convo.setState(ConversationState.START);
+            return "";
+        }
+        
         double deliveryFee = Double.parseDouble(parts[3].trim());
+
+        try {
+            deliveryFee = Double.parseDouble(parts[3].trim());
+        } catch (NumberFormatException e) {
+            whatsappService.sendText(businessPhone, "❌ מחיר חייב להיות מספר. נתחיל מחדש.");
+            convo.setTempData(null);
+            convo.setState(ConversationState.START);
+            return "";
+        }
+        
         String finalNotes = notes.equals("אין") ? null : notes;
 
         DeliveryOrder deliveryOrder = new DeliveryOrder(
@@ -76,6 +97,8 @@ public class DeliveryOrderService {
         return "";
     }
 
+    
+
     // need to edit after debugging
     public void broadcastToDrivers(DeliveryOrder order) throws UnsupportedEncodingException {
         String msg = """
@@ -89,7 +112,7 @@ public class DeliveryOrderService {
                 📝 הערות: %s
 
                 ללקיחת ההזמנה השב:
-                לקחתי %d
+                משלוח %d
                 """.formatted(
                 order.getId(),
                 order.getCustomerPhone(),
@@ -107,7 +130,7 @@ public class DeliveryOrderService {
                 .findByIdAndDeliveryStatus(orderId, DeliveryStatus.CREATED);
 
         if (optionalOrder.isEmpty())
-            return "❌ Order #" + orderId + " כבר תפוס על ידי מישהו אחר!";
+            return "❌ משלוח #" + orderId + " כבר תפוס על ידי מישהו אחר!";
 
         DeliveryOrder order = optionalOrder.get();
         order.setPickedUpBy(driverPhone);
@@ -115,16 +138,40 @@ public class DeliveryOrderService {
         deliveryOrderRepo.save(order);
 
         notifyOtherDrivers(orderId, driverPhone);
-
+        
+        try {
+            notifyCustomer(order);
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
         return """
-                ✅ הזמנה #%d תפוסה על ידי %s
+                הודעה שנשלחת לנהג:
+                ✅ הזמנה #%d שויכה אליך!
                 📦 כתובת: %s
                 💰 מחיר: %.2f₪
-                """.formatted(order.getId(), driverPhone, order.getDeliveryAddress(), order.getDeliveryFee());
+                """.formatted(order.getId(), order.getDeliveryAddress(), order.getDeliveryFee());
     }
 
+    // probably delete this
+    private void notifyCustomer(DeliveryOrder order) throws UnsupportedEncodingException {
+        String customerPhone = whatsappService.normalizePhone(order.getCustomerPhone());
+        String msg = """
+                הודעה שנשלחת ללקוח:
+                🛵 המשלוח בדרך!
+                📍 מאיפה: %s
+                🎯 לאן: %s
+                נהג: %s
+                """.formatted(
+                order.getBusinessPhone(),
+                order.getDeliveryAddress(),
+                order.getPickedUpBy()
+        );
+
+        whatsappService.sendText(customerPhone, msg);
+    }
+    
     private void notifyOtherDrivers(long orderId, String claimingDriverPhone) {
-        String msg = "🚫 הזמנה #%d נלקחה".formatted(orderId);
+        String msg = "🚫 הזמנה #%d נלקחה על ידי נהג אחר".formatted(orderId);
         driverService.getActiveDrivers(DriverType.DELIVERY).forEach(driver -> {
             if (!driver.getPhone().equals(claimingDriverPhone)) {
                 try {

@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@NoArgsConstructor
+//@NoArgsConstructor
 @Data
 public class TaxiOrder {
     
@@ -33,7 +33,10 @@ public class TaxiOrder {
         this.createdAt = LocalDateTime.now();
     }
 
-    public TaxiOrder(String phone, 
+    public TaxiOrder() {
+    }
+
+    public TaxiOrder(String phone,
                      String pickUpLocation, String destination) {
         this.phone = phone;
         this.pickUpLocation = pickUpLocation;

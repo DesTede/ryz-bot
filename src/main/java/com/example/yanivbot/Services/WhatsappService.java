@@ -34,6 +34,13 @@ public class WhatsappService {
     private final RestTemplate restTemplate = new RestTemplate();
 
     
+    public void sendSafeText(String to, String message){
+        try {
+            sendText(to, message);
+        } catch (Exception e) {
+            System.err.println("Failed to send message to " + to + ": " + e.getMessage());
+        }
+    }
     // for testing:
     public void sendText(String to, String message) throws UnsupportedEncodingException {
         String accountSid = twilioAccountSid;
@@ -51,8 +58,12 @@ public class WhatsappService {
 
         restTemplate.exchange(url, HttpMethod.POST, request, String.class);
     }
-    
 
+    /**
+     * Meta webhook
+     * @param payload
+     * @return
+     */
 //    public void sendText(String to, String message) {
 //
 //        System.out.println("Attempting to send to: [" + to + "]");
@@ -116,6 +127,23 @@ public class WhatsappService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    public String normalizePhone(String phone) {
+        // Remove any spaces or dashes
+        phone = phone.replaceAll("[\\s\\-]", "");
+
+        // Israeli number starting with 0 → replace with 972
+        if (phone.startsWith("0")) {
+            phone = "972" + phone.substring(1);
+        }
+
+        // Add + if missing
+        if (!phone.startsWith("+")) {
+            phone = "+" + phone;
+        }
+
+        return phone;
     }
     
     

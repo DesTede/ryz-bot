@@ -83,6 +83,7 @@ public class MessageController {
             IncomingMessage message = whatsappService.parseIncomingMessage(payload);
 
             if (message == null) {
+                System.out.println("EVENT_RECEIVED");
                 return ResponseEntity.ok("EVENT_RECEIVED");
             }
 
@@ -103,24 +104,23 @@ public class MessageController {
 //    @PostMapping
     private String processMessage(IncomingMessage message) throws UnsupportedEncodingException {
 
-        String txt = message.getText().trim();
-        if (txt.matches("^לקחתי\\s+\\d+$")) {
-            long orderId = Long.parseLong(txt.split("\\s+")[1]);
-            // try taxi first, then delivery
-            String taxiResult = taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
-            if (taxiResult != null) return taxiResult;
-            return deliveryOrderService.claimOrder(orderId, message.getPhone());
+        if (message.getText() == null || message.getText().isBlank()) {
+            return "⚠️ אנא שלח הודעת טקסט בלבד";
         }
         
-        if (message.isGroupMessage()) {
-            // check if it's taxi driver group 
-//            String txt = message.getText().trim();
-            if (txt.matches("^לקחתי\\s+\\d+$")) {
-                // taxi driver claiming an order
-                return handleTaxiDriverGroupMessage(message);
-            }
-            // fallback to delivery driver group
-            return handleDriverGroupMessage(message);
+        String txt = message.getText().trim();
+        
+        if (txt.matches("^מונית\\s+\\d+$")) {
+            long orderId = Long.parseLong(txt.split("\\s+")[1]);
+            // try taxi first, then delivery
+//            String taxiResult = taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
+//            if (taxiResult != null) return taxiResult;
+            return taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
+        }
+        
+        if (txt.matches("^משלוח\\s+\\d+$")) {
+            long orderId = Long.parseLong(txt.split("\\s+")[1]);
+            return deliveryOrderService.claimOrder(orderId, message.getPhone());
         }
 //        System.out.println("phone: " + message.getPhone());
         Conversation convo = convoService.getOrCreate(message.getPhone());
@@ -135,6 +135,7 @@ public class MessageController {
                     return
                             "שלום \uD83D\uDC4B " +
                                     "בחר שירות:" +
+                                    "\n" +
                                     "עבור מונית - 1" +
                                     " עבור יצירת משלוח - 2";
 
@@ -144,6 +145,7 @@ public class MessageController {
                 return
                          "שלום \uD83D\uDC4B " +
                                 "בחר שירות:" +
+                                 "\n" +
                                  "עבור מונית לחץ - 1";
 
 
@@ -224,12 +226,23 @@ public class MessageController {
                         "⏱️ עוד כמה דקות מוכן?";
 
             case DELIVERY_READY_TIME:
+                try {
+                    Integer.parseInt(message.getText().trim());
+                } catch (NumberFormatException e) {
+                    return "⚠️ אנא הכנס מספר בלבד (לדוגמה: 30)";
+                }
                 convo.setTempData(convo.getTempData() + "|" + message.getText());
                 convoService.updateState(convo,ConversationState.DELIVERY_PRICE);
                 return
                         "💰 כמה לגבות מהלקוח?";
 
             case DELIVERY_PRICE:
+                try {
+                    Double.parseDouble(message.getText().trim());
+                } catch (NumberFormatException e) {
+                    return "⚠️ אנא הכנס מספר בלבד (לדוגמה: 50)";
+                }
+                
                 convo.setTempData(convo.getTempData() + "|" + message.getText());
                 convoService.updateState(convo, ConversationState.DELIVERY_NOTES);
 
@@ -301,6 +314,11 @@ public class MessageController {
             String from = params.get("From").replace("whatsapp:", "");
             String body = params.get("Body");
 
+            if (body == null || body.isBlank()) {
+                whatsappService.sendText(from, "⚠️ אנא שלח הודעת טקסט בלבד");
+                return ResponseEntity.ok("EVENT_RECEIVED");
+            }
+            
             IncomingMessage message = new IncomingMessage();
             message.setPhone(from);
             message.setText(body);
