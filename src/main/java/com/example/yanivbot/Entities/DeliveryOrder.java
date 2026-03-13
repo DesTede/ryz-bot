@@ -119,7 +119,6 @@ public class DeliveryOrder {
         this.notes = notes;
     }
 
-    
 
     
 }

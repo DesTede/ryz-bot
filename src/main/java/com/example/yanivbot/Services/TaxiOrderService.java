@@ -14,11 +14,14 @@ public class TaxiOrderService {
     private final TaxiOrderRepository taxiOrderRepo;
     private final WhatsappService whatsappService;
     private final DriverService driverService;
+    private final GeoCodingService geoCodingService;
 
-    public TaxiOrderService(TaxiOrderRepository taxiOrderRepo, WhatsappService whatsappService, DriverService driverService) {
+    public TaxiOrderService(TaxiOrderRepository taxiOrderRepo, WhatsappService whatsappService,
+                            DriverService driverService, GeoCodingService geoCodingService) {
         this.taxiOrderRepo = taxiOrderRepo;
         this.whatsappService = whatsappService;
         this.driverService = driverService;
+        this.geoCodingService = geoCodingService;
     }
 
     public String createTaxiOrder(String customerPhone, String pickUp, String destination) throws UnsupportedEncodingException {
@@ -56,7 +59,14 @@ public class TaxiOrderService {
                         order.getId()
                 );
         
-        driverService.dispatchToDrivers(DriverType.TAXI,msg);
+        double[] coords = geoCodingService.geocode(order.getPickUpLocation());
+
+        if (coords != null) {
+            driverService.dispatchToClosestDrivers(DriverType.TAXI, msg, coords[0], coords[1]);
+        } else {
+            // fallback to all drivers if geocoding fails
+            driverService.dispatchToDrivers(DriverType.TAXI, msg);
+        }
     }
 
     public String claimTaxiOrder(long orderId, String driverPhone) throws UnsupportedEncodingException {

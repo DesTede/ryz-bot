@@ -18,13 +18,15 @@ public class DeliveryOrderService {
     private final DeliveryOrderRepository deliveryOrderRepo;
     private final DriverService driverService;
     private final WhatsappService whatsappService;
+    private final GeoCodingService geoCodingService;
 
     public DeliveryOrderService(DeliveryOrderRepository deliveryOrderRepo,
                                 DriverService driverService,
-                                WhatsappService whatsappService) {
+                                WhatsappService whatsappService, GeoCodingService geoCodingService) {
         this.deliveryOrderRepo = deliveryOrderRepo;
         this.driverService = driverService;
         this.whatsappService = whatsappService;
+        this.geoCodingService = geoCodingService;
     }
  
     public String createDelivery(Conversation convo, String businessPhone, String notes) throws UnsupportedEncodingException {
@@ -122,7 +124,9 @@ public class DeliveryOrderService {
                 order.getNotes() != null ? order.getNotes() : "אין",
                 order.getId()
         );
-        driverService.dispatchToDrivers(DriverType.DELIVERY, msg);
+        
+        driverService.dispatchToDrivers(DriverType.TAXI, msg);
+            
     }
 
     public String claimOrder(long orderId, String driverPhone) {
