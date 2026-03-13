@@ -8,7 +8,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
 
@@ -38,7 +37,7 @@ public class MessageController {
 
 
     @GetMapping("/start-session")
-    public ResponseEntity<String> startSession() throws UnsupportedEncodingException {
+    public ResponseEntity<String> startSession() {
         String testPhoneNumber = "972549711059"; // include country code, e.g., 9725xxxxxxx
         String message = "Hello from bot — initiating session";
 
@@ -105,7 +104,7 @@ public class MessageController {
     
     
 //    @PostMapping
-    private String processMessage(IncomingMessage message) throws UnsupportedEncodingException {
+    private String processMessage(IncomingMessage message) {
 
         if (message.getText() == null || message.getText().isBlank()) {
             return "⚠️ אנא שלח הודעת טקסט בלבד";

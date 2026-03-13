@@ -15,12 +15,24 @@ public class Business {
     private long id;
     private String name;
     private String phone;
+    private String address;
     private Boolean active;
+
+    public Business(String name, String phone, String address, Boolean active) {
+        this.name = name;
+        this.phone = phone;
+        this.address = address;
+        this.active = active;
+    }
 
     public Business(String name, String phone, Boolean active) {
         this.name = name;
         this.phone = phone;
         this.active = active;
+    }
+
+    public long getId() {
+        return id;
     }
 
     public String getName() {
@@ -45,5 +57,13 @@ public class Business {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
     }
 }

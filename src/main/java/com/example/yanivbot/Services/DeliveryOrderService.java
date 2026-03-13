@@ -9,7 +9,6 @@ import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import org.springframework.stereotype.Service;
 
-import java.io.UnsupportedEncodingException;
 import java.util.Optional;
 
 @Service
@@ -17,19 +16,21 @@ public class DeliveryOrderService {
 
     private final DeliveryOrderRepository deliveryOrderRepo;
     private final DriverService driverService;
+    private final BusinessOwnerService businessOwnerService;
     private final WhatsappService whatsappService;
     private final GeoCodingService geoCodingService;
 
     public DeliveryOrderService(DeliveryOrderRepository deliveryOrderRepo,
-                                DriverService driverService,
+                                DriverService driverService, BusinessOwnerService businessOwnerService,
                                 WhatsappService whatsappService, GeoCodingService geoCodingService) {
         this.deliveryOrderRepo = deliveryOrderRepo;
         this.driverService = driverService;
+        this.businessOwnerService = businessOwnerService;
         this.whatsappService = whatsappService;
         this.geoCodingService = geoCodingService;
     }
  
-    public String createDelivery(Conversation convo, String businessPhone, String notes) throws UnsupportedEncodingException {
+    public String createDelivery(Conversation convo, String businessPhone, String notes) {
         String temp = convo.getTempData();
 
         if (temp == null || temp.isBlank()) {
@@ -83,7 +84,15 @@ public class DeliveryOrderService {
         );
 
         deliveryOrderRepo.save(deliveryOrder);
-        broadcastToDrivers(deliveryOrder);
+
+        String businessAddress = businessOwnerService.getBusinessAddress(businessPhone);
+        double[] coords = businessAddress != null ? geoCodingService.geocode(businessAddress) : null;
+
+        if (coords != null) {
+            broadcastToClosestDrivers(deliveryOrder, coords[0], coords[1]);
+        } else {
+            broadcastToDrivers(deliveryOrder);
+        }
         
         whatsappService.sendText(businessPhone, """
                 הודעה על יצירת הזמנת משלוח לבעל העסק:
@@ -99,11 +108,19 @@ public class DeliveryOrderService {
         return "";
     }
 
-    
+    public void broadcastToClosestDrivers(DeliveryOrder order, double lat, double lng)  {
+        String msg = buildDispatchMessage(order);
+        driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, lat, lng);
+    }
+
+    public void broadcastToDrivers(DeliveryOrder order)  {
+        String msg = buildDispatchMessage(order);
+        driverService.dispatchToDrivers(DriverType.DELIVERY, msg);
+    }
 
     // need to edit after debugging
-    public void broadcastToDrivers(DeliveryOrder order) throws UnsupportedEncodingException {
-        String msg = """
+    public String  buildDispatchMessage(DeliveryOrder order) {
+        return  """
                 הודעה שנשלחת לכל הנהגים:
                 📦 משלוח חדש!
                 🆔 %d
@@ -124,9 +141,6 @@ public class DeliveryOrderService {
                 order.getNotes() != null ? order.getNotes() : "אין",
                 order.getId()
         );
-        
-        driverService.dispatchToDrivers(DriverType.TAXI, msg);
-            
     }
 
     public String claimOrder(long orderId, String driverPhone) {
@@ -143,11 +157,8 @@ public class DeliveryOrderService {
 
         notifyOtherDrivers(orderId, driverPhone);
         
-        try {
-            notifyCustomer(order);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
+        notifyCustomer(order);
+        
         return """
                 הודעה שנשלחת לנהג:
                 ✅ הזמנה #%d שויכה אליך!
@@ -157,7 +168,7 @@ public class DeliveryOrderService {
     }
 
     // probably delete this
-    private void notifyCustomer(DeliveryOrder order) throws UnsupportedEncodingException {
+    private void notifyCustomer(DeliveryOrder order) {
         String customerPhone = whatsappService.normalizePhone(order.getCustomerPhone());
         String msg = """
                 הודעה שנשלחת ללקוח:
@@ -178,11 +189,7 @@ public class DeliveryOrderService {
         String msg = "🚫 הזמנה #%d נלקחה על ידי נהג אחר".formatted(orderId);
         driverService.getActiveDrivers(DriverType.DELIVERY).forEach(driver -> {
             if (!driver.getPhone().equals(claimingDriverPhone)) {
-                try {
-                    whatsappService.sendText(driver.getPhone(), msg);
-                } catch (UnsupportedEncodingException e) {
-                    throw new RuntimeException(e);
-                }
+                whatsappService.sendText(driver.getPhone(), msg);
             }
         });
     }

@@ -6,7 +6,6 @@ import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import org.springframework.stereotype.Service;
 
-import java.io.UnsupportedEncodingException;
 
 @Service
 public class TaxiOrderService {
@@ -24,7 +23,7 @@ public class TaxiOrderService {
         this.geoCodingService = geoCodingService;
     }
 
-    public String createTaxiOrder(String customerPhone, String pickUp, String destination) throws UnsupportedEncodingException {
+    public String createTaxiOrder(String customerPhone, String pickUp, String destination) {
         TaxiOrder taxiOrder = new TaxiOrder(customerPhone,pickUp, destination);
 
         taxiOrderRepo.save(taxiOrder);
@@ -40,7 +39,7 @@ public class TaxiOrderService {
                 """.formatted(pickUp, destination);
     }
     
-    public void broadcastToDrivers(TaxiOrder order) throws UnsupportedEncodingException {
+    public void broadcastToDrivers(TaxiOrder order) {
 
         String msg =
                 """
@@ -69,7 +68,7 @@ public class TaxiOrderService {
         }
     }
 
-    public String claimTaxiOrder(long orderId, String driverPhone) throws UnsupportedEncodingException {
+    public String claimTaxiOrder(long orderId, String driverPhone) {
         
         TaxiOrder order = taxiOrderRepo.findById(orderId).orElse(null);
         
@@ -95,7 +94,7 @@ public class TaxiOrderService {
                 " הזמנה מספר " + orderId + " שויכה אליך";    
     }
     
-    private void notifyTaxiCustomer(TaxiOrder order) throws UnsupportedEncodingException {
+    private void notifyTaxiCustomer(TaxiOrder order) {
         String msg = """
         הודעה שנשלחת ללקוח:
         🚕 המונית בדרך!

@@ -6,7 +6,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -42,13 +42,13 @@ public class WhatsappService {
         }
     }
     // for testing:
-    public void sendText(String to, String message) throws UnsupportedEncodingException {
+    public void sendText(String to, String message)  {
         String accountSid = twilioAccountSid;
         String url = "https://api.twilio.com/2010-04-01/Accounts/" + accountSid + "/Messages.json";
 
         String body = "From=whatsapp:" + twilioWhatsappNumber.replace("+","") +
                 "&To=whatsapp:%2B" + to.replace("+","") +
-                "&Body=" + java.net.URLEncoder.encode(message,"UTF-8");
+                "&Body=" + java.net.URLEncoder.encode(message, StandardCharsets.UTF_8);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBasicAuth(twilioAccountSid, twilioAuthToken);

@@ -17,10 +17,17 @@ public class BusinessOwnerService {
     public BusinessOwnerService(BusinessRepository businessRepo) {
         this.businessRepo = businessRepo;
     }
-    
-//    public boolean isBusinessOwner(String phone){
-//        return businessRepo.findByPhone(phone).map(Business::getActive).orElse(false);
-//    }
+
+    /**
+     * hardcoded numbers for tests
+     */
+    private static final Set<String> BusinessOwners = Set.of("+972586976238");
+
+//    private static final Set<String> BusinessOwners = Set.of("+972586976238");
+
+    public boolean isBusinessOwner(String phone){
+        return BusinessOwners.contains(phone);
+    }
     
     public List<Business> getActiveBusiness(){
         return businessRepo.findByActiveTrue();
@@ -29,15 +36,10 @@ public class BusinessOwnerService {
     public List<Business> getAllBusinesses(){
         return businessRepo.findAll();
     }
-
-    /**
-     * hardcoded numbers for tests
-     */
-    private static final Set<String> BusinessOwners = Set.of("+972586976238");
     
-//    private static final Set<String> BusinessOwners = Set.of("+972586976238");
-    
-    public boolean isBusinessOwner(String phone){
-        return BusinessOwners.contains(phone);
+    public String getBusinessAddress(String phone){
+        return businessRepo.findByPhone(phone).map(Business::getAddress).orElse(null);
     }
+
+    
 }

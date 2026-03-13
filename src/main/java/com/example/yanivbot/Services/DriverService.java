@@ -6,7 +6,6 @@ import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Repositories.DriverRepository;
 import org.springframework.stereotype.Service;
 
-import java.io.UnsupportedEncodingException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -21,7 +20,7 @@ public class DriverService {
         this.whatsappService = whatsappService;
     }
 
-    public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng) throws UnsupportedEncodingException {
+    public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng) {
         List<Driver> drivers = getClosestDrivers(type, lat, lng, 5);
 
         if (drivers.isEmpty()) {
@@ -34,7 +33,7 @@ public class DriverService {
         }
     }
 
-    public void dispatchToDrivers(DriverType type, String message) throws UnsupportedEncodingException {
+    public void dispatchToDrivers(DriverType type, String message) {
         List<Driver> drivers = driverRepo.findByActiveAndType(true, type);
         for (Driver driver : drivers) {
             whatsappService.sendText(driver.getPhone(), message);
