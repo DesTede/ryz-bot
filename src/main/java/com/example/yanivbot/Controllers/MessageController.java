@@ -17,6 +17,7 @@ import java.util.Map;
 public class MessageController {
     
     private final ConversationService convoService;
+    private final DriverService driverService;
     private final TaxiOrderService taxiOrderService;
     private final BusinessOwnerService businessOwnerService;
     private final DeliveryOrderService deliveryOrderService;
@@ -25,12 +26,14 @@ public class MessageController {
     public MessageController(ConversationService convoService,
                              TaxiOrderService taxiOrderService,
                              BusinessOwnerService businessOwnerService,
-                             DeliveryOrderService deliveryOrderService, WhatsappService whatsappService) {
+                             DeliveryOrderService deliveryOrderService,
+                             WhatsappService whatsappService, DriverService driverService) {
         this.convoService = convoService;
         this.taxiOrderService = taxiOrderService;
         this.businessOwnerService = businessOwnerService;
         this.deliveryOrderService = deliveryOrderService;
         this.whatsappService = whatsappService;
+        this.driverService = driverService;
     }
 
 
@@ -274,35 +277,8 @@ public class MessageController {
 
     }
     
-    private String handleDriverGroupMessage(IncomingMessage message){
-        String txt = message.getText().trim();
-        
-        if (txt.matches("^לקחתי\\s+\\d+$")){
-            long orderId = Long.parseLong(txt.split("\\s+ ")[1]);
-            return deliveryOrderService.claimOrder(orderId, message.getPhone());
-        }
-        
-        return "";
-    }
-
     
-    private String handleTaxiDriverGroupMessage(IncomingMessage message) throws UnsupportedEncodingException {
-        String txt = message.getText().trim();
-
-        if (txt.matches("^לקחתי\\s+\\d+$")){
-            long orderId = Long.parseLong(txt.split("\\s+ ")[1]);
-            
-            String reply = taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
-
-            
-//            String customerPhone = taxiOrderService.getCustomerPhone(orderId);
-
-            whatsappService.sendText(message.getPhone(), "🚖 המונית שלך נלקחה ע״י הנהג!");
-
-        }
-
-        return "";
-    }
+    
 
     @PostMapping(value = "/twilio", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public ResponseEntity<String> receiveTwilioWebhook(
@@ -310,8 +286,20 @@ public class MessageController {
 
         System.out.println("TWILIO WEBHOOK RECEIVED: " + params);
 
+        
+        
         try {
             String from = params.get("From").replace("whatsapp:", "");
+
+            String latitude = params.get("Latitude");
+            String longitude = params.get("Longitude");
+
+            if (latitude != null && longitude != null) {
+                driverService.updateDriverLocation(from, Double.parseDouble(latitude), Double.parseDouble(longitude));
+                whatsappService.sendText(from, "📍 המיקום שלך עודכן!");
+                return ResponseEntity.ok("EVENT_RECEIVED");
+            }
+            
             String body = params.get("Body");
 
             if (body == null || body.isBlank()) {
