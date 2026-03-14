@@ -24,7 +24,9 @@ public class DriverService {
         List<Driver> drivers = getClosestDrivers(type, lat, lng, 5);
 
         if (drivers.isEmpty()) {
-            System.out.println("No drivers found for type " + type);
+            System.err.println("No drivers location found for type " + type + " falling back to all drivers");
+            dispatchToDrivers(type, message); // fallback
+
             return;
         }
 

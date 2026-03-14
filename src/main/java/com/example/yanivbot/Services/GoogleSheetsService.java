@@ -77,7 +77,7 @@ public class GoogleSheetsService {
 
     private void syncBusinesses() throws Exception {
         ValueRange response = sheetsService.spreadsheets().values()
-                .get(sheetId, "Businesses!A2:D")
+                .get(sheetId, "עסקים!A2:D")
                 .execute();
 
         List<List<Object>> rows = response.getValues();
@@ -101,7 +101,7 @@ public class GoogleSheetsService {
 
     private void syncDrivers() throws Exception {
         ValueRange response = sheetsService.spreadsheets().values()
-                .get(sheetId, "Drivers!A2:D")
+                .get(sheetId, "נהגים!A2:D")
                 .execute();
 
         List<List<Object>> rows = response.getValues();

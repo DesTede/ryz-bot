@@ -29,4 +29,9 @@ public class ConversationService {
         convo.setTempData(data);
         convoRepo.save(convo);
     }
+    
+    public void updateStateByPhone(String phone, ConversationState state){
+        Conversation convo = getOrCreate(phone);
+        updateState(convo, state);
+    }
 }

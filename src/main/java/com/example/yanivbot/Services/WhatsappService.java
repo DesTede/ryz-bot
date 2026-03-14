@@ -130,20 +130,43 @@ public class WhatsappService {
     }
 
     public String normalizePhone(String phone) {
-        // Remove any spaces or dashes
+
+        // Remove any spaces, dashes or + 
         phone = phone.replaceAll("[\\s\\-]", "");
+
+        // Remove + if present to normalize
+        if (phone.startsWith("+")) {
+            phone = phone.substring(1);
+        }
 
         // Israeli number starting with 0 → replace with 972
         if (phone.startsWith("0")) {
             phone = "972" + phone.substring(1);
         }
 
-        // Add + if missing
-        if (!phone.startsWith("+")) {
-            phone = "+" + phone;
+        // Israeli number starting with 5 (no country code, no leading 0)
+        if (phone.startsWith("5")) {
+            phone = "972" + phone;
         }
 
-        return phone;
+        // Add + back
+        return "+" + phone;
+        
+        
+//        // Remove any spaces or dashes
+//        phone = phone.replaceAll("[\\s\\-]", "");
+//
+//        // Israeli number starting with 0 → replace with 972
+//        if (phone.startsWith("0")) {
+//            phone = "972" + phone.substring(1);
+//        }
+//
+//        // Add + if missing
+//        if (!phone.startsWith("+")) {
+//            phone = "+" + phone;
+//        }
+//
+//        return phone;
     }
     
     

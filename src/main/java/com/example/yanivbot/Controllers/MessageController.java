@@ -250,23 +250,24 @@ public class MessageController {
 
                 return
                         "📝 יש הערות למשלוח? (או כתוב 'אין')";
-
-
+                
             case DELIVERY_NOTES:
                 String notes = message.getText();
                 String phone = message.getPhone();
-
-//                String deliveryReply = deliveryOrderService.createDelivery(convo, phone, notes);
-//                return deliveryReply;
                 
                 convoService.updateState(convo, ConversationState.START);
 
                 deliveryOrderService.createDelivery(convo, phone, notes);
-//                whatsappService.sendText(phone, "✅ הזמנת משלוח התקבלה!\n" + deliveryReply);
-
-//                return deliveryOrderService.createDelivery(convo, phone, notes);
                 return "";
 
+            case AWAITING_TAXI_CONFIRMATION:
+                if (message.getText().trim().equals("אישור")) {
+                    return taxiOrderService.confirmByCustomer(message.getPhone());
+                } else if (message.getText().trim().equals("ביטול")) {
+                    return taxiOrderService.cancelByCustomer(message.getPhone());
+                }
+                return "אנא שלח אישור או ביטול";
+                
             default:
                 convoService.updateState(convo, ConversationState.START);
                 return 

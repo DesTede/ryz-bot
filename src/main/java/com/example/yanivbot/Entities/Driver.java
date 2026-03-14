@@ -1,10 +1,7 @@
 package com.example.yanivbot.Entities;
 
 import com.example.yanivbot.Models.DriverType;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -21,6 +18,8 @@ public class Driver {
     private String name;
     private String phone;
     private Boolean active;
+    
+    @Enumerated(EnumType.STRING)
     private DriverType type;
     private double latitude;
     private double longitude;

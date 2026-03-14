@@ -2,7 +2,6 @@ package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Entities.DeliveryOrder;
-import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.DriverType;
@@ -48,8 +47,8 @@ public class DeliveryOrderService {
 
         String customerPhone = parts[0];
         String deliveryAddress = parts[1];
-        int readyInMinutes = Integer.parseInt(parts[2].trim());
-
+        int readyInMinutes;
+        
         try {
             readyInMinutes = Integer.parseInt(parts[2].trim());
         } catch (NumberFormatException e) {
@@ -59,7 +58,7 @@ public class DeliveryOrderService {
             return "";
         }
         
-        double deliveryFee = Double.parseDouble(parts[3].trim());
+        double deliveryFee;
 
         try {
             deliveryFee = Double.parseDouble(parts[3].trim());
@@ -167,6 +166,9 @@ public class DeliveryOrderService {
                 """.formatted(order.getId(), order.getDeliveryAddress(), order.getDeliveryFee());
     }
 
+    
+    
+    
     // probably delete this
     private void notifyCustomer(DeliveryOrder order) {
         String customerPhone = whatsappService.normalizePhone(order.getCustomerPhone());
@@ -182,14 +184,14 @@ public class DeliveryOrderService {
                 order.getPickedUpBy()
         );
 
-        whatsappService.sendText(customerPhone, msg);
+        whatsappService.sendSafeText(customerPhone, msg);
     }
     
     private void notifyOtherDrivers(long orderId, String claimingDriverPhone) {
         String msg = "🚫 הזמנה #%d נלקחה על ידי נהג אחר".formatted(orderId);
         driverService.getActiveDrivers(DriverType.DELIVERY).forEach(driver -> {
             if (!driver.getPhone().equals(claimingDriverPhone)) {
-                whatsappService.sendText(driver.getPhone(), msg);
+                whatsappService.sendSafeText(driver.getPhone(), msg);
             }
         });
     }
