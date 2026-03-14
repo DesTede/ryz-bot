@@ -111,7 +111,15 @@ public class MessageController {
         }
         
         String txt = message.getText().trim();
-        
+
+        if (txt.equals("התחל מחדש") || txt.equals("תפריט") || txt.equals("0")) {
+            Conversation convo = convoService.getOrCreate(message.getPhone());
+            convo.setTempData(null);
+            convoService.updateState(convo, ConversationState.START);
+            return "🔄 מתחילים מחדש! שלח כל הודעה להתחלה.";
+        }
+
+        // Driver claim checks
         if (txt.matches("^מונית\\s+\\d+$")) {
             long orderId = Long.parseLong(txt.split("\\s+")[1]);
             // try taxi first, then delivery
@@ -139,7 +147,8 @@ public class MessageController {
                                     "בחר שירות:" +
                                     "\n" +
                                     "עבור מונית - 1" +
-                                    " עבור יצירת משלוח - 2";
+                                    " עבור יצירת משלוח - 2" +
+                                    "_(שלח 0 בכל עת לתפריט הראשי)_";
 
                 }
 //                System.out.println("state after hello is:" + convo.getState());
@@ -148,7 +157,8 @@ public class MessageController {
                          "שלום \uD83D\uDC4B " +
                                 "בחר שירות:" +
                                  "\n" +
-                                 "עבור מונית לחץ - 1";
+                                 "עבור מונית לחץ - 1" +
+                                 "_(שלח 0 בכל עת לתפריט הראשי)_";
 
 
             case BUSINESS_MENU:
@@ -200,15 +210,11 @@ public class MessageController {
                 String pickUp = convo.getTempData();
                 String destination = message.getText();
 
-                String destinationReply = taxiOrderService.
-                        createTaxiOrder(message.getPhone(), pickUp, destination);
+                taxiOrderService.createTaxiOrder(message.getPhone(), pickUp, destination);
 
                 convo.setTempData(null);
                 convoService.updateState(convo, ConversationState.START);
                 System.out.println("state after destination is:" + convo.getState());
-
-//                whatsappService.sendText(message.getPhone(), "✅ הזמנת מונית התקבלה!\n" + destinationReply);
-
                 return ""; 
 
             case DELIVERY_CUSTOMER_PHONE:
