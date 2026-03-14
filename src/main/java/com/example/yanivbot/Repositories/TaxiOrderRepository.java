@@ -4,10 +4,16 @@ import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface TaxiOrderRepository extends JpaRepository<TaxiOrder, Long> {
     
     Optional<TaxiOrder> findByPhoneAndStatus (String phone, TaxiOrderStatus status);
+    
+    List<TaxiOrder> findByStatus(TaxiOrderStatus status);
+    
+    List<TaxiOrder> findAllByOrderByCreatedAtDesc();
+    
     
 }

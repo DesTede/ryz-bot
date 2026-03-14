@@ -5,7 +5,6 @@ import com.example.yanivbot.Repositories.BusinessRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("/admin/businesses")
@@ -17,11 +16,7 @@ public class BusinessController {
         this.businessRepository = businessRepository;
     }
 
-    // GET /admin/businesses
-    @GetMapping
-    public List<Business> getAllBusinesses() {
-        return businessRepository.findAll();
-    }
+    
 
     // POST /admin/businesses
     // Body: { "name": "פיצה ישראל", "phone": "+972549711059", "address": "רוטשילד 1, תל אביב", "active": true }

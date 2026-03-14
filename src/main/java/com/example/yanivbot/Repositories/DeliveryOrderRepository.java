@@ -13,6 +13,8 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
     
     Optional<DeliveryOrder> findByIdAndDeliveryStatus(long id, DeliveryStatus status);
     
+    List<DeliveryOrder> findAllByOrderByCreatedAtDesc();
+    
     
     
 }
