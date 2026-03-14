@@ -119,6 +119,8 @@ public class TaxiOrderService {
         whatsappService.sendSafeText(order.getDriverPhone(),
                 "✅ הלקוח אישר את ההזמנה #" + order.getId());
 
+        convoService.updateStateByPhone(customerPhone, ConversationState.START);
+
         return "✅ ההזמנה אושרה! המונית בדרך אליך.";
     }
 

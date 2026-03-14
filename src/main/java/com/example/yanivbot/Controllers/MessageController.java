@@ -266,6 +266,11 @@ public class MessageController {
                 } else if (message.getText().trim().equals("ביטול")) {
                     return taxiOrderService.cancelByCustomer(message.getPhone());
                 }
+                
+                convoService.updateState(convo, ConversationState.START);
+
+                System.out.println("state after confirmation is:" + convo.getState());
+
                 return "אנא שלח אישור או ביטול";
                 
             default:
