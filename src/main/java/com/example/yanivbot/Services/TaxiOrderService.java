@@ -7,6 +7,8 @@ import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 
 @Service
 public class TaxiOrderService {
@@ -106,9 +108,14 @@ public class TaxiOrderService {
     }
 
     public String confirmByCustomer(String customerPhone) {
-        TaxiOrder order = taxiOrderRepo
-                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN)
-                .orElse(null);
+        List<TaxiOrder> orders = taxiOrderRepo
+                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN);
+        
+        if (orders.isEmpty())
+            return "❌ לא נמצאה הזמנה פעילה";
+        
+        TaxiOrder order = orders.get(0);
+                
 
         if (order == null)
             return "❌ לא נמצאה הזמנה פעילה";
@@ -125,9 +132,14 @@ public class TaxiOrderService {
     }
 
     public String cancelByCustomer(String customerPhone) {
-        TaxiOrder order = taxiOrderRepo
-                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN)
-                .orElse(null);
+        List<TaxiOrder> orders = taxiOrderRepo
+                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN);
+        
+        if (orders.isEmpty())
+            return "❌ לא נמצאה הזמנה פעילה";
+        
+        TaxiOrder order = orders.get(0); 
+                
 
         if (order == null)
             return "❌ לא נמצאה הזמנה פעילה";

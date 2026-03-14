@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public interface TaxiOrderRepository extends JpaRepository<TaxiOrder, Long> {
     
-    Optional<TaxiOrder> findByPhoneAndStatus (String phone, TaxiOrderStatus status);
+    List<TaxiOrder> findByPhoneAndStatus (String phone, TaxiOrderStatus status);
     
     List<TaxiOrder> findByStatus(TaxiOrderStatus status);
     

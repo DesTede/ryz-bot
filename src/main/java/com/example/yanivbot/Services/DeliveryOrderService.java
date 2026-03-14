@@ -83,13 +83,19 @@ public class DeliveryOrderService {
         );
 
         deliveryOrderRepo.save(deliveryOrder);
+        System.out.println("Delivery order saved with ID: " + deliveryOrder.getId());
 
         String businessAddress = businessOwnerService.getBusinessAddress(businessPhone);
+        System.out.println("Business address: " + businessAddress);
+
         double[] coords = businessAddress != null ? geoCodingService.geocode(businessAddress) : null;
+        System.out.println("Geocoding result: " + (coords != null ? coords[0] + "," + coords[1] : "null"));
 
         if (coords != null) {
+            System.out.println("Dispatching to closest drivers");
             broadcastToClosestDrivers(deliveryOrder, coords[0], coords[1]);
         } else {
+            System.out.println("Dispatching to all drivers (fallback)");
             broadcastToDrivers(deliveryOrder);
         }
         
@@ -154,8 +160,9 @@ public class DeliveryOrderService {
         order.setDeliveryStatus(DeliveryStatus.PICKED_UP);
         deliveryOrderRepo.save(order);
 
-        notifyOtherDrivers(orderId, driverPhone);
         
+        notifyOtherDrivers(orderId, driverPhone);
+        notifyBusinessOwner(order,driverPhone);
         notifyCustomer(order);
         
         return """
@@ -166,8 +173,16 @@ public class DeliveryOrderService {
                 """.formatted(order.getId(), order.getDeliveryAddress(), order.getDeliveryFee());
     }
 
-    
-    
+
+    private void notifyBusinessOwner(DeliveryOrder order, String driverPhone) {
+        String msg = """
+            הודעה שנשלחת לבעל העסק:
+            🚗 נהג נטל את ההזמנה #%d!
+            📦 כתובת: %s
+            📞 נהג: %s
+            """.formatted(order.getId(), order.getDeliveryAddress(), driverPhone);
+        whatsappService.sendSafeText(order.getBusinessPhone(), msg);
+    }
     
     // probably delete this
     private void notifyCustomer(DeliveryOrder order) {

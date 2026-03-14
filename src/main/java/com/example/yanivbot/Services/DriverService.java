@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class DriverService {
@@ -21,30 +22,33 @@ public class DriverService {
     }
 
     public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng) {
+        // max radius added
+        int maxDrivers = type == DriverType.TAXI ? 5 : 2;
         List<Driver> drivers = getClosestDrivers(type, lat, lng, 5);
 
         if (drivers.isEmpty()) {
             System.err.println("No drivers location found for type " + type + " falling back to all drivers");
             dispatchToDrivers(type, message); // fallback
-
             return;
         }
 
         for (Driver driver : drivers) {
-            whatsappService.sendText(driver.getPhone(), message);
+            whatsappService.sendSafeText(driver.getPhone(), message);
         }
     }
 
     public void dispatchToDrivers(DriverType type, String message) {
-        List<Driver> drivers = driverRepo.findByActiveAndType(true, type);
+        List<Driver> drivers = getActiveDrivers(type); 
+        System.out.println("Dispatching to " + drivers.size() + " drivers of type " + type);
+
         for (Driver driver : drivers) {
-            whatsappService.sendText(driver.getPhone(), message);
+            whatsappService.sendSafeText(driver.getPhone(), message);
         }
     }
 
     
     public List<Driver> getActiveDrivers(DriverType type) {
-        return driverRepo.findByActiveAndType(true, type);
+        return driverRepo.findByActiveAndTypeIn(true, List.of(type,DriverType.BOTH));
     }
 
     public void updateDriverLocation(String phone, double latitude, double longitude) {
@@ -57,17 +61,35 @@ public class DriverService {
     }
 
     public List<Driver> getClosestDrivers(DriverType type, double lat, double lng, int maxDrivers) {
-        List<Driver> drivers = driverRepo.findByActiveAndType(true, type);
+        List<Driver> drivers = getActiveDrivers(type);
 
-        return drivers.stream()
-                .filter(d -> false)
+        final double MAX_RADIUS_KM = 5.0;
+
+        List<Driver> closeDrivers = drivers.stream()
+                .filter(d -> d.getLatitude() != 0 && d.getLongitude() != 0)
+                .filter(d -> calculateDistance(lat, lng, d.getLatitude(), d.getLongitude()) <= MAX_RADIUS_KM)
                 .sorted((a, b) -> {
                     double distA = calculateDistance(lat, lng, a.getLatitude(), a.getLongitude());
                     double distB = calculateDistance(lat, lng, b.getLatitude(), b.getLongitude());
                     return Double.compare(distA, distB);
                 })
                 .limit(maxDrivers)
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
+
+        if (closeDrivers.isEmpty()) {
+            System.out.println("No drivers within " + MAX_RADIUS_KM + "km, falling back to all active drivers");
+            return drivers.stream()
+                    .filter(d -> d.getLatitude() != 0 && d.getLongitude() != 0)
+                    .sorted((a, b) -> {
+                        double distA = calculateDistance(lat, lng, a.getLatitude(), a.getLongitude());
+                        double distB = calculateDistance(lat, lng, b.getLatitude(), b.getLongitude());
+                        return Double.compare(distA, distB);
+                    })
+                    .limit(maxDrivers)
+                    .collect(Collectors.toList());
+        }
+
+        return closeDrivers;
     }
 
     private double calculateDistance(double lat1, double lng1, double lat2, double lng2) {

@@ -148,6 +148,7 @@ public class MessageController {
                                     "\n" +
                                     "עבור מונית - 1" +
                                     " עבור יצירת משלוח - 2" +
+                                    "\n" +
                                     "_(שלח 0 בכל עת לתפריט הראשי)_";
 
                 }
@@ -158,6 +159,7 @@ public class MessageController {
                                 "בחר שירות:" +
                                  "\n" +
                                  "עבור מונית לחץ - 1" +
+                                 "\n" +
                                  "_(שלח 0 בכל עת לתפריט הראשי)_";
 
 
@@ -308,14 +310,14 @@ public class MessageController {
             if (latitude != null && longitude != null) {
                 driverService.updateDriverLocation(from, Double.parseDouble(latitude), Double.parseDouble(longitude));
                 whatsappService.sendText(from, "📍 המיקום שלך עודכן!");
-                return ResponseEntity.ok("EVENT_RECEIVED");
+                return ResponseEntity.ok().build();
             }
             
             String body = params.get("Body");
 
             if (body == null || body.isBlank()) {
                 whatsappService.sendText(from, "⚠️ אנא שלח הודעת טקסט בלבד");
-                return ResponseEntity.ok("EVENT_RECEIVED");
+                return ResponseEntity.ok().build();
             }
             
             IncomingMessage message = new IncomingMessage();
@@ -332,6 +334,6 @@ public class MessageController {
             e.printStackTrace();
         }
 
-        return ResponseEntity.ok("EVENT_RECEIVED");
+        return ResponseEntity.ok().build();
     }
 }

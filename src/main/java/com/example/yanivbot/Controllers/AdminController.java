@@ -4,6 +4,8 @@ import com.example.yanivbot.Entities.*;
 import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.*;
+import com.example.yanivbot.Services.GoogleSheetsService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,15 +18,17 @@ public class AdminController {
     private final DeliveryOrderRepository deliveryOrderRepo;
     private final DriverRepository driverRepository;
     private final BusinessRepository businessRepository;
+    private final GoogleSheetsService googleSheetsService;
 
     public AdminController(TaxiOrderRepository taxiOrderRepo,
                            DeliveryOrderRepository deliveryOrderRepo,
                            DriverRepository driverRepository,
-                           BusinessRepository businessRepository) {
+                           BusinessRepository businessRepository, GoogleSheetsService googleSheetsService) {
         this.taxiOrderRepo = taxiOrderRepo;
         this.deliveryOrderRepo = deliveryOrderRepo;
         this.driverRepository = driverRepository;
         this.businessRepository = businessRepository;
+        this.googleSheetsService = googleSheetsService;
     }
 
     // Active taxi orders
@@ -87,5 +91,11 @@ public class AdminController {
             return deliveryOrderRepo.findByDeliveryStatus(DeliveryStatus.valueOf(status.toUpperCase()));
         }
         return deliveryOrderRepo.findAllByOrderByCreatedAtDesc();
+    }
+
+    @PostMapping("/sync")
+    public ResponseEntity<String> syncSheets() {
+        googleSheetsService.syncFromSheets();
+        return ResponseEntity.ok("Sync triggered!");
     }
 }

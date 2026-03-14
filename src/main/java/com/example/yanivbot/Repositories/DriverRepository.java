@@ -11,7 +11,7 @@ import java.util.Optional;
 @Repository
 public interface DriverRepository extends JpaRepository<Driver, Long> {
     
-    List<Driver> findByActiveAndType(Boolean active, DriverType type);
+    List<Driver> findByActiveAndTypeIn(Boolean active, List<DriverType> types);
     
     Optional<Driver> findDriverByPhone(String phone);
 }

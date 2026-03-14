@@ -21,12 +21,12 @@ public class BusinessOwnerService {
     /**
      * hardcoded numbers for tests
      */
-    private static final Set<String> BusinessOwners = Set.of("+972586976238");
+//    private static final Set<String> BusinessOwners = Set.of("+972527033557", "+972549711059");
 
 //    private static final Set<String> BusinessOwners = Set.of("+972586976238");
 
     public boolean isBusinessOwner(String phone){
-        return BusinessOwners.contains(phone);
+        return businessRepo.findByPhone(phone).map(Business::getActive).orElse(false);
     }
     
     public List<Business> getActiveBusiness(){
