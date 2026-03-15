@@ -142,11 +142,13 @@ public class MessageController {
 
                 if (businessOwnerService.isBusinessOwner(message.getPhone())) {
                     convoService.updateState(convo, ConversationState.BUSINESS_MENU);
+                    convoService.updateState(convo, ConversationState.BUSINESS_MENU);
                     return
                             "שלום \uD83D\uDC4B " +
                                     "בחר שירות:" +
                                     "\n" +
                                     "עבור מונית - 1" +
+                                    "\n" +
                                     " עבור יצירת משלוח - 2" +
                                     "\n" +
                                     "_(שלח 0 בכל עת לתפריט הראשי)_";

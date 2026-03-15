@@ -2,7 +2,6 @@ package com.example.yanivbot.Models;
 
 public enum ConversationState {
     START,
-
     AWAITING_TAXI_CONFIRMATION,
     TAXI_SERVICE,
     TAXI_PICKUP,
