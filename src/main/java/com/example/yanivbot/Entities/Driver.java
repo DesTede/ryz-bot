@@ -18,7 +18,6 @@ public class Driver {
     private String name;
     private String phone;
     private Boolean active;
-    
     @Enumerated(EnumType.STRING)
     private DriverType type;
     private double latitude;

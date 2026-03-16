@@ -27,8 +27,8 @@ public class GoogleSheetsService {
     @Value("${google.sheets.id}")
     private String sheetId;
 
-    private final BusinessRepository businessRepository;
-    private final DriverRepository driverRepository;
+    private final BusinessRepository businessRepo;
+    private final DriverRepository driverRepo;
     private final WhatsappService whatsappService;
 
     private Sheets sheetsService;
@@ -36,8 +36,8 @@ public class GoogleSheetsService {
     public GoogleSheetsService(BusinessRepository businessRepository,
                                DriverRepository driverRepository,
                                WhatsappService whatsappService) {
-        this.businessRepository = businessRepository;
-        this.driverRepository = driverRepository;
+        this.businessRepo = businessRepository;
+        this.driverRepo = driverRepository;
         this.whatsappService = whatsappService;
     }
 
@@ -83,7 +83,7 @@ public class GoogleSheetsService {
         List<List<Object>> rows = response.getValues();
         if (rows == null || rows.isEmpty()) return;
 
-        businessRepository.deleteAll();
+        businessRepo.deleteAll();
 
         for (List<Object> row : rows) {
             if (row.size() < 4) continue;
@@ -95,7 +95,7 @@ public class GoogleSheetsService {
 
             Business business = new Business(name, phone, active);
             business.setAddress(address);
-            businessRepository.save(business);
+            businessRepo.save(business);
         }
     }
 
@@ -105,20 +105,27 @@ public class GoogleSheetsService {
                 .execute();
 
         List<List<Object>> rows = response.getValues();
-        if (rows == null || rows.isEmpty()) return;
-
-        driverRepository.deleteAll();
-
+        if (rows == null || rows.isEmpty())
+            return;
+        
         for (List<Object> row : rows) {
-            if (row.size() < 4) continue;
+            if (row.size() < 3) 
+                continue;
 
             String name = row.get(0).toString();
             String phone = whatsappService.normalizePhone(row.get(1).toString().trim());
             DriverType type = DriverType.valueOf(row.get(2).toString().toUpperCase());
-            boolean active = row.get(3).toString().equalsIgnoreCase("TRUE");
 
-            Driver driver = new Driver(name, phone, active, type);
-            driverRepository.save(driver);
+            Driver existing = driverRepo.findDriverByPhone(phone).orElse(null);
+            
+            if (existing != null){
+                existing.setName(name);
+                existing.setType(type);
+                driverRepo.save(existing);
+            }else{
+                Driver driver = new Driver(name, phone, false, type);
+                driverRepo.save(driver);
+            }
         }
     }
 }

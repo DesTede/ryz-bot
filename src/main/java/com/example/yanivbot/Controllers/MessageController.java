@@ -1,6 +1,7 @@
 package com.example.yanivbot.Controllers;
 
 import com.example.yanivbot.Entities.Conversation;
+import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.*;
@@ -111,12 +112,33 @@ public class MessageController {
         }
         
         String txt = message.getText().trim();
+        
+        //restart check
+        switch (txt) {
+            case "התחל מחדש", "תפריט", "00" -> {
+                Conversation convo = convoService.getOrCreate(message.getPhone());
+                convo.setTempData(null);
+                convoService.updateState(convo, ConversationState.START);
+                return "🔄 מתחילים מחדש! שלח כל הודעה להתחלה.";
+            }
 
-        if (txt.equals("התחל מחדש") || txt.equals("תפריט") || txt.equals("0")) {
-            Conversation convo = convoService.getOrCreate(message.getPhone());
-            convo.setTempData(null);
-            convoService.updateState(convo, ConversationState.START);
-            return "🔄 מתחילים מחדש! שלח כל הודעה להתחלה.";
+
+            // drivers "clocks in" or "clock out" so that can receive order messages from the bot
+            case "התחל משמרת" -> {
+                return driverService.clockIn(message.getPhone());
+            }
+            case "סיים משמרת" -> {
+                driverService.clockOut(message.getPhone());
+                Conversation convo = convoService.getOrCreate(message.getPhone());
+                if (businessOwnerService.isBusinessOwner(message.getPhone())) {
+                    convoService.updateState(convo, ConversationState.BUSINESS_MENU);
+                    return "👋 סיימת משמרת!\n\n" +
+                            "שלום \uD83D\uDC4B בחר שירות:\n" +
+                            "עבור מונית - 1\n" +
+                            "עבור יצירת משלוח - 2\n\n" +
+                            "_(שלח 0 בכל עת לתפריט הראשי)_";
+                }
+            }
         }
 
         // Driver claim checks
@@ -140,29 +162,40 @@ public class MessageController {
             case START:
                 System.out.println("state is:" + convo.getState());
 
+                // show shift options to drivers
+                Driver driver = driverService.findByPhone(message.getPhone());
+                if (driver != null) {
+                    String shiftStatus = driver.isActive() ? "🟢 במשמרת" : "🔴 לא במשמרת";
+                    return "שלום " + driver.getName() + " " + shiftStatus + "\n\n" +
+                            "השב \"התחל משמרת\" להתחלת משמרת ולקבלת הזמנות\n" +
+                            "השב \"סיים משמרת\" לסיום משמרת ולעצירת קבלת הזמנות";
+                }
+                
                 if (businessOwnerService.isBusinessOwner(message.getPhone())) {
                     convoService.updateState(convo, ConversationState.BUSINESS_MENU);
                     convoService.updateState(convo, ConversationState.BUSINESS_MENU);
                     return
-                            "שלום \uD83D\uDC4B " +
-                                    "בחר שירות:" +
-                                    "\n" +
-                                    "עבור מונית - 1" +
-                                    "\n" +
-                                    " עבור יצירת משלוח - 2" +
-                                    "\n" +
-                                    "_(שלח 0 בכל עת לתפריט הראשי)_";
+                            """
+                                    שלום \uD83D\uDC4B \
+                                    בחר שירות:\
+
+                                    עבור מונית - 1\
+
+                                    עבור יצירת משלוח - 2\
+
+                                    (שלח 00 בכל עת לתפריט הראשי)""";
 
                 }
 //                System.out.println("state after hello is:" + convo.getState());
                 convoService.updateState(convo, ConversationState.TAXI_SERVICE);
                 return
-                         "שלום \uD83D\uDC4B " +
-                                "בחר שירות:" +
-                                 "\n" +
-                                 "עבור מונית לחץ - 1" +
-                                 "\n" +
-                                 "_(שלח 0 בכל עת לתפריט הראשי)_";
+                        """
+                                שלום \uD83D\uDC4B \
+                                בחר שירות:\
+
+                                עבור מונית לחץ - 1\
+
+                                (שלח 00 בכל עת לתפריט הראשי)""";
 
 
             case BUSINESS_MENU:
@@ -310,8 +343,11 @@ public class MessageController {
             String longitude = params.get("Longitude");
 
             if (latitude != null && longitude != null) {
+                boolean isFirstUpdate = driverService.getDriverLocation(from) == null;
                 driverService.updateDriverLocation(from, Double.parseDouble(latitude), Double.parseDouble(longitude));
-                whatsappService.sendText(from, "📍 המיקום שלך עודכן!");
+                if (isFirstUpdate)
+                    whatsappService.sendText(from, "המיקום שלך עודכן! אתה יכול לקבל הזמנות 📍");
+                
                 return ResponseEntity.ok().build();
             }
             
