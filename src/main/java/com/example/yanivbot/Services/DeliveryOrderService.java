@@ -2,9 +2,12 @@ package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Entities.DeliveryOrder;
+import com.example.yanivbot.Entities.Driver;
+import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.DriverType;
+import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import org.springframework.stereotype.Service;
 
@@ -99,14 +102,17 @@ public class DeliveryOrderService {
             broadcastToDrivers(deliveryOrder);
         }
         
-        whatsappService.sendText(businessPhone, """
+         String confirmationMsg = """
                 הודעה על יצירת הזמנת משלוח לבעל העסק:
                 ✅ משלוח נוצר בהצלחה!
                 📦 כתובת: %s
                 💰 מחיר: %.2f₪
                 📝 הערות: %s
-                """.formatted(deliveryAddress, deliveryFee, notes));
+                
+                לעדכון סטטוס מוכן שלח: מוכן %d
+                """.formatted(deliveryAddress, deliveryFee, notes,deliveryOrder.getId());
 
+        whatsappService.sendSafeText(businessPhone,confirmationMsg);
         convo.setTempData(null);
         convo.setState(ConversationState.START);
         
@@ -135,8 +141,9 @@ public class DeliveryOrderService {
                 💰 לגבות: %.2f₪
                 📝 הערות: %s
 
-                ללקיחת ההזמנה השב:
-                משלוח %d
+                ללקיחת ההזמנה שלח: משלוח %d
+                לאחר איסוף שלח: איסוף %d
+                לאחר מסירה שלח: נמסר %d
                 """.formatted(
                 order.getId(),
                 order.getCustomerPhone(),
@@ -144,6 +151,8 @@ public class DeliveryOrderService {
                 order.getReadyInMinutes(),
                 order.getDeliveryFee(),
                 order.getNotes() != null ? order.getNotes() : "אין",
+                order.getId(),
+                order.getId(),
                 order.getId()
         );
     }
@@ -170,18 +179,87 @@ public class DeliveryOrderService {
                 ✅ הזמנה #%d שויכה אליך!
                 📦 כתובת: %s
                 💰 מחיר: %.2f₪
-                """.formatted(order.getId(), order.getDeliveryAddress(), order.getDeliveryFee());
+                
+                לאחר איסוף שלח: איסוף %d
+                """.formatted(order.getId(), order.getDeliveryAddress(), order.getDeliveryFee(),order.getId());
     }
 
+    public String markReady(long orderId, String businessPhone) {
+        DeliveryOrder order = deliveryOrderRepo
+                .findByIdAndDeliveryStatus(orderId, DeliveryStatus.CREATED)
+                .orElse(null);
 
-    private void notifyBusinessOwner(DeliveryOrder order, String driverPhone) {
-        String msg = """
-            הודעה שנשלחת לבעל העסק:
-            🚗 נהג נטל את ההזמנה #%d!
-            📦 כתובת: %s
-            📞 נהג: %s
-            """.formatted(order.getId(), order.getDeliveryAddress(), driverPhone);
-        whatsappService.sendSafeText(order.getBusinessPhone(), msg);
+        if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה או כבר עודכנה.";
+        if (!order.getBusinessPhone().equals(businessPhone))
+            return "❌ אין לך הרשאה לעדכן הזמנה זו.";
+
+        order.setDeliveryStatus(DeliveryStatus.READY);
+        deliveryOrderRepo.save(order);
+
+        // notify driver if already claimed
+        if (order.getPickedUpBy() != null) {
+            whatsappService.sendSafeText(order.getPickedUpBy(),
+                    "✅ הזמנה #" + orderId + " מוכנה לאיסוף!\n📍 " + order.getDeliveryAddress());
+        }
+
+        return "✅ הזמנה #" + orderId + " סומנה כמוכנה!";
+    }
+
+    public String markPickedUp(long orderId, String driverPhone) {
+        DeliveryOrder order = deliveryOrderRepo.findById(orderId).orElse(null);
+
+        if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
+        if (!order.getPickedUpBy().equals(driverPhone))
+            return "❌ הזמנה זו לא שויכה אליך.";
+        if (order.getDeliveryStatus() != DeliveryStatus.READY &&
+                order.getDeliveryStatus() != DeliveryStatus.CREATED)
+            return "❌ הזמנה #" + orderId + " לא במצב מתאים לאיסוף.";
+
+        order.setDeliveryStatus(DeliveryStatus.PICKED_UP);
+        deliveryOrderRepo.save(order);
+
+        notifyCustomer(order);
+
+        return "✅ הזמנה #" + orderId + " נאספה! בדרך ללקוח.";
+    }
+
+    public String markDelivered(long orderId, String driverPhone) {
+        DeliveryOrder order = deliveryOrderRepo
+                .findByIdAndDeliveryStatus(orderId, DeliveryStatus.PICKED_UP)
+                .orElse(null);
+
+        if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה או לא באיסוף.";
+        if (!order.getPickedUpBy().equals(driverPhone))
+            return "❌ הזמנה זו לא שויכה אליך.";
+
+        order.setDeliveryStatus(DeliveryStatus.DELIVERED);
+        deliveryOrderRepo.save(order);
+
+        whatsappService.sendSafeText(order.getBusinessPhone(),
+                "✅ הזמנה #" + orderId + " נמסרה ללקוח בהצלחה!");
+
+        String customerPhone = whatsappService.normalizePhone(order.getCustomerPhone());
+        whatsappService.sendSafeText(customerPhone,
+                "✅ המשלוח שלך הגיע! תודה שהשתמשת בשירות.");
+
+        return "✅ הזמנה #" + orderId + " סומנה כנמסרה. כל הכבוד!";
+    }
+
+    public String getDriverLocation(String customerPhone){
+        DeliveryOrder order = deliveryOrderRepo.findByCustomerPhoneAndDeliveryStatus(customerPhone, DeliveryStatus.PICKED_UP).orElse(null);
+
+        if (order == null)
+            return "❌ לא נמצאה הזמנה פעילה.";
+
+        Driver driver = driverService.findByPhone(order.getPickedUpBy());
+
+        if (driver == null)
+            return "⚠️ מיקום הנהג אינו זמין כרגע.";
+
+        String mapsLink = "https://www.google.com/maps?q=" +
+                driver.getLatitude() + "," + driver.getLongitude();
+
+        return  "📍 מיקום הנהג:\n" + mapsLink;
     }
     
     // probably delete this
@@ -193,15 +271,26 @@ public class DeliveryOrderService {
                 📍 מאיפה: %s
                 🎯 לאן: %s
                 נהג: %s
+                
+                למעקב אחר מיקום הנהג שלח: "מיקום"
                 """.formatted(
                 order.getBusinessPhone(),
                 order.getDeliveryAddress(),
                 order.getPickedUpBy()
         );
-
         whatsappService.sendSafeText(customerPhone, msg);
     }
-    
+
+    private void notifyBusinessOwner(DeliveryOrder order, String driverPhone) {
+        String msg = """
+            הודעה שנשלחת לבעל העסק:
+            🚗 נהג נטל את ההזמנה #%d!
+            📦 כתובת: %s
+            📞 נהג: %s
+            """.formatted(order.getId(), order.getDeliveryAddress(), driverPhone);
+        whatsappService.sendSafeText(order.getBusinessPhone(), msg);
+    }
+
     private void notifyOtherDrivers(long orderId, String claimingDriverPhone) {
         String msg = "🚫 הזמנה #%d נלקחה על ידי נהג אחר".formatted(orderId);
         driverService.getActiveDrivers(DriverType.DELIVERY).forEach(driver -> {

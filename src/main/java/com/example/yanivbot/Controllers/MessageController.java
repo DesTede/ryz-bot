@@ -157,6 +157,27 @@ public class MessageController {
 //        System.out.println("phone: " + message.getPhone());
         Conversation convo = convoService.getOrCreate(message.getPhone());
 
+        //delivery customer location check
+        if (txt.equals("מיקום")) {
+            return  deliveryOrderService.getDriverLocation(message.getPhone());
+        }
+
+        //delivery order status checks
+        if (txt.matches("^מוכן\\s+\\d+$")) {
+            long orderId = Long.parseLong(txt.split("\\s+")[1]);
+            return deliveryOrderService.markReady(orderId, message.getPhone());
+        }
+
+        if (txt.matches("^איסוף\\s+\\d+$")) {
+            long orderId = Long.parseLong(txt.split("\\s+")[1]);
+            return deliveryOrderService.markPickedUp(orderId, message.getPhone());
+        }
+
+        if (txt.matches("^נמסר\\s+\\d+$")) {
+            long orderId = Long.parseLong(txt.split("\\s+")[1]);
+            return deliveryOrderService.markDelivered(orderId, message.getPhone());
+        }
+        
         switch (convo.getState()) {
 
             case START:
