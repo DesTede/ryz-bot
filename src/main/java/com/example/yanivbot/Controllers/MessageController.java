@@ -125,7 +125,14 @@ public class MessageController {
 
             // drivers "clocks in" or "clock out" so that can receive order messages from the bot
             case "התחל משמרת" -> {
-                return driverService.clockIn(message.getPhone());
+                Driver driver = driverService.findByPhone(message.getPhone());
+                if (driver == null) return "❌ הטלפון שלך לא רשום במערכת כנהג.";
+
+                Conversation convo = convoService.getOrCreate(message.getPhone());
+                convoService.updateState(convo, ConversationState.AWAITING_DRIVER_LOCATION);
+
+                return "📍 כדי להתחיל משמרת עליך לשתף מיקום בזמן אמת.\n" +
+                        "שתף מיקום חי ואז תירשם כזמין לקבל הזמנות.";
             }
             case "סיים משמרת" -> {
                 driverService.clockOut(message.getPhone());
@@ -136,7 +143,7 @@ public class MessageController {
                             "שלום \uD83D\uDC4B בחר שירות:\n" +
                             "עבור מונית - 1\n" +
                             "עבור יצירת משלוח - 2\n\n" +
-                            "_(שלח 0 בכל עת לתפריט הראשי)_";
+                            "(שלח 0 בכל עת לתפריט הראשי)";
                 }
             }
         }
@@ -364,11 +371,21 @@ public class MessageController {
             String longitude = params.get("Longitude");
 
             if (latitude != null && longitude != null) {
+//                String from = params.get("From").replace("whatsapp:", "");
+                Conversation convo = convoService.getOrCreate(from);
+
                 boolean isFirstUpdate = driverService.getDriverLocation(from) == null;
                 driverService.updateDriverLocation(from, Double.parseDouble(latitude), Double.parseDouble(longitude));
-                if (isFirstUpdate)
-                    whatsappService.sendText(from, "המיקום שלך עודכן! אתה יכול לקבל הזמנות 📍");
-                
+
+                // if driver was waiting to start shift, clock them in now
+                if (convo.getState() == ConversationState.AWAITING_DRIVER_LOCATION) {
+                    driverService.clockIn(from);
+                    convoService.updateState(convo, ConversationState.START);
+                    whatsappService.sendText(from, "✅ המיקום התקבל! התחלת משמרת בהצלחה. תקבל הזמנות מעכשיו.");
+                } else if (isFirstUpdate) {
+                    whatsappService.sendText(from, "📍 המיקום שלך עודכן!");
+                }
+
                 return ResponseEntity.ok().build();
             }
             
