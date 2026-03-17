@@ -43,16 +43,28 @@ public class GoogleSheetsService {
 
     @PostConstruct
     public void init() throws Exception {
-        InputStream credentialsStream = getClass().getClassLoader()
-                .getResourceAsStream("credentials.json");
+        GoogleCredentials credentials;
 
-        if (credentialsStream == null) {
-            throw new RuntimeException("credentials.json not found in resources. Make sure it's in src/main/resources");
+        String credentialsJson = System.getenv("GOOGLE_CREDENTIALS_JSON");
+
+        if (credentialsJson != null) {
+            // Production: read from environment variable
+            InputStream credentialsStream = new java.io.ByteArrayInputStream(
+                    credentialsJson.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            credentials = GoogleCredentials
+                    .fromStream(credentialsStream)
+                    .createScoped(Collections.singleton(SheetsScopes.SPREADSHEETS_READONLY));
+        } else {
+            // Local: read from file
+            InputStream credentialsStream = getClass().getClassLoader()
+                    .getResourceAsStream("credentials.json");
+            if (credentialsStream == null) {
+                throw new RuntimeException("credentials.json not found in resources.");
+            }
+            credentials = GoogleCredentials
+                    .fromStream(credentialsStream)
+                    .createScoped(Collections.singleton(SheetsScopes.SPREADSHEETS_READONLY));
         }
-        
-        GoogleCredentials credentials = GoogleCredentials
-                .fromStream(credentialsStream)
-                .createScoped(Collections.singleton(SheetsScopes.SPREADSHEETS_READONLY));
 
         sheetsService = new Sheets.Builder(
                 GoogleNetHttpTransport.newTrustedTransport(),
