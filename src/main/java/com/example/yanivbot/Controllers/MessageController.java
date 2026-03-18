@@ -377,7 +377,7 @@ public class MessageController {
                 boolean isFirstUpdate = driverService.getDriverLocation(from) == null;
                 driverService.updateDriverLocation(from, Double.parseDouble(latitude), Double.parseDouble(longitude));
 
-                // if driver was waiting to start shift, clock them in now
+                // if a driver was waiting to start shift, clock them in now 
                 if (convo.getState() == ConversationState.AWAITING_DRIVER_LOCATION) {
                     driverService.clockIn(from);
                     convoService.updateState(convo, ConversationState.START);
