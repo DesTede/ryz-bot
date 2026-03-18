@@ -21,7 +21,6 @@ public class DriverService {
     }
 
     public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng) {
-        // max radius added
         int maxDrivers = type == DriverType.TAXI ? 5 : 2;
         List<Driver> drivers = getClosestDrivers(type, lat, lng, 5);
 
