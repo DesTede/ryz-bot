@@ -139,11 +139,13 @@ public class MessageController {
                 Conversation convo = convoService.getOrCreate(message.getPhone());
                 if (businessOwnerService.isBusinessOwner(message.getPhone())) {
                     convoService.updateState(convo, ConversationState.BUSINESS_MENU);
-                    return "👋 סיימת משמרת!\n\n" +
-                            "שלום \uD83D\uDC4B בחר שירות:\n" +
-                            "עבור מונית - 1\n" +
-                            "עבור יצירת משלוח - 2\n\n" +
-                            "(שלח 0 בכל עת לתפריט הראשי)";
+                    return """
+                            👋 סיימת משמרת!
+
+                            שלום \uD83D\uDC4B בחר שירות:
+                            עבור מונית - 1
+                            עבור יצירת משלוח - 2
+                            (שלח 00 בכל עת לחזרה לתפריט הראשי)""";
                 }
             }
         }
@@ -211,7 +213,7 @@ public class MessageController {
 
                                     עבור יצירת משלוח - 2\
 
-                                    (שלח 00 בכל עת לתפריט הראשי)""";
+                                    (שלח 00 בכל עת לחזרה לתפריט הראשי)""";
 
                 }
 //                System.out.println("state after hello is:" + convo.getState());
@@ -223,7 +225,7 @@ public class MessageController {
 
                                 עבור מונית לחץ - 1\
 
-                                (שלח 00 בכל עת לתפריט הראשי)""";
+                                (שלח 00 בכל עת לחזרה לתפריט הראשי)""";
 
 
             case BUSINESS_MENU:
@@ -255,18 +257,10 @@ public class MessageController {
                 return
                         "בחר שירות:" +
                                 "עבור מונית לחץ - 1";
-
-//                convoService.updateState(convo, ConversationState.TAXI_PICKUP);
-//                System.out.println("state after choosing service type is:" + convo.getState());
-//                return
-//                        "מאיפה לאסוף אותך? '\uD83D\uDCCD' ";
-
-
-
+                
             case TAXI_PICKUP:
                 convoService.saveTempData(convo, message.getText());
                 convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
-    //                System.out.println("state after choosing pickup is:" + convo.getState());
                     return
                         "לאן נוסעים? \uD83D\uDCCD";
 
