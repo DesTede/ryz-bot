@@ -34,6 +34,8 @@ public class DeliveryOrder {
         this.createdAt = LocalDateTime.now();
     }
 
+    private boolean adminAlerted = false;
+
     public DeliveryOrder() {
     }
 
@@ -118,6 +120,11 @@ public class DeliveryOrder {
         this.notes = notes;
     }
 
+    public boolean isAdminAlerted() {
+        return adminAlerted;
+    }
 
-    
+    public void setAdminAlerted(boolean adminAlerted) {
+        this.adminAlerted = adminAlerted;
+    }
 }

@@ -25,7 +25,8 @@ public class TaxiOrder {
     @Enumerated(EnumType.STRING)
     private TaxiOrderStatus status;
     private LocalDateTime createdAt;
-    
+
+    private boolean adminAlerted = false;
     
     
     @PrePersist
@@ -86,5 +87,13 @@ public class TaxiOrder {
 
     public void setStatus(TaxiOrderStatus status) {
         this.status = status;
+    }
+
+    public boolean isAdminAlerted() {
+        return adminAlerted;
+    }
+
+    public void setAdminAlerted(boolean adminAlerted) {
+        this.adminAlerted = adminAlerted;
     }
 }

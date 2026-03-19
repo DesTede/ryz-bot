@@ -35,20 +35,21 @@ public class OrderMonitorService {
         this.whatsappService = whatsappService;
     }
 
-//     Runs every minute
-//    @Scheduled(fixedDelay = 60000000)
-//    public void checkUnclaimedOrders() {
-//        checkUnclaimedTaxiOrders();
-//        checkUnclaimedDeliveryOrders();
-//    }
+     //Runs every minute
+    @Scheduled(fixedDelay = 60000)
+    public void checkUnclaimedOrders() {
+        checkUnclaimedTaxiOrders();
+        checkUnclaimedDeliveryOrders();
+    }
 
-    // notify the customer only
     private void checkUnclaimedTaxiOrders() {
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(TAXI_ALERT_MINUTES);
         List<TaxiOrder> unclaimedOrders = taxiOrderRepo
                 .findByStatusAndCreatedAtBefore(TaxiOrderStatus.CREATED, cutoff);
 
         for (TaxiOrder order : unclaimedOrders) {
+            if (order.isAdminAlerted()) continue; // already alerted, skip
+
             whatsappService.sendSafeText(adminPhone,
                     "⚠️ הזמנת מונית #" + order.getId() + " לא נלקחה כבר " +
                             TAXI_ALERT_MINUTES + " דקות!\n" +
@@ -56,9 +57,11 @@ public class OrderMonitorService {
                             "🎯 לאן: " + order.getDestination() + "\n" +
                             "📞 לקוח: " + order.getPhone());
 
-            // notify customer too
-//            whatsappService.sendSafeText(order.getPhone(),
-//                    "⚠️ טרם נמצא נהג להזמנתך. אנו ממשיכים לחפש...");
+            whatsappService.sendSafeText(order.getPhone(),
+                    "⚠️ טרם נמצא נהג להזמנתך. אנו ממשיכים לחפש...");
+
+            order.setAdminAlerted(true);
+            taxiOrderRepo.save(order);
         }
     }
 
@@ -68,7 +71,7 @@ public class OrderMonitorService {
                 .findByDeliveryStatusAndCreatedAtBefore(DeliveryStatus.CREATED, cutoff);
 
         for (DeliveryOrder order : unclaimedOrders) {
-            // only alert if not yet assigned to a driver
+            if (order.isAdminAlerted()) continue; // already alerted, skip
             if (order.getPickedUpBy() != null) continue;
 
             whatsappService.sendSafeText(adminPhone,
@@ -77,9 +80,11 @@ public class OrderMonitorService {
                             "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
                             "📞 עסק: " + order.getBusinessPhone());
 
-            // notify business too
-//            whatsappService.sendSafeText(order.getBusinessPhone(),
-//                    "⚠️ טרם נמצא שליח להזמנה #" + order.getId() + ". אנו ממשיכים לחפש...");
+            whatsappService.sendSafeText(order.getBusinessPhone(),
+                    "⚠️ טרם נמצא שליח להזמנה #" + order.getId() + ". אנו ממשיכים לחפש...");
+
+            order.setAdminAlerted(true);
+            deliveryOrderRepo.save(order);
         }
     }
 }
