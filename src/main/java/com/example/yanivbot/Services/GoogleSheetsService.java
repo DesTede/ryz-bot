@@ -18,6 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -93,22 +94,39 @@ public class GoogleSheetsService {
                 .execute();
 
         List<List<Object>> rows = response.getValues();
-        if (rows == null || rows.isEmpty()) return;
+        if (rows == null || rows.isEmpty()) {
+            businessRepo.deleteAll();
+            return;
+        }
 
-        businessRepo.deleteAll();
+        List<String> sheetPhones = new ArrayList<>();
 
         for (List<Object> row : rows) {
-            if (row.size() < 4) continue;
+            if (row.size() < 3) continue;
 
             String name = row.get(0).toString();
             String phone = whatsappService.normalizePhone(row.get(1).toString().trim());
-            String address = row.get(2).toString();
-            boolean active = row.get(3).toString().equalsIgnoreCase("TRUE");
+            String address = row.size() > 2 ? row.get(2).toString() : "";
+            sheetPhones.add(phone);
 
-            Business business = new Business(name, phone, active);
-            business.setAddress(address);
-            businessRepo.save(business);
+            Business existing = businessRepo.findByPhone(phone).orElse(null);
+            if (existing != null) {
+                existing.setName(name);
+                existing.setAddress(address);
+                businessRepo.save(existing);
+            } else {
+                Business business = new Business(name, phone, true);
+                business.setAddress(address);
+                businessRepo.save(business);
+            }
         }
+
+        // remove businesses not in sheet
+        businessRepo.findAll().forEach(business -> {
+            if (!sheetPhones.contains(business.getPhone())) {
+                businessRepo.delete(business);
+            }
+        });
     }
 
     private void syncDrivers() throws Exception {
@@ -117,27 +135,39 @@ public class GoogleSheetsService {
                 .execute();
 
         List<List<Object>> rows = response.getValues();
-        if (rows == null || rows.isEmpty())
+        if (rows == null || rows.isEmpty()) {
+            driverRepo.deleteAll();
             return;
-        
+        }
+
+        // collect phones from sheet
+        List<String> sheetPhones = new ArrayList<>();
+
         for (List<Object> row : rows) {
-            if (row.size() < 3) 
-                continue;
+            if (row.size() < 3) continue;
 
             String name = row.get(0).toString();
             String phone = whatsappService.normalizePhone(row.get(1).toString().trim());
             DriverType type = DriverType.valueOf(row.get(2).toString().toUpperCase());
+            sheetPhones.add(phone);
 
             Driver existing = driverRepo.findDriverByPhone(phone).orElse(null);
-            
-            if (existing != null){
+            if (existing != null) {
+                // update name and type, keep active status
                 existing.setName(name);
                 existing.setType(type);
                 driverRepo.save(existing);
-            }else{
-                Driver driver = new Driver(name, phone, false, type);
-                driverRepo.save(driver);
+            } else {
+                // new driver — start inactive
+                driverRepo.save(new Driver(name, phone, false, type));
             }
         }
+
+        // remove drivers not in sheet
+        driverRepo.findAll().forEach(driver -> {
+            if (!sheetPhones.contains(driver.getPhone())) {
+                driverRepo.delete(driver);
+            }
+        });
     }
 }
