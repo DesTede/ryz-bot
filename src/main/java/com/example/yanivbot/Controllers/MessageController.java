@@ -264,7 +264,7 @@ public class MessageController {
                                 "עבור מונית לחץ - 1";
                 
             case TAXI_PICKUP:
-                convoService.saveTempData(convo, message.getText() + "|");
+                convoService.saveTempData(convo, message.getText());
                 convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
                     return
                         "לאן נוסעים? \uD83D\uDCCD";
