@@ -71,13 +71,13 @@ public class DriverService {
         return driverRepo.findByActiveAndTypeIn(true, List.of(type,DriverType.BOTH));
     }
 
-    public double[] getDriverLocation(String phone){
+    public double[] getDriverLocation(String phone) {
         Driver driver = findByPhone(phone);
-        if (driver == null || driver.getLatitude() == 0)
-            return null;
+        if (driver == null || driver.getLatitude() == null || driver.getLatitude() == 0) return null;
         return new double[]{driver.getLatitude(), driver.getLongitude()};
-        
     }
+    
+    
     public void updateDriverLocation(String phone, Double latitude, Double longitude) {
         driverRepo.findDriverByPhone(phone).ifPresent(driver -> {
             driver.setLatitude(latitude);
@@ -93,7 +93,7 @@ public class DriverService {
         final double MAX_RADIUS_KM = 5.0;
 
         List<Driver> closeDrivers = drivers.stream()
-                .filter(d -> d.getLatitude() != 0 && d.getLongitude() != 0)
+                .filter(d -> d.getLatitude() != null && d.getLatitude() != 0 && d.getLongitude() != null && d.getLongitude() != 0)
                 .filter(d -> calculateDistance(lat, lng, d.getLatitude(), d.getLongitude()) <= MAX_RADIUS_KM)
                 .sorted((a, b) -> {
                     double distA = calculateDistance(lat, lng, a.getLatitude(), a.getLongitude());
