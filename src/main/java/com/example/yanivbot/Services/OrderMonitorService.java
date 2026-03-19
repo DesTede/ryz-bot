@@ -36,7 +36,7 @@ public class OrderMonitorService {
     }
 
     // Runs every minute
-    @Scheduled(fixedDelay = 60000)
+    @Scheduled(fixedDelay = 60000000)
     public void checkUnclaimedOrders() {
         checkUnclaimedTaxiOrders();
         checkUnclaimedDeliveryOrders();
