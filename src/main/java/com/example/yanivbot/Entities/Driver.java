@@ -20,8 +20,10 @@ public class Driver {
     private Boolean active;
     @Enumerated(EnumType.STRING)
     private DriverType type;
-    private double latitude;
-    private double longitude;
+    private int activeTaxiOrders;
+    private int activeDeliveryOrders;
+    private Double latitude;
+    private Double longitude;
     private LocalDateTime locationUpdatedAt;
     public Driver() {
     }
@@ -34,7 +36,7 @@ public class Driver {
     }
 
     public Driver(String name, String phone, Boolean active, DriverType type,
-                  double latitude, double longitude, LocalDateTime locationUpdatedAt) {
+                  Double latitude, Double longitude, LocalDateTime locationUpdatedAt,int activeTaxiOrders, int activeDeliveryOrders) {
         this.name = name;
         this.phone = phone;
         this.active = active;
@@ -42,6 +44,8 @@ public class Driver {
         this.latitude = latitude;
         this.longitude = longitude;
         this.locationUpdatedAt = locationUpdatedAt;
+        this.activeTaxiOrders = activeTaxiOrders;
+        this.activeDeliveryOrders = activeDeliveryOrders;
     }
 
     public long getId() {
@@ -83,7 +87,7 @@ public class Driver {
         return latitude;
     }
 
-    public void setLatitude(double latitude) {
+    public void setLatitude(Double latitude) {
         this.latitude = latitude;
     }
 
@@ -91,7 +95,7 @@ public class Driver {
         return longitude;
     }
 
-    public void setLongitude(double longitude) {
+    public void setLongitude(Double longitude) {
         this.longitude = longitude;
     }
 
@@ -101,5 +105,21 @@ public class Driver {
 
     public void setLocationUpdatedAt(LocalDateTime locationUpdatedAt) {
         this.locationUpdatedAt = locationUpdatedAt;
+    }
+
+    public int getActiveTaxiOrders() {
+        return activeTaxiOrders;
+    }
+
+    public void setActiveTaxiOrders(int activeTaxiOrders) {
+        this.activeTaxiOrders = activeTaxiOrders;
+    }
+
+    public int getActiveDeliveryOrders() {
+        return activeDeliveryOrders;
+    }
+
+    public void setActiveDeliveryOrders(int activeDeliveryOrders) {
+        this.activeDeliveryOrders = activeDeliveryOrders;
     }
 }

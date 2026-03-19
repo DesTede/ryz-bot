@@ -150,6 +150,12 @@ public class MessageController {
             }
         }
 
+        // driver close order check
+        if (txt.matches("^הסתיים\\s+\\d+$")) {
+            long orderId = Long.parseLong(txt.split("\\s+")[1]);
+            return taxiOrderService.completeOrder(orderId, message.getPhone());
+        }
+        
         // Driver claim checks
         if (txt.matches("^מונית\\s+\\d+$")) {
             long orderId = Long.parseLong(txt.split("\\s+")[1]);
@@ -250,7 +256,6 @@ public class MessageController {
                 if (message.getText().equals("1")) {
                     convoService.updateState(convo, ConversationState.TAXI_PICKUP);
                     return
-//                            "שלום \uD83D\uDC4B " +
                             "מאיפה לאסוף אותך? '\uD83D\uDCCD' ";
 
                 }
@@ -269,12 +274,35 @@ public class MessageController {
                 String pickUp = convo.getTempData();
                 String destination = message.getText();
 
-                taxiOrderService.createTaxiOrder(message.getPhone(), pickUp, destination);
+                convoService.saveTempData(convo, pickUp + "|" + destination);
+                convoService.updateState(convo, ConversationState.AWAITING_TAXI_CONFIRMATION);
 
-                convo.setTempData(null);
-                convoService.updateState(convo, ConversationState.START);
                 System.out.println("state after destination is:" + convo.getState());
-                return ""; 
+                
+                return """
+                הודעה ללקוח על הזמנה שנוצרה:
+                ✅ ההזמנה התקבלה!
+                🚕 מאיפה: %s
+                🎯 לאן: %s
+                לאישור ההזמנה השב: אישור
+                לביטול שלח: ביטול
+                """.formatted(pickUp, destination);
+                
+            case AWAITING_TAXI_ORDER_CONFIRMATION:
+                if (txt.equals("אישור")) {
+                    String[] parts = convo.getTempData().split("\\|");
+                    String pickup = parts[0];
+                    String dest = parts[1];
+                    convo.setTempData(null);
+                    convoService.updateState(convo, ConversationState.START);
+                    taxiOrderService.createTaxiOrder(message.getPhone(), pickup, dest);
+                    return "";
+                } else if (txt.equals("ביטול")) {
+                    convo.setTempData(null);
+                    convoService.updateState(convo, ConversationState.START);
+                    return "❌ ההזמנה בוטלה.";
+                }
+                return "אנא שלח אישור או ביטול";
 
             case DELIVERY_CUSTOMER_PHONE:
                 convoService.saveTempData(convo,message.getText());

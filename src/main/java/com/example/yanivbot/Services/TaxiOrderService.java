@@ -35,16 +35,17 @@ public class TaxiOrderService {
         System.out.println("Taxi order saved with ID: " + taxiOrder.getId());
 
         broadcastToDrivers(taxiOrder);
+        
         String msg = 
                 """
                 הודעה ללקוח על הזמנה שנוצרה:
-                ✅ ההזמנה התקבלה!
+                ✅ ההזמנה אושרה! מחפשים נהג קרוב אליך
                 🚕 מאיפה: %s
                 🎯 לאן: %s
                 """.formatted(pickUp, destination);
         
-        System.out.println("Sending confirmation to customer: " + customerPhone);
         whatsappService.sendSafeText(customerPhone, msg);
+        System.out.println("Sending confirmation to customer: " + customerPhone);
         
         return "";
     }
@@ -61,10 +62,12 @@ public class TaxiOrderService {
 
         ללקיחת ההזמנה השב:
         מונית %d
+        לסיום הנסיעה שלח: הסתיים %d
         """.formatted(
                         order.getId(),
                         order.getPickUpLocation(),
                         order.getDestination(),
+                        order.getId(),
                         order.getId()
                 );
 
@@ -82,7 +85,14 @@ public class TaxiOrderService {
     }
 
     public String claimTaxiOrder(long orderId, String driverPhone) {
-        
+
+        // Check if driver already has an active taxi order
+        TaxiOrder activeOrder = taxiOrderRepo
+                .findByDriverPhoneAndStatusIn(driverPhone, List.of(TaxiOrderStatus.TAKEN, TaxiOrderStatus.CONFIRMED))
+                .orElse(null);
+
+        if (activeOrder != null)
+            return "❌ כבר יש לך נסיעה פעילה #" + activeOrder.getId() + ". סיים אותה לפני שתיקח נסיעה חדשה.";
         TaxiOrder order = taxiOrderRepo.findById(orderId).orElse(null);
         
         if (order == null)
@@ -107,6 +117,25 @@ public class TaxiOrderService {
                 " הזמנה מספר " + orderId + " שויכה אליך";    
     }
 
+    public String completeOrder(long orderId, String driverPhone) {
+        TaxiOrder order = taxiOrderRepo.findById(orderId).orElse(null);
+
+        if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
+        if (!order.getDriverPhone().equals(driverPhone))
+            return "❌ הזמנה זו לא שויכה אליך.";
+        if (order.getStatus() != TaxiOrderStatus.TAKEN && order.getStatus() != TaxiOrderStatus.CONFIRMED)
+            return "❌ הזמנה #" + orderId + " לא פעילה.";
+
+        order.setStatus(TaxiOrderStatus.COMPLETED);
+        taxiOrderRepo.save(order);
+
+        // notify customer
+        whatsappService.sendSafeText(order.getPhone(),
+                "✅ הנסיעה הסתיימה! תודה שנסעת איתנו.");
+
+        return "✅ נסיעה #" + orderId + " סומנה כהושלמה. אתה פנוי לנסיעה חדשה!";
+    }
+
     public String confirmByCustomer(String customerPhone) {
         List<TaxiOrder> orders = taxiOrderRepo
                 .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN);
@@ -128,7 +157,7 @@ public class TaxiOrderService {
 
         convoService.updateStateByPhone(customerPhone, ConversationState.START);
 
-        return "✅ ההזמנה אושרה! המונית בדרך אליך.";
+        return "";
     }
     
 
@@ -163,9 +192,7 @@ public class TaxiOrderService {
         📍 מאיפה: %s
         🎯 לאן: %s
         📞 נהג: %s
-        
-        לאישור ההזמנה שלח: אישור
-        לביטול ההזמנה שלח: ביטול
+
         """.formatted(
                 order.getPickUpLocation(),
                 order.getDestination(),
@@ -173,7 +200,6 @@ public class TaxiOrderService {
         );
 
         whatsappService.sendSafeText(order.getPhone(), msg);
-        convoService.updateStateByPhone(order.getPhone(), ConversationState.AWAITING_TAXI_CONFIRMATION);
 
     }
 
@@ -185,4 +211,5 @@ public class TaxiOrderService {
             }
         });
     }
+    
 }

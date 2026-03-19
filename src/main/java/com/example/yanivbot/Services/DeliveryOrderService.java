@@ -11,6 +11,7 @@ import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -158,9 +159,18 @@ public class DeliveryOrderService {
     }
 
     public String claimOrder(long orderId, String driverPhone) {
+
+        // Check if driver already has 4 active delivery orders
+        List<DeliveryOrder> activeOrders = deliveryOrderRepo
+                .findByPickedUpByAndDeliveryStatusIn(driverPhone,
+                        List.of(DeliveryStatus.CREATED, DeliveryStatus.PICKED_UP));
+
+        if (activeOrders.size() >= 4)
+            return "❌ יש לך כבר 4 משלוחים פעילים. סיים משלוח לפני שתוכל לקחת משלוח חדש.";
+        
         Optional<DeliveryOrder> optionalOrder = deliveryOrderRepo
                 .findByIdAndDeliveryStatus(orderId, DeliveryStatus.CREATED);
-
+        
         if (optionalOrder.isEmpty())
             return "❌ משלוח #" + orderId + " כבר תפוס על ידי מישהו אחר!";
 

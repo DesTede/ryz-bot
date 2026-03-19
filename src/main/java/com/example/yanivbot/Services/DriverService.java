@@ -22,7 +22,7 @@ public class DriverService {
 
     public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng) {
         int maxDrivers = type == DriverType.TAXI ? 5 : 2;
-        List<Driver> drivers = getClosestDrivers(type, lat, lng, 5);
+        List<Driver> drivers = getClosestDrivers(type, lat, lng, maxDrivers);
 
         if (drivers.isEmpty()) {
             System.err.println("No drivers location found for type " + type + " falling back to all drivers");
@@ -78,7 +78,7 @@ public class DriverService {
         return new double[]{driver.getLatitude(), driver.getLongitude()};
         
     }
-    public void updateDriverLocation(String phone, double latitude, double longitude) {
+    public void updateDriverLocation(String phone, Double latitude, Double longitude) {
         driverRepo.findDriverByPhone(phone).ifPresent(driver -> {
             driver.setLatitude(latitude);
             driver.setLongitude(longitude);
@@ -87,7 +87,7 @@ public class DriverService {
         });
     }
 
-    public List<Driver> getClosestDrivers(DriverType type, double lat, double lng, int maxDrivers) {
+    public List<Driver> getClosestDrivers(DriverType type, Double lat, Double lng, int maxDrivers) {
         List<Driver> drivers = getActiveDrivers(type);
 
         final double MAX_RADIUS_KM = 5.0;

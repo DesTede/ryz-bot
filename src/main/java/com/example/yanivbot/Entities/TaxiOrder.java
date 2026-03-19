@@ -41,7 +41,7 @@ public class TaxiOrder {
         this.phone = phone;
         this.pickUpLocation = pickUpLocation;
         this.destination = destination;
-        this.status = status = TaxiOrderStatus.CREATED;
+        this.status = TaxiOrderStatus.CREATED;
     }
 
     public long getId() {

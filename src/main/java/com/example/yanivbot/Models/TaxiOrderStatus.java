@@ -5,5 +5,6 @@ public enum TaxiOrderStatus {
     TAKEN,
     FINISHED,
     CONFIRMED,
-    CANCELLED
+    CANCELLED,
+    COMPLETED
 }

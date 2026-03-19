@@ -29,7 +29,6 @@ public class DeliveryOrder {
     @Column(length = 1000)
     private String notes;
     private LocalDateTime createdAt;
-    
     @PrePersist
     public void onCreate(){
         this.createdAt = LocalDateTime.now();

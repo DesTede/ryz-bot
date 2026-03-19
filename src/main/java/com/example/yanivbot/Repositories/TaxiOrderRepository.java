@@ -11,7 +11,7 @@ public interface TaxiOrderRepository extends JpaRepository<TaxiOrder, Long> {
     
     List<TaxiOrder> findByPhoneAndStatus (String phone, TaxiOrderStatus status);
     
-    Optional<TaxiOrder> findTaxiOrderByPhoneAndStatus(String phone, TaxiOrderStatus status);
+    Optional<TaxiOrder> findByDriverPhoneAndStatusIn(String driverPhone, List<TaxiOrderStatus> statuses);
     
     List<TaxiOrder> findByStatus(TaxiOrderStatus status);
     
