@@ -35,12 +35,12 @@ public class OrderMonitorService {
         this.whatsappService = whatsappService;
     }
 
-    // Runs every minute
-    @Scheduled(fixedDelay = 60000000)
-    public void checkUnclaimedOrders() {
-        checkUnclaimedTaxiOrders();
-        checkUnclaimedDeliveryOrders();
-    }
+//     Runs every minute
+//    @Scheduled(fixedDelay = 60000000)
+//    public void checkUnclaimedOrders() {
+//        checkUnclaimedTaxiOrders();
+//        checkUnclaimedDeliveryOrders();
+//    }
 
     // notify the customer only
     private void checkUnclaimedTaxiOrders() {
