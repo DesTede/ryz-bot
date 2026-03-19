@@ -274,6 +274,9 @@ public class MessageController {
                 String pickUp = convo.getTempData();
                 String destination = message.getText();
 
+                System.out.println("pickUp: [" + pickUp + "]");
+                System.out.println("destination: [" + destination + "]");
+                
                 convoService.saveTempData(convo, pickUp + "|" + destination);
                 convoService.updateState(convo, ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION);
 
@@ -281,7 +284,7 @@ public class MessageController {
                 
                 return """
                 הודעה ללקוח על הזמנה שנוצרה:
-                ✅ ההזמנה התקבלה!
+                ✅ סיכום ההזמנה!
                 🚕 מאיפה: %s
                 🎯 לאן: %s
                 לאישור ההזמנה שלח: אישור
