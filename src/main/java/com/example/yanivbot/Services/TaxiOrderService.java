@@ -28,7 +28,7 @@ public class TaxiOrderService {
         this.geoCodingService = geoCodingService;
     }
 
-    public String createTaxiOrder(String customerPhone, String pickUp, String destination) {
+    public void createTaxiOrder(String customerPhone, String pickUp, String destination) {
         TaxiOrder taxiOrder = new TaxiOrder(customerPhone,pickUp, destination);
 
         taxiOrderRepo.save(taxiOrder);
@@ -47,7 +47,7 @@ public class TaxiOrderService {
         whatsappService.sendSafeText(customerPhone, msg);
         System.out.println("Sending confirmation to customer: " + customerPhone);
         
-        return "";
+//        return "";
     }
     
     public void broadcastToDrivers(TaxiOrder order) {
@@ -114,7 +114,8 @@ public class TaxiOrderService {
         return "הודעה שנשלחת לנהג" +
                 "\n" +
                 "✅ נהג!" +
-                " הזמנה מספר " + orderId + " שויכה אליך";    
+                " הזמנה מספר " + orderId + " שויכה אליך" + 
+                "\"\uD83D\uDCDE טלפון לקוח: \" + order.getPhone()";
     }
 
     public String completeOrder(long orderId, String driverPhone) {

@@ -267,7 +267,7 @@ public class MessageController {
                 convoService.saveTempData(convo, message.getText());
                 convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
                     return
-                        "לאן נוסעים? \uD83D\uDCCD";
+                        "לאן נוסעים?(לא לשכוח עיר) \uD83D\uDCCD";
 
 
             case TAXI_DESTINATION:

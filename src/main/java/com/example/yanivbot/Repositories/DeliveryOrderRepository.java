@@ -4,12 +4,17 @@ import com.example.yanivbot.Entities.DeliveryOrder;
 import com.example.yanivbot.Models.DeliveryStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Long> {
     
     List<DeliveryOrder> findByDeliveryStatus(DeliveryStatus deliveryStatus);
+    
+    List<DeliveryOrder> findByDeliveryStatusIn(List<DeliveryStatus> statuses);
+
+    List<DeliveryOrder> findByDeliveryStatusAndCreatedAtBefore(DeliveryStatus status, LocalDateTime time);
     
     List <DeliveryOrder> findByPickedUpByAndDeliveryStatusIn(String driverPhone, List<DeliveryStatus> statuses);
     

@@ -34,27 +34,38 @@ public class AdminController {
     // Active taxi orders
     @GetMapping("/taxi/active")
     public List<TaxiOrder> getActiveTaxiOrders() {
-        return taxiOrderRepo.findByStatus(TaxiOrderStatus.CREATED);
+        return taxiOrderRepo.findByStatusIn(
+                List.of(TaxiOrderStatus.CREATED, TaxiOrderStatus.TAKEN, TaxiOrderStatus.CONFIRMED));
+    }
+
+    // Closed taxi orders
+    @GetMapping("/taxi/closed")
+    public List<TaxiOrder> getClosedTaxiOrders() {
+        return taxiOrderRepo.findByStatusIn(
+                List.of(TaxiOrderStatus.COMPLETED, TaxiOrderStatus.CANCELLED));
     }
 
     // Active delivery orders
     @GetMapping("/delivery/active")
     public List<DeliveryOrder> getActiveDeliveryOrders() {
-        return deliveryOrderRepo.findByDeliveryStatus(DeliveryStatus.CREATED);
+        return deliveryOrderRepo.findByDeliveryStatusIn(
+                List.of(DeliveryStatus.CREATED, DeliveryStatus.READY, DeliveryStatus.PICKED_UP));
     }
 
+    // Closed delivery orders
+    @GetMapping("/delivery/closed")
+    public List<DeliveryOrder> getClosedDeliveryOrders() {
+        return deliveryOrderRepo.findByDeliveryStatusIn(
+                List.of(DeliveryStatus.DELIVERED, DeliveryStatus.CANCELLED));
+    }
+    
     // Taxi order history
     @GetMapping("/taxi/history")
     public List<TaxiOrder> getTaxiHistory() {
         return taxiOrderRepo.findAllByOrderByCreatedAtDesc();
     }
 
-    // Delivery order history
-    @GetMapping("/delivery/history")
-    public List<DeliveryOrder> getDeliveryHistory() {
-        return deliveryOrderRepo.findAllByOrderByCreatedAtDesc();
-    }
-
+    
     // Driver locations
     @GetMapping("/drivers/locations")
     public List<Driver> getDriverLocations() {
@@ -92,6 +103,7 @@ public class AdminController {
         }
         return deliveryOrderRepo.findAllByOrderByCreatedAtDesc();
     }
+    
 
     @PostMapping("/sync")
     public ResponseEntity<String> syncSheets() {

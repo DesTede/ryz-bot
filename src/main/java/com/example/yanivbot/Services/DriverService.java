@@ -3,6 +3,7 @@ package com.example.yanivbot.Services;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Repositories.DriverRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -12,6 +13,8 @@ import java.util.stream.Collectors;
 @Service
 public class DriverService {
 
+    @Value("${admin.phone}")
+    private String adminPhone;
     private final DriverRepository driverRepo;
     private final WhatsappService whatsappService;
 
@@ -34,6 +37,12 @@ public class DriverService {
             whatsappService.sendSafeText(driver.getPhone(), message);
         }
     }
+
+    private void notifyAdminNoDrivers(DriverType type){
+        String typeStr = type == DriverType.TAXI ? "משלוח" : "מונית";
+        whatsappService.sendSafeText(adminPhone, "⚠️ אין נהגים זמינים לקבלת הזמנת " + typeStr + "!");
+    }
+    
 
     public void dispatchToDrivers(DriverType type, String message) {
         List<Driver> drivers = getActiveDrivers(type); 

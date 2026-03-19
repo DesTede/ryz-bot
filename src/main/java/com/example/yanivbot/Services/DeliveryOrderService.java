@@ -189,9 +189,10 @@ public class DeliveryOrderService {
                 ✅ הזמנה #%d שויכה אליך!
                 📦 כתובת: %s
                 💰 מחיר: %.2f₪
+                📞 טלפון לקוח: %s
                 
                 לאחר איסוף שלח: איסוף %d
-                """.formatted(order.getId(), order.getDeliveryAddress(), order.getDeliveryFee(),order.getId());
+                """.formatted(order.getId(), order.getDeliveryAddress(), order.getDeliveryFee(), order.getCustomerPhone() , order.getId());
     }
 
     public String markReady(long orderId, String businessPhone) {
