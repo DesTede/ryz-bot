@@ -36,11 +36,11 @@ public class OrderMonitorService {
     }
 
      //Runs every minute
-    @Scheduled(fixedDelay = 60000)
-    public void checkUnclaimedOrders() {
-        checkUnclaimedTaxiOrders();
-        checkUnclaimedDeliveryOrders();
-    }
+//    @Scheduled(fixedDelay = 60000)
+//    public void checkUnclaimedOrders() {
+//        checkUnclaimedTaxiOrders();
+//        checkUnclaimedDeliveryOrders();
+//    }
 
     private void checkUnclaimedTaxiOrders() {
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(TAXI_ALERT_MINUTES);
@@ -57,8 +57,9 @@ public class OrderMonitorService {
                             "🎯 לאן: " + order.getDestination() + "\n" +
                             "📞 לקוח: " + order.getPhone());
 
-            whatsappService.sendSafeText(order.getPhone(),
-                    "⚠️ טרם נמצא נהג להזמנתך. אנו ממשיכים לחפש...");
+            // notify the customer
+//            whatsappService.sendSafeText(order.getPhone(),
+//                    "⚠️ טרם נמצא נהג להזמנתך. אנו ממשיכים לחפש...");
 
             order.setAdminAlerted(true);
             taxiOrderRepo.save(order);
@@ -80,8 +81,9 @@ public class OrderMonitorService {
                             "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
                             "📞 עסק: " + order.getBusinessPhone());
 
-            whatsappService.sendSafeText(order.getBusinessPhone(),
-                    "⚠️ טרם נמצא שליח להזמנה #" + order.getId() + ". אנו ממשיכים לחפש...");
+            // notify the business
+//            whatsappService.sendSafeText(order.getBusinessPhone(),
+//                    "⚠️ טרם נמצא שליח להזמנה #" + order.getId() + ". אנו ממשיכים לחפש...");
 
             order.setAdminAlerted(true);
             deliveryOrderRepo.save(order);

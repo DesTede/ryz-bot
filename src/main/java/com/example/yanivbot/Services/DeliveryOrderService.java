@@ -120,17 +120,6 @@ public class DeliveryOrderService {
         return "";
     }
 
-    public void broadcastToClosestDrivers(DeliveryOrder order, double lat, double lng)  {
-        String msg = buildDispatchMessage(order);
-        driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, lat, lng);
-    }
-
-    public void broadcastToDrivers(DeliveryOrder order)  {
-        String msg = buildDispatchMessage(order);
-        driverService.dispatchToDrivers(DriverType.DELIVERY, msg);
-    }
-
-    // need to edit after debugging
     public String  buildDispatchMessage(DeliveryOrder order) {
         return  """
                 הודעה שנשלחת לכל הנהגים:
@@ -157,6 +146,23 @@ public class DeliveryOrderService {
                 order.getId()
         );
     }
+
+    public void broadcastToClosestDrivers(DeliveryOrder order, double lat, double lng)  {
+        String msg = buildDispatchMessage(order);
+        String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
+                              "📞 עסק: " + order.getBusinessPhone();
+        driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, lat, lng, orderDetails);
+    }
+
+    public void broadcastToDrivers(DeliveryOrder order)  {
+        String msg = buildDispatchMessage(order);
+        String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
+                              "📞 עסק: " + order.getBusinessPhone();
+        driverService.dispatchToDrivers(DriverType.DELIVERY, msg, orderDetails);
+    }
+
+    // need to edit after debugging
+   
 
     public String claimOrder(long orderId, String driverPhone) {
 

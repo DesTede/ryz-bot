@@ -76,11 +76,15 @@ public class TaxiOrderService {
         double[] coords = geoCodingService.geocode(order.getPickUpLocation());
         System.out.println("Geocoding result: " + (coords != null ? coords[0] + "," + coords[1] : "null"));
 
+        String orderDetails = "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
+                "🎯 לאן: " + order.getDestination() + "\n" +
+                "📞 לקוח: " + order.getPhone();
+        
         if (coords != null) {
-            driverService.dispatchToClosestDrivers(DriverType.TAXI, msg, coords[0], coords[1]);
+            driverService.dispatchToClosestDrivers(DriverType.TAXI, msg, coords[0], coords[1],orderDetails);
         } else {
             // fallback to all drivers if geocoding fails
-            driverService.dispatchToDrivers(DriverType.TAXI, msg);
+            driverService.dispatchToDrivers(DriverType.TAXI, msg, orderDetails);
         }
     }
 

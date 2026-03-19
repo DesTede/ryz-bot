@@ -23,31 +23,37 @@ public class DriverService {
         this.whatsappService = whatsappService;
     }
 
-    public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng) {
+    private void notifyAdminNoDrivers(DriverType type, String orderDetails) {
+        String typeStr = type == DriverType.TAXI ? "מונית" : "משלוח";
+        whatsappService.sendSafeText(adminPhone,
+                "⚠️ הזמנת " + typeStr + " חדשה נוצרה אך אין נהגים זמינים!\n" + orderDetails);
+    }
+    
+    public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng, String orderDetails) {
         int maxDrivers = type == DriverType.TAXI ? 5 : 2;
         List<Driver> drivers = getClosestDrivers(type, lat, lng, maxDrivers);
 
         if (drivers.isEmpty()) {
-            System.err.println("No drivers location found for type " + type + " falling back to all drivers");
-            dispatchToDrivers(type, message); // fallback
+            System.err.println("No drivers found for type: " + type);
+            notifyAdminNoDrivers(type, orderDetails);
             return;
         }
+        
 
         for (Driver driver : drivers) {
             whatsappService.sendSafeText(driver.getPhone(), message);
         }
     }
-
-    private void notifyAdminNoDrivers(DriverType type){
-        String typeStr = type == DriverType.TAXI ? "משלוח" : "מונית";
-        whatsappService.sendSafeText(adminPhone, "⚠️ אין נהגים זמינים לקבלת הזמנת " + typeStr + "!");
-    }
     
-
-    public void dispatchToDrivers(DriverType type, String message) {
+    public void dispatchToDrivers(DriverType type, String message, String orderDetails) {
         List<Driver> drivers = getActiveDrivers(type); 
         System.out.println("Dispatching to " + drivers.size() + " drivers of type " + type);
 
+        if (drivers.isEmpty()) {
+            notifyAdminNoDrivers(type, orderDetails);
+            return;
+        }
+        
         for (Driver driver : drivers) {
             whatsappService.sendSafeText(driver.getPhone(), message);
         }
