@@ -353,18 +353,19 @@ public class MessageController {
                 deliveryOrderService.createDelivery(convo, phone, notes);
                 return "";
 
-            case AWAITING_TAXI_CONFIRMATION:
-                if (message.getText().trim().equals("אישור")) {
-                    return taxiOrderService.confirmByCustomer(message.getPhone());
-                } else if (message.getText().trim().equals("ביטול")) {
-                    return taxiOrderService.cancelByCustomer(message.getPhone());
-                }
-                
-                convoService.updateState(convo, ConversationState.START);
-
-                System.out.println("state after confirmation is:" + convo.getState());
-
-                return "אנא שלח אישור או ביטול";
+                // if i want to give the customer an option to cancel the order after the driver claimed it:
+//            case AWAITING_TAXI_CONFIRMATION:
+//                if (message.getText().trim().equals("אישור")) {
+//                    return taxiOrderService.confirmByCustomer(message.getPhone());
+//                } else if (message.getText().trim().equals("ביטול")) {
+//                    return taxiOrderService.cancelByCustomer(message.getPhone());
+//                }
+//                
+//                convoService.updateState(convo, ConversationState.START);
+//
+//                System.out.println("state after confirmation is:" + convo.getState());
+//
+//                return "אנא שלח אישור או ביטול";
                 
             default:
                 convoService.updateState(convo, ConversationState.START);

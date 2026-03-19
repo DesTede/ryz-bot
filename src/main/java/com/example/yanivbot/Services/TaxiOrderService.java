@@ -136,6 +136,7 @@ public class TaxiOrderService {
         return "✅ נסיעה #" + orderId + " סומנה כהושלמה. אתה פנוי לנסיעה חדשה!";
     }
 
+    
     public String confirmByCustomer(String customerPhone) {
         List<TaxiOrder> orders = taxiOrderRepo
                 .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN);
