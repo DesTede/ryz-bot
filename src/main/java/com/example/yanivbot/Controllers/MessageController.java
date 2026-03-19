@@ -264,7 +264,7 @@ public class MessageController {
                                 "עבור מונית לחץ - 1";
                 
             case TAXI_PICKUP:
-                convoService.saveTempData(convo, message.getText());
+                convoService.saveTempData(convo, message.getText() + "|");
                 convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
                     return
                         "לאן נוסעים? \uD83D\uDCCD";
@@ -275,7 +275,7 @@ public class MessageController {
                 String destination = message.getText();
 
                 convoService.saveTempData(convo, pickUp + "|" + destination);
-                convoService.updateState(convo, ConversationState.AWAITING_TAXI_CONFIRMATION);
+                convoService.updateState(convo, ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION);
 
                 System.out.println("state after destination is:" + convo.getState());
                 
@@ -284,7 +284,7 @@ public class MessageController {
                 ✅ ההזמנה התקבלה!
                 🚕 מאיפה: %s
                 🎯 לאן: %s
-                לאישור ההזמנה השב: אישור
+                לאישור ההזמנה שלח: אישור
                 לביטול שלח: ביטול
                 """.formatted(pickUp, destination);
                 
