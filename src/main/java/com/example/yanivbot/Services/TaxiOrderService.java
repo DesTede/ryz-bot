@@ -137,54 +137,54 @@ public class TaxiOrderService {
     }
 
     
-    public String confirmByCustomer(String customerPhone) {
-        List<TaxiOrder> orders = taxiOrderRepo
-                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN);
-        
-        if (orders.isEmpty())
-            return "❌ לא נמצאה הזמנה פעילה";
-        
-        TaxiOrder order = orders.get(0);
-                
-
-        if (order == null)
-            return "❌ לא נמצאה הזמנה פעילה";
-
-        order.setStatus(TaxiOrderStatus.CONFIRMED);
-        taxiOrderRepo.save(order);
-
-        whatsappService.sendSafeText(order.getDriverPhone(),
-                "✅ הלקוח אישר את ההזמנה #" + order.getId());
-
-        convoService.updateStateByPhone(customerPhone, ConversationState.START);
-
-        return "";
-    }
+//    public String confirmByCustomer(String customerPhone) {
+//        List<TaxiOrder> orders = taxiOrderRepo
+//                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN);
+//        
+//        if (orders.isEmpty())
+//            return "❌ לא נמצאה הזמנה פעילה";
+//        
+//        TaxiOrder order = orders.get(0);
+//                
+//
+//        if (order == null)
+//            return "❌ לא נמצאה הזמנה פעילה";
+//
+//        order.setStatus(TaxiOrderStatus.CONFIRMED);
+//        taxiOrderRepo.save(order);
+//
+//        whatsappService.sendSafeText(order.getDriverPhone(),
+//                "✅ הלקוח אישר את ההזמנה #" + order.getId());
+//
+//        convoService.updateStateByPhone(customerPhone, ConversationState.START);
+//
+//        return "";
+//    }
     
 
-    public String cancelByCustomer(String customerPhone) {
-        List<TaxiOrder> orders = taxiOrderRepo
-                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN);
-        
-        if (orders.isEmpty())
-            return "❌ לא נמצאה הזמנה פעילה";
-        
-        TaxiOrder order = orders.get(0); 
-                
-
-        if (order == null)
-            return "❌ לא נמצאה הזמנה פעילה";
-
-        order.setStatus(TaxiOrderStatus.CANCELLED);
-        taxiOrderRepo.save(order);
-
-        whatsappService.sendSafeText(order.getDriverPhone(),
-                "❌ הלקוח ביטל את ההזמנה #" + order.getId());
-
-        convoService.updateStateByPhone(customerPhone, ConversationState.START);
-
-        return "❌ ההזמנה בוטלה.";
-    }
+//    public String cancelByCustomer(String customerPhone) {
+//        List<TaxiOrder> orders = taxiOrderRepo
+//                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN);
+//        
+//        if (orders.isEmpty())
+//            return "❌ לא נמצאה הזמנה פעילה";
+//        
+//        TaxiOrder order = orders.get(0); 
+//                
+//
+//        if (order == null)
+//            return "❌ לא נמצאה הזמנה פעילה";
+//
+//        order.setStatus(TaxiOrderStatus.CANCELLED);
+//        taxiOrderRepo.save(order);
+//
+//        whatsappService.sendSafeText(order.getDriverPhone(),
+//                "❌ הלקוח ביטל את ההזמנה #" + order.getId());
+//
+//        convoService.updateStateByPhone(customerPhone, ConversationState.START);
+//
+//        return "❌ ההזמנה בוטלה.";
+//    }
     
     private void notifyTaxiCustomer(TaxiOrder order) {
         String msg = """
@@ -193,7 +193,7 @@ public class TaxiOrderService {
         📍 מאיפה: %s
         🎯 לאן: %s
         📞 נהג: %s
-
+        
         """.formatted(
                 order.getPickUpLocation(),
                 order.getDestination(),
