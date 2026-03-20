@@ -111,7 +111,7 @@ public class OrderMonitorService {
                             "⚠️ הזמנת משלוח #" + order.getId() + " לא נלקחה כבר " +
                             DELIVERY_ALERT_MINUTES + " דקות!\n" +
                             "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
-                            "📞 עסק: " + order.getBusinessPhone()););
+                            "📞 עסק: " + order.getBusinessPhone());
             
             // notify the business
 //            whatsappService.sendSafeText(order.getBusinessPhone(),
