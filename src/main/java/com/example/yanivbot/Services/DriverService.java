@@ -26,6 +26,7 @@ public class DriverService {
     private void notifyAdminNoDrivers(DriverType type, String orderDetails) {
         String typeStr = type == DriverType.TAXI ? "מונית" : "משלוח";
         whatsappService.sendSafeText(adminPhone,
+                "הודעה שנשלחת למנהל:" +
                 "⚠️ הזמנת " + typeStr + " חדשה נוצרה אך אין נהגים זמינים!\n" + orderDetails);
     }
     

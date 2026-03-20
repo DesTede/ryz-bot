@@ -35,12 +35,12 @@ public class OrderMonitorService {
         this.whatsappService = whatsappService;
     }
 
-     //Runs every minute
-//    @Scheduled(fixedDelay = 60000)
-//    public void checkUnclaimedOrders() {
-//        checkUnclaimedTaxiOrders();
-//        checkUnclaimedDeliveryOrders();
-//    }
+//     Runs every minute
+    @Scheduled(fixedDelay = 60000)
+    public void checkUnclaimedOrders() {
+        checkUnclaimedTaxiOrders();
+        checkUnclaimedDeliveryOrders();
+    }
 
     private void checkUnclaimedTaxiOrders() {
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(TAXI_ALERT_MINUTES);
@@ -51,7 +51,8 @@ public class OrderMonitorService {
             if (order.isAdminAlerted()) continue; // already alerted, skip
 
             whatsappService.sendSafeText(adminPhone,
-                    "⚠️ הזמנת מונית #" + order.getId() + " לא נלקחה כבר " +
+                    "הודעה שנשלחת למנהל:" +
+                            "⚠️ הזמנת מונית #" + order.getId() + " לא נלקחה כבר " +
                             TAXI_ALERT_MINUTES + " דקות!\n" +
                             "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
                             "🎯 לאן: " + order.getDestination() + "\n" +
@@ -76,7 +77,8 @@ public class OrderMonitorService {
             if (order.getPickedUpBy() != null) continue;
 
             whatsappService.sendSafeText(adminPhone,
-                    "⚠️ הזמנת משלוח #" + order.getId() + " לא נלקחה כבר " +
+                    "הודעה שנשלחת למנהל:" +
+                            "⚠️ הזמנת משלוח #" + order.getId() + " לא נלקחה כבר " +
                             DELIVERY_ALERT_MINUTES + " דקות!\n" +
                             "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
                             "📞 עסק: " + order.getBusinessPhone());
