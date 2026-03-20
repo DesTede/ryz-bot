@@ -8,7 +8,7 @@ import jakarta.persistence.Id;
 public class BotConfig {
 
     @Id
-    @Column(name = "config_value")
+    @Column(name = "config_key")
     private String key;
     @Column(name = "config_value")
     private String value;
