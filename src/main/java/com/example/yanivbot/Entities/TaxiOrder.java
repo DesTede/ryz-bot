@@ -25,6 +25,7 @@ public class TaxiOrder {
     @Enumerated(EnumType.STRING)
     private TaxiOrderStatus status;
     private LocalDateTime createdAt;
+    private String notes;
 
     private boolean adminAlerted = false;
     
@@ -38,10 +39,11 @@ public class TaxiOrder {
     }
 
     public TaxiOrder(String phone,
-                     String pickUpLocation, String destination) {
+                     String pickUpLocation, String destination, String notes) {
         this.phone = phone;
         this.pickUpLocation = pickUpLocation;
         this.destination = destination;
+        this.notes = notes;
         this.status = TaxiOrderStatus.CREATED;
     }
 
@@ -95,5 +97,13 @@ public class TaxiOrder {
 
     public void setAdminAlerted(boolean adminAlerted) {
         this.adminAlerted = adminAlerted;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
     }
 }

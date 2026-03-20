@@ -23,20 +23,19 @@ public class DriverService {
         this.whatsappService = whatsappService;
     }
 
-    private void notifyAdminNoDrivers(DriverType type, String orderDetails) {
+    private void notifyAdminNoDrivers(DriverType type, String orderDetails, long orderId) {
         String typeStr = type == DriverType.TAXI ? "מונית" : "משלוח";
-        
-        whatsappService.notifyAdmins("הודעה שנשלחת למנהל:" +
-                "⚠️ הזמנת " + typeStr + " חדשה נוצרה אך אין נהגים זמינים!\n" + orderDetails);
+        whatsappService.notifyAdmins(
+                "⚠️ הזמנת " + typeStr + " חדשה #" + orderId + " נוצרה אך אין נהגים זמינים!\n" + orderDetails);
     }
     
-    public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng, String orderDetails) {
+    public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng, String orderDetails, long orderId) {
         int maxDrivers = type == DriverType.TAXI ? 5 : 2;
         List<Driver> drivers = getClosestDrivers(type, lat, lng, maxDrivers);
 
         if (drivers.isEmpty()) {
             System.err.println("No drivers found for type: " + type);
-            notifyAdminNoDrivers(type, orderDetails);
+            notifyAdminNoDrivers(type, orderDetails,orderId);
             return;
         }
         
@@ -46,12 +45,12 @@ public class DriverService {
         }
     }
     
-    public void dispatchToDrivers(DriverType type, String message, String orderDetails) {
+    public void dispatchToDrivers(DriverType type, String message, String orderDetails, long orderId) {
         List<Driver> drivers = getActiveDrivers(type); 
         System.out.println("Dispatching to " + drivers.size() + " drivers of type " + type);
 
         if (drivers.isEmpty()) {
-            notifyAdminNoDrivers(type, orderDetails);
+            notifyAdminNoDrivers(type, orderDetails, orderId);
             return;
         }
         

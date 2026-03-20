@@ -301,31 +301,38 @@ public class MessageController {
                 String pickUp = convo.getTempData();
                 String destination = message.getText();
 
-                System.out.println("pickUp: [" + pickUp + "]");
-                System.out.println("destination: [" + destination + "]");
-                
                 convoService.saveTempData(convo, pickUp + "|" + destination);
+                convoService.updateState(convo, ConversationState.TAXI_NOTES);
+                return "📝 יש הערות לנסיעה? (או שלח: אין)";
+                
+            case TAXI_NOTES:
+                String[] taxiParts = convo.getTempData().split("\\|");
+                String taxiPickup = taxiParts[0];
+                String taxiDest = taxiParts[1];
+                String taxiNotes = message.getText().trim().equals("אין") ? null : message.getText().trim();
+
+                convoService.saveTempData(convo, taxiPickup + "|" + taxiDest + "|" + (taxiNotes != null ? taxiNotes : "אין"));
                 convoService.updateState(convo, ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION);
 
-                System.out.println("state after destination is:" + convo.getState());
-                
                 return """
-                הודעה ללקוח על הזמנה שנוצרה:
-                ✅ סיכום ההזמנה!
-                🚕 מאיפה: %s
-                🎯 לאן: %s
-                לאישור ההזמנה שלח: אישור
-                לביטול שלח: ביטול
-                """.formatted(pickUp, destination);
+            ✅ סיכום ההזמנה:
+            📍 מאיפה: %s
+            🎯 לאן: %s
+            📝 הערות: %s
+            
+            לאישור ההזמנה שלח: אישור
+            לביטול שלח: ביטול
+            """.formatted(taxiPickup, taxiDest, taxiNotes != null ? taxiNotes : "אין");
                 
             case AWAITING_TAXI_ORDER_CONFIRMATION:
                 if (txt.equals("אישור")) {
                     String[] parts = convo.getTempData().split("\\|");
                     String pickup = parts[0];
                     String dest = parts[1];
+                    String notes = parts.length > 2 && !parts[2].equals("אין") ? parts[2] : null;
                     convo.setTempData(null);
                     convoService.updateState(convo, ConversationState.START);
-                    taxiOrderService.createTaxiOrder(message.getPhone(), pickup, dest);
+                    taxiOrderService.createTaxiOrder(message.getPhone(), pickup, dest, notes);
                     return "";
                 } else if (txt.equals("ביטול")) {
                     convo.setTempData(null);

@@ -28,8 +28,8 @@ public class TaxiOrderService {
         this.geoCodingService = geoCodingService;
     }
 
-    public void createTaxiOrder(String customerPhone, String pickUp, String destination) {
-        TaxiOrder taxiOrder = new TaxiOrder(customerPhone,pickUp, destination);
+    public void createTaxiOrder(String customerPhone, String pickUp, String destination,String notes) {
+        TaxiOrder taxiOrder = new TaxiOrder(customerPhone,pickUp, destination, notes);
 
         taxiOrderRepo.save(taxiOrder);
         System.out.println("Taxi order saved with ID: " + taxiOrder.getId());
@@ -59,7 +59,8 @@ public class TaxiOrderService {
         🆔 %d
         📍 מאיפה: %s
         🎯 לאן: %s
-
+        📝 הערות: %s
+        
         ללקיחת ההזמנה השב:
         מונית %d
         לסיום הנסיעה שלח: הסתיים %d
@@ -67,6 +68,7 @@ public class TaxiOrderService {
                         order.getId(),
                         order.getPickUpLocation(),
                         order.getDestination(),
+                        order.getNotes(),
                         order.getId(),
                         order.getId()
                 );
@@ -81,10 +83,10 @@ public class TaxiOrderService {
                 "📞 לקוח: " + order.getPhone();
         
         if (coords != null) {
-            driverService.dispatchToClosestDrivers(DriverType.TAXI, msg, coords[0], coords[1],orderDetails);
+            driverService.dispatchToClosestDrivers(DriverType.TAXI, msg, coords[0], coords[1],orderDetails, order.getId());
         } else {
             // fallback to all drivers if geocoding fails
-            driverService.dispatchToDrivers(DriverType.TAXI, msg, orderDetails);
+            driverService.dispatchToDrivers(DriverType.TAXI, msg, orderDetails, order.getId());
         }
     }
 
@@ -141,56 +143,6 @@ public class TaxiOrderService {
 
         return "✅ נסיעה #" + orderId + " סומנה כהושלמה. אתה פנוי לנסיעה חדשה!";
     }
-
-    
-//    public String confirmByCustomer(String customerPhone) {
-//        List<TaxiOrder> orders = taxiOrderRepo
-//                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN);
-//        
-//        if (orders.isEmpty())
-//            return "❌ לא נמצאה הזמנה פעילה";
-//        
-//        TaxiOrder order = orders.get(0);
-//                
-//
-//        if (order == null)
-//            return "❌ לא נמצאה הזמנה פעילה";
-//
-//        order.setStatus(TaxiOrderStatus.CONFIRMED);
-//        taxiOrderRepo.save(order);
-//
-//        whatsappService.sendSafeText(order.getDriverPhone(),
-//                "✅ הלקוח אישר את ההזמנה #" + order.getId());
-//
-//        convoService.updateStateByPhone(customerPhone, ConversationState.START);
-//
-//        return "";
-//    }
-    
-
-//    public String cancelByCustomer(String customerPhone) {
-//        List<TaxiOrder> orders = taxiOrderRepo
-//                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN);
-//        
-//        if (orders.isEmpty())
-//            return "❌ לא נמצאה הזמנה פעילה";
-//        
-//        TaxiOrder order = orders.get(0); 
-//                
-//
-//        if (order == null)
-//            return "❌ לא נמצאה הזמנה פעילה";
-//
-//        order.setStatus(TaxiOrderStatus.CANCELLED);
-//        taxiOrderRepo.save(order);
-//
-//        whatsappService.sendSafeText(order.getDriverPhone(),
-//                "❌ הלקוח ביטל את ההזמנה #" + order.getId());
-//
-//        convoService.updateStateByPhone(customerPhone, ConversationState.START);
-//
-//        return "❌ ההזמנה בוטלה.";
-//    }
     
     private void notifyTaxiCustomer(TaxiOrder order) {
         String msg = """
@@ -207,7 +159,6 @@ public class TaxiOrderService {
         );
 
         whatsappService.sendSafeText(order.getPhone(), msg);
-
     }
 
     private void notifyOtherDrivers(long orderId, String claimingDriverPhone) {

@@ -72,9 +72,9 @@ public class OrderMonitorService {
                     "📞 עסק: " + order.getBusinessPhone();
 
             if (coords != null) {
-                driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, coords[0], coords[1], orderDetails);
+                driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, coords[0], coords[1], orderDetails,order.getId());
             } else {
-                driverService.dispatchToDrivers(DriverType.DELIVERY, msg, orderDetails);
+                driverService.dispatchToDrivers(DriverType.DELIVERY, msg, orderDetails, order.getId());
             }
 
             order.setDispatched(true);
@@ -119,7 +119,7 @@ public class OrderMonitorService {
                     "🎯 לאן: " + order.getDestination() + "\n" +
                     "📞 לקוח: " + order.getPhone();
 
-            driverService.dispatchToDrivers(DriverType.TAXI, msg, orderDetails);
+            driverService.dispatchToDrivers(DriverType.TAXI, msg, orderDetails, order.getId());
 
             order.setAdminAlerted(true);
             taxiOrderRepo.save(order);

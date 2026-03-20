@@ -41,5 +41,9 @@ public class BusinessOwnerService {
         return businessRepo.findByPhone(phone).map(Business::getAddress).orElse(null);
     }
 
-    
+    public String getBusinessName(String phone) {
+        return businessRepo.findByPhone(phone)
+                .map(Business::getName)
+                .orElse(null);
+    }
 }

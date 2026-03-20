@@ -3,11 +3,9 @@ package com.example.yanivbot.Services;
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Entities.DeliveryOrder;
 import com.example.yanivbot.Entities.Driver;
-import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.DriverType;
-import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -16,7 +14,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class DeliveryOrderService {
@@ -129,16 +126,18 @@ public class DeliveryOrderService {
     // Called by OrderMonitorService when scheduled dispatch time arrives
     public void broadcastToClosestDrivers(DeliveryOrder order, double lat, double lng) {
         String msg = buildDispatchMessage(order);
+        String businessName = businessOwnerService.getBusinessName(order.getBusinessPhone());
         String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
-                "📞 עסק: " + order.getBusinessPhone();
-        driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, lat, lng, orderDetails);
+                "🏪 עסק: " + (businessName != null ? businessName : order.getBusinessPhone());
+        driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, lat, lng, orderDetails, order.getId());
     }
 
     public void broadcastToDrivers(DeliveryOrder order) {
         String msg = buildDispatchMessage(order);
+        String businessName = businessOwnerService.getBusinessName(order.getBusinessPhone());
         String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
-                "📞 עסק: " + order.getBusinessPhone();
-        driverService.dispatchToDrivers(DriverType.DELIVERY, msg, orderDetails);
+                "🏪 עסק: " + (businessName != null ? businessName : order.getBusinessPhone());
+        driverService.dispatchToDrivers(DriverType.DELIVERY, msg, orderDetails,order.getId());
     }
 
     // Business owner sends "מוכן עכשיו" to dispatch immediately
