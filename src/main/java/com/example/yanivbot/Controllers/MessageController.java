@@ -201,9 +201,13 @@ public class MessageController {
         }
 
         //delivery order status checks
-        if (txt.matches("^מוכן\\s+\\d+$")) {
-            long orderId = Long.parseLong(txt.split("\\s+")[1]);
-            return deliveryOrderService.markReady(orderId, message.getPhone());
+//        if (txt.matches("^מוכן\\s+\\d+$")) {
+//            long orderId = Long.parseLong(txt.split("\\s+")[1]);
+//            return deliveryOrderService.markReady(orderId, message.getPhone());
+//        }
+
+        if (txt.equals("מוכן עכשיו")) {
+            return deliveryOrderService.dispatchNow(message.getPhone());
         }
 
         if (txt.matches("^איסוף\\s+\\d+$")) {
@@ -344,18 +348,23 @@ public class MessageController {
                 System.out.println("state after delivery address is:" + convo.getState());
 
                 return
-                        "⏱️ עוד כמה דקות מוכן?";
+                        "⏱️ עוד כמה דקות מוכן? \n או שלח: 'מוכן עכשיו'";
 
             case DELIVERY_READY_TIME:
+                if (message.getText().trim().equals("מוכן עכשיו")) {
+                    convo.setTempData(convo.getTempData() + "|0");
+                    convoService.updateState(convo, ConversationState.DELIVERY_PRICE);
+                    return "💰 כמה לגבות מהלקוח?";
+                }
                 try {
                     Integer.parseInt(message.getText().trim());
                 } catch (NumberFormatException e) {
-                    return "⚠️ אנא הכנס מספר בלבד (לדוגמה: 30)";
+                    return "⚠️ אנא הכנס מספר בלבד (לדוגמה: 30) או שלח: מוכן עכשיו";
                 }
                 convo.setTempData(convo.getTempData() + "|" + message.getText());
-                convoService.updateState(convo,ConversationState.DELIVERY_PRICE);
-                return
-                        "💰 כמה לגבות מהלקוח?";
+                convoService.updateState(convo, ConversationState.DELIVERY_PRICE);
+                return "💰 כמה לגבות מהלקוח?";
+
 
             case DELIVERY_PRICE:
                 try {

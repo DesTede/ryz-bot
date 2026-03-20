@@ -33,7 +33,9 @@ public class DeliveryOrder {
     public void onCreate(){
         this.createdAt = LocalDateTime.now();
     }
+    private LocalDateTime scheduledDispatchTime;
 
+    private boolean isDispatched;
     private boolean adminAlerted = false;
 
     public DeliveryOrder() {
@@ -108,23 +110,27 @@ public class DeliveryOrder {
         return deliveryFee;
     }
 
-    public void setDeliveryFee(double deliveryFee) {
-        this.deliveryFee = deliveryFee;
-    }
-
-    public String getNotes() {
-        return notes;
-    }
-
+    public void setDeliveryFee(double deliveryFee) {this.deliveryFee = deliveryFee;}
+    
+    public String getNotes() {return notes;}
+    
     public void setNotes(String notes) {
         this.notes = notes;
     }
+    
+    public boolean isAdminAlerted() {return adminAlerted;}
+    
+    public void setAdminAlerted(boolean adminAlerted) {this.adminAlerted = adminAlerted;}
 
-    public boolean isAdminAlerted() {
-        return adminAlerted;
+    public LocalDateTime getScheduledDispatchTime() {return scheduledDispatchTime;}
+
+    public void setScheduledDispatchTime(LocalDateTime scheduledDispatchTime) {this.scheduledDispatchTime = scheduledDispatchTime;}
+
+    public boolean isDispatched() {
+        return isDispatched;
     }
 
-    public void setAdminAlerted(boolean adminAlerted) {
-        this.adminAlerted = adminAlerted;
+    public void setDispatched(boolean dispatched) {
+        isDispatched = dispatched;
     }
 }

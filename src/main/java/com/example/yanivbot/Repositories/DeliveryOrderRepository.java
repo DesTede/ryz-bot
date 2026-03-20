@@ -14,6 +14,11 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
     
     List<DeliveryOrder> findByDeliveryStatusIn(List<DeliveryStatus> statuses);
 
+    List<DeliveryOrder> findByBusinessPhoneAndDeliveryStatusAndPickedUpByIsNull(
+            String businessPhone, DeliveryStatus status);
+
+    List<DeliveryOrder> findByDeliveryStatusAndPickedUpByIsNull(DeliveryStatus status);
+
     List<DeliveryOrder> findByDeliveryStatusAndCreatedAtBefore(DeliveryStatus status, LocalDateTime time);
     
     List <DeliveryOrder> findByPickedUpByAndDeliveryStatusIn(String driverPhone, List<DeliveryStatus> statuses);
@@ -23,6 +28,16 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
     Optional<DeliveryOrder> findByIdAndDeliveryStatus(long id, DeliveryStatus status);
     
     List<DeliveryOrder> findAllByOrderByCreatedAtDesc();
+
+    List<DeliveryOrder> findByDeliveryStatusAndScheduledDispatchTimeBefore(
+            DeliveryStatus status, LocalDateTime time);
+
+    Optional<DeliveryOrder> findFirstByBusinessPhoneAndDeliveryStatusOrderByCreatedAtDesc(
+            String businessPhone, DeliveryStatus status);
+    
+    
+    
+    
     
     
     

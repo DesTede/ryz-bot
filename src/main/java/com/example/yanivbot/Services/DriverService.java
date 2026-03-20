@@ -135,7 +135,7 @@ public class DriverService {
         return closeDrivers;
     }
 
-    private double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+    public double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
         final int R = 6371; // Earth radius in km
         double dLat = Math.toRadians(lat2 - lat1);
         double dLng = Math.toRadians(lng2 - lng1);

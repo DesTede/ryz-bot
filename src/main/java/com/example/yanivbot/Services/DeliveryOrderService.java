@@ -9,10 +9,14 @@ import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class DeliveryOrderService {
@@ -22,6 +26,10 @@ public class DeliveryOrderService {
     private final BusinessOwnerService businessOwnerService;
     private final WhatsappService whatsappService;
     private final GeoCodingService geoCodingService;
+    
+    // How many minutes before ready time to dispatch to drivers
+    @Value("${delivery.dispatch.before.minutes:5}")
+    private int dispatchBeforeMinutes;
 
     public DeliveryOrderService(DeliveryOrderRepository deliveryOrderRepo,
                                 DriverService driverService, BusinessOwnerService businessOwnerService,
@@ -32,7 +40,10 @@ public class DeliveryOrderService {
         this.whatsappService = whatsappService;
         this.geoCodingService = geoCodingService;
     }
+    
+    
  
+    
     public String createDelivery(Conversation convo, String businessPhone, String notes) {
         String temp = convo.getTempData();
 
@@ -86,40 +97,67 @@ public class DeliveryOrderService {
                 finalNotes
         );
 
+
+        // calculate dispatch time — dispatch X minutes before ready time
+        int dispatchDelay = Math.max(0, readyInMinutes - dispatchBeforeMinutes);
+        deliveryOrder.setScheduledDispatchTime(LocalDateTime.now().plusMinutes(dispatchDelay));
+        deliveryOrder.setDispatched(false);
+
         deliveryOrderRepo.save(deliveryOrder);
         System.out.println("Delivery order saved with ID: " + deliveryOrder.getId());
 
-        String businessAddress = businessOwnerService.getBusinessAddress(businessPhone);
-        System.out.println("Business address: " + businessAddress);
-
-        double[] coords = businessAddress != null ? geoCodingService.geocode(businessAddress) : null;
-        System.out.println("Geocoding result: " + (coords != null ? coords[0] + "," + coords[1] : "null"));
-
-        if (coords != null) {
-            System.out.println("Dispatching to closest drivers");
-            broadcastToClosestDrivers(deliveryOrder, coords[0], coords[1]);
-        } else {
-            System.out.println("Dispatching to all drivers (fallback)");
-            broadcastToDrivers(deliveryOrder);
-        }
-        
-         String confirmationMsg = """
-                הודעה על יצירת הזמנת משלוח לבעל העסק:
+        // notify business owner — dispatch will happen automatically by OrderMonitorService
+        String confirmationMsg = """
                 ✅ משלוח נוצר בהצלחה!
                 📦 כתובת: %s
                 💰 מחיר: %.2f₪
                 📝 הערות: %s
                 
+                ⏱️ הנהגים יקבלו את ההזמנה בעוד %d דקות.
+                לשליחה מיידית שלח: מוכן עכשיו
                 לעדכון סטטוס מוכן שלח: מוכן %d
-                """.formatted(deliveryAddress, deliveryFee, notes,deliveryOrder.getId());
+                """.formatted(deliveryAddress, deliveryFee, notes, dispatchDelay, deliveryOrder.getId());
 
-        whatsappService.sendSafeText(businessPhone,confirmationMsg);
+        whatsappService.sendSafeText(businessPhone, confirmationMsg);
+
         convo.setTempData(null);
         convo.setState(ConversationState.START);
-        
+
         return "";
     }
 
+    // Called by OrderMonitorService when scheduled dispatch time arrives
+    public void broadcastToClosestDrivers(DeliveryOrder order, double lat, double lng) {
+        String msg = buildDispatchMessage(order);
+        String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
+                "📞 עסק: " + order.getBusinessPhone();
+        driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, lat, lng, orderDetails);
+    }
+
+    public void broadcastToDrivers(DeliveryOrder order) {
+        String msg = buildDispatchMessage(order);
+        String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
+                "📞 עסק: " + order.getBusinessPhone();
+        driverService.dispatchToDrivers(DriverType.DELIVERY, msg, orderDetails);
+    }
+
+    // Business owner sends "מוכן עכשיו" to dispatch immediately
+    public String dispatchNow(String businessPhone) {
+        DeliveryOrder order = deliveryOrderRepo
+                .findFirstByBusinessPhoneAndDeliveryStatusOrderByCreatedAtDesc(
+                        businessPhone, DeliveryStatus.CREATED)
+                .orElse(null);
+
+        if (order == null) return "❌ לא נמצאה הזמנה פעילה.";
+        if (order.isDispatched()) return "❌ ההזמנה כבר נשלחה לנהגים.";
+
+        // trigger immediate dispatch by setting time to past
+        order.setScheduledDispatchTime(LocalDateTime.now().minusMinutes(1));
+        deliveryOrderRepo.save(order);
+
+        return "✅ ההזמנה תשלח לנהגים עכשיו!";
+    }
+    
     public String  buildDispatchMessage(DeliveryOrder order) {
         return  """
                 הודעה שנשלחת לכל הנהגים:
@@ -146,24 +184,7 @@ public class DeliveryOrderService {
                 order.getId()
         );
     }
-
-    public void broadcastToClosestDrivers(DeliveryOrder order, double lat, double lng)  {
-        String msg = buildDispatchMessage(order);
-        String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
-                              "📞 עסק: " + order.getBusinessPhone();
-        driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, lat, lng, orderDetails);
-    }
-
-    public void broadcastToDrivers(DeliveryOrder order)  {
-        String msg = buildDispatchMessage(order);
-        String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
-                              "📞 עסק: " + order.getBusinessPhone();
-        driverService.dispatchToDrivers(DriverType.DELIVERY, msg, orderDetails);
-    }
-
-    // need to edit after debugging
-   
-
+    
     public String claimOrder(long orderId, String driverPhone) {
 
         // Check if driver already has 4 active delivery orders
@@ -183,6 +204,7 @@ public class DeliveryOrderService {
         DeliveryOrder order = optionalOrder.get();
         order.setPickedUpBy(driverPhone);
         order.setDeliveryStatus(DeliveryStatus.PICKED_UP);
+        
         deliveryOrderRepo.save(order);
 
         
@@ -237,7 +259,10 @@ public class DeliveryOrderService {
 
         notifyCustomer(order);
 
-        return "✅ הזמנה #" + orderId + " נאספה! בדרך ללקוח.";
+        // check for nearby open orders
+        String extraOrders = checkForNearbyOpenOrders(driverPhone, orderId);
+
+        return "✅ הזמנה #" + orderId + " אוספה! בדרך ללקוח.\n" + extraOrders;
     }
 
     public String markDelivered(long orderId, String driverPhone) {
@@ -262,21 +287,72 @@ public class DeliveryOrderService {
         return "✅ הזמנה #" + orderId + " סומנה כנמסרה. כל הכבוד!";
     }
 
-    public String getDriverLocation(String customerPhone){
-        DeliveryOrder order = deliveryOrderRepo.findByCustomerPhoneAndDeliveryStatus(customerPhone, DeliveryStatus.PICKED_UP).orElse(null);
+    public String getDriverLocation(String customerPhone) {
+        DeliveryOrder order = deliveryOrderRepo
+                .findByCustomerPhoneAndDeliveryStatus(customerPhone, DeliveryStatus.PICKED_UP)
+                .orElse(null);
 
-        if (order == null)
-            return "❌ לא נמצאה הזמנה פעילה.";
+        if (order == null) return "❌ לא נמצאה הזמנה פעילה.";
 
         Driver driver = driverService.findByPhone(order.getPickedUpBy());
 
-        if (driver == null)
+        if (driver == null || driver.getLatitude() == null || driver.getLatitude() == 0)
             return "⚠️ מיקום הנהג אינו זמין כרגע.";
 
         String mapsLink = "https://www.google.com/maps?q=" +
                 driver.getLatitude() + "," + driver.getLongitude();
 
-        return  "📍 מיקום הנהג:\n" + mapsLink;
+        return "📍 מיקום הנהג:\n" + mapsLink;
+    }
+
+    private String checkForNearbyOpenOrders(String driverPhone, long currentOrderId) {
+        Driver driver = driverService.findByPhone(driverPhone);
+        if (driver == null || driver.getLatitude() == null || driver.getLatitude() == 0) return "";
+
+        List<DeliveryOrder> openOrders = deliveryOrderRepo
+                .findByDeliveryStatusAndPickedUpByIsNull(DeliveryStatus.CREATED)
+                .stream()
+                .filter(o -> o.getId() != currentOrderId)
+                .filter(o -> o.isDispatched()) // only show already dispatched orders
+                .toList();
+
+        if (openOrders.isEmpty()) return "";
+
+        List<DeliveryOrder> nearbyOrders = new ArrayList<>();
+        for (DeliveryOrder o : openOrders) {
+            String businessAddress = businessOwnerService.getBusinessAddress(o.getBusinessPhone());
+            if (businessAddress == null) continue;
+            double[] coords = geoCodingService.geocode(businessAddress);
+            if (coords == null) continue;
+            double distance = calculateDistance(driver.getLatitude(), driver.getLongitude(),
+                    coords[0], coords[1]);
+            if (distance <= 3.0) {
+                nearbyOrders.add(o);
+            }
+        }
+
+        if (nearbyOrders.isEmpty()) return "";
+
+        StringBuilder sb = new StringBuilder("\n📦 יש הזמנות פתוחות קרובות אליך:\n");
+        for (DeliveryOrder o : nearbyOrders) {
+            sb.append("🆔 ").append(o.getId())
+                    .append(" | 📍 ").append(o.getDeliveryAddress())
+                    .append(" | 💰 ").append(o.getDeliveryFee()).append("₪\n")
+                    .append("ללקיחה שלח: משלוח ").append(o.getId()).append("\n\n");
+        }
+
+        return sb.toString();
+    }
+    
+    private double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+        final int R = 6371;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
     
     // probably delete this
