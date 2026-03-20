@@ -1,5 +1,6 @@
 package com.example.yanivbot.Entities;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 
@@ -7,7 +8,9 @@ import jakarta.persistence.Id;
 public class BotConfig {
 
     @Id
+    @Column(name = "config_value")
     private String key;
+    @Column(name = "config_value")
     private String value;
 
     public BotConfig() {}
