@@ -23,8 +23,8 @@ public class OrderMonitorService {
 //    private final TaxiOrderService taxiOrderService;
     private final DriverService driverService;
 
-    @Value("${admin.phone}")
-    private String adminPhone;
+    @Value("${admin.phones}")
+    private String adminPhones;
 
     // How many minutes before alerting admin
     private static final int TAXI_ALERT_MINUTES = 5;
