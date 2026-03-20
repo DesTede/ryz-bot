@@ -168,7 +168,17 @@ public class WhatsappService {
 //
 //        return phone;
     }
-    
-    
 
+    @Value("${admin.phones}")
+    private String adminPhones;
+
+    public List<String> getAdminPhones() {
+        return List.of(adminPhones.split(","));
+    }
+
+    public void notifyAdmins(String message) {
+        for (String phone : getAdminPhones()) {
+            sendSafeText(phone.trim(), message);
+        }
+    }
 }

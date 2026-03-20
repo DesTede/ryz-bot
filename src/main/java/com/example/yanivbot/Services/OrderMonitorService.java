@@ -57,14 +57,15 @@ public class OrderMonitorService {
         for (TaxiOrder order : unclaimedOrders) {
             if (order.isAdminAlerted()) continue; // already alerted, skip
 
-            whatsappService.sendSafeText(adminPhone,
-                    "הודעה שנשלחת למנהל:" +
+
+            whatsappService.notifyAdmins(
+                            "הודעה שנשלחת למנהל:" +
                             "⚠️ הזמנת מונית #" + order.getId() + " לא נלקחה כבר " +
                             TAXI_ALERT_MINUTES + " דקות!\n" +
                             "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
                             "🎯 לאן: " + order.getDestination() + "\n" +
                             "📞 לקוח: " + order.getPhone());
-
+            
             // notify the customer
 //            whatsappService.sendSafeText(order.getPhone(),
 //                    "⚠️ טרם נמצא נהג להזמנתך. אנו ממשיכים לחפש...");
@@ -105,13 +106,13 @@ public class OrderMonitorService {
             if (order.isAdminAlerted()) continue; // already alerted, skip
             if (order.getPickedUpBy() != null) continue;
 
-            whatsappService.sendSafeText(adminPhone,
-                    "הודעה שנשלחת למנהל:" +
+            whatsappService.notifyAdmins(
+                            "הודעה שנשלחת למנהל:" +
                             "⚠️ הזמנת משלוח #" + order.getId() + " לא נלקחה כבר " +
                             DELIVERY_ALERT_MINUTES + " דקות!\n" +
                             "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
-                            "📞 עסק: " + order.getBusinessPhone());
-
+                            "📞 עסק: " + order.getBusinessPhone()););
+            
             // notify the business
 //            whatsappService.sendSafeText(order.getBusinessPhone(),
 //                    "⚠️ טרם נמצא שליח להזמנה #" + order.getId() + ". אנו ממשיכים לחפש...");

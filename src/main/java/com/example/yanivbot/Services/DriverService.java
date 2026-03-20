@@ -13,8 +13,8 @@ import java.util.stream.Collectors;
 @Service
 public class DriverService {
 
-    @Value("${admin.phone}")
-    private String adminPhone;
+    @Value("${admin.phones}")
+    private String adminPhones;
     private final DriverRepository driverRepo;
     private final WhatsappService whatsappService;
 
@@ -25,8 +25,8 @@ public class DriverService {
 
     private void notifyAdminNoDrivers(DriverType type, String orderDetails) {
         String typeStr = type == DriverType.TAXI ? "מונית" : "משלוח";
-        whatsappService.sendSafeText(adminPhone,
-                "הודעה שנשלחת למנהל:" +
+        
+        whatsappService.notifyAdmins("הודעה שנשלחת למנהל:" +
                 "⚠️ הזמנת " + typeStr + " חדשה נוצרה אך אין נהגים זמינים!\n" + orderDetails);
     }
     

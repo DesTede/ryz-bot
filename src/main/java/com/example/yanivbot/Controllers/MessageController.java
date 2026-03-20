@@ -23,20 +23,20 @@ public class MessageController {
     private final BusinessOwnerService businessOwnerService;
     private final DeliveryOrderService deliveryOrderService;
     private final WhatsappService whatsappService;
-    @Value("${bot.active}")
-    private boolean botActive;
-
+    private final BotConfigService botConfigService;
+    
     public MessageController(ConversationService convoService,
                              TaxiOrderService taxiOrderService,
                              BusinessOwnerService businessOwnerService,
                              DeliveryOrderService deliveryOrderService,
-                             WhatsappService whatsappService, DriverService driverService) {
+                             WhatsappService whatsappService, DriverService driverService, BotConfigService botConfigService) {
         this.convoService = convoService;
         this.taxiOrderService = taxiOrderService;
         this.businessOwnerService = businessOwnerService;
         this.deliveryOrderService = deliveryOrderService;
         this.whatsappService = whatsappService;
         this.driverService = driverService;
+        this.botConfigService = botConfigService;
     }
 
 
@@ -107,17 +107,34 @@ public class MessageController {
     }
     
     
-//    @PostMapping
+    @PostMapping
     private String processMessage(IncomingMessage message) {
-        
-        if (!botActive)
-            return "⚠️ הבוט אינו פעיל כרגע. אנא נסה שוב מאוחר יותר.";
-
+        //null check
         if (message.getText() == null || message.getText().isBlank()) {
             return "⚠️ אנא שלח הודעת טקסט בלבד";
         }
-        
-        String txt = message.getText().trim();
+
+        String txt = message.getText().trim(); 
+
+        //bot inactive check (admins can still turn it on)
+        if (!botConfigService.isBotActive()) {
+            if (whatsappService.getAdminPhones().contains(message.getPhone()) && txt.equals("בוט פעיל")) {
+                botConfigService.setBotActive(true);
+                return "✅ הבוט הופעל.";
+            }
+            return "⚠️ הבוט אינו פעיל כרגע. אנא נסה שוב מאוחר יותר.";
+        }
+
+        if (whatsappService.getAdminPhones().contains(message.getPhone())) {
+            if (txt.equals("בוט כבוי")) {
+                botConfigService.setBotActive(false);
+                return "✅ הבוט כובה.";
+            }
+            if (txt.equals("בוט פעיל")) {
+                botConfigService.setBotActive(true);
+                return "✅ הבוט הופעל.";
+            }
+        }
         
         //restart check
         switch (txt) {
