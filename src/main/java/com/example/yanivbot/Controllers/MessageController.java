@@ -5,6 +5,7 @@ import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +23,8 @@ public class MessageController {
     private final BusinessOwnerService businessOwnerService;
     private final DeliveryOrderService deliveryOrderService;
     private final WhatsappService whatsappService;
+    @Value("${bot.active}")
+    private boolean botActive;
 
     public MessageController(ConversationService convoService,
                              TaxiOrderService taxiOrderService,
@@ -106,6 +109,9 @@ public class MessageController {
     
 //    @PostMapping
     private String processMessage(IncomingMessage message) {
+        
+        if (!botActive)
+            return "⚠️ הבוט אינו פעיל כרגע. אנא נסה שוב מאוחר יותר.";
 
         if (message.getText() == null || message.getText().isBlank()) {
             return "⚠️ אנא שלח הודעת טקסט בלבד";
@@ -311,7 +317,7 @@ public class MessageController {
                 convoService.saveTempData(convo,message.getText());
                 convoService.updateState(convo, ConversationState.DELIVERY_ADDRESS);
                 return
-                        "📦 כתובת משלוח?";
+                        "📦 כתובת משלוח?(לא לשכוח עיר)";
 
 
             case DELIVERY_ADDRESS:
