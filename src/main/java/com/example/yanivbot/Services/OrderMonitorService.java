@@ -182,7 +182,7 @@ public class OrderMonitorService {
     
     private static final int LOCATION_STALE_MINUTES = 15; // alert if no update in 15 min
 
-//    @Scheduled(fixedDelay = 60000)
+//    @Scheduled(fixedDelay = 600000)
 //    public void checkDriverLocations() {
 //        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(LOCATION_STALE_MINUTES);
 //
