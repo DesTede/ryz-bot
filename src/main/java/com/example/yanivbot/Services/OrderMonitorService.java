@@ -182,27 +182,27 @@ public class OrderMonitorService {
     
     private static final int LOCATION_STALE_MINUTES = 15; // alert if no update in 15 min
 
-    @Scheduled(fixedDelay = 60000)
-    public void checkDriverLocations() {
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(LOCATION_STALE_MINUTES);
-
-        // get all active drivers of any type
-        List<Driver> allActiveDrivers = new ArrayList<>();
-        allActiveDrivers.addAll(driverService.getActiveDrivers(DriverType.TAXI));
-        allActiveDrivers.addAll(driverService.getActiveDrivers(DriverType.DELIVERY));
-
-        // deduplicate by phone
-        allActiveDrivers.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        Driver::getPhone, d -> d, (d1, d2) -> d1))
-                .values()
-                .forEach(driver -> {
-                    if (driver.getLocationUpdatedAt() != null &&
-                            driver.getLocationUpdatedAt().isBefore(cutoff)) {
-                        whatsappService.sendSafeText(driver.getPhone(),
-                                "📍 המיקום שלך לא עודכן כבר " + LOCATION_STALE_MINUTES + " דקות.\n" +
-                                        "אנא שלח מיקום מעודכן כדי להמשיך לקבל הזמנות.");
-                    }
-                });
-    }
+//    @Scheduled(fixedDelay = 60000)
+//    public void checkDriverLocations() {
+//        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(LOCATION_STALE_MINUTES);
+//
+//        // get all active drivers of any type
+//        List<Driver> allActiveDrivers = new ArrayList<>();
+//        allActiveDrivers.addAll(driverService.getActiveDrivers(DriverType.TAXI));
+//        allActiveDrivers.addAll(driverService.getActiveDrivers(DriverType.DELIVERY));
+//
+//        // deduplicate by phone
+//        allActiveDrivers.stream()
+//                .collect(java.util.stream.Collectors.toMap(
+//                        Driver::getPhone, d -> d, (d1, d2) -> d1))
+//                .values()
+//                .forEach(driver -> {
+//                    if (driver.getLocationUpdatedAt() != null &&
+//                            driver.getLocationUpdatedAt().isBefore(cutoff)) {
+//                        whatsappService.sendSafeText(driver.getPhone(),
+//                                "📍 המיקום שלך לא עודכן כבר " + LOCATION_STALE_MINUTES + " דקות.\n" +
+//                                        "אנא שלח מיקום מעודכן כדי להמשיך לקבל הזמנות.");
+//                    }
+//                });
+//    }
 }
