@@ -357,17 +357,21 @@ public class DeliveryOrderService {
     // probably delete this
     private void notifyCustomer(DeliveryOrder order) {
         String customerPhone = whatsappService.normalizePhone(order.getCustomerPhone());
+        Driver driver = driverService.findByPhone(order.getPickedUpBy());
+        String driverName = driver != null ? driver.getName() : order.getPickedUpBy(); 
         String msg = """
                 הודעה שנשלחת ללקוח:
                 🛵 המשלוח בדרך!
                 📍 מאיפה: %s
                 🎯 לאן: %s
-                נהג: %s
+                👤 נהג: %s
+                📞 טלפון: %s
                 
                 למעקב אחר מיקום הנהג שלח: "מיקום"
                 """.formatted(
                 order.getBusinessPhone(),
                 order.getDeliveryAddress(),
+                driverName,
                 order.getPickedUpBy()
         );
         whatsappService.sendSafeText(customerPhone, msg);

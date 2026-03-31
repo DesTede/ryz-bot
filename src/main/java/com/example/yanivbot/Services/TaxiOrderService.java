@@ -1,5 +1,6 @@
 package com.example.yanivbot.Services;
 
+import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DriverType;
@@ -145,16 +146,20 @@ public class TaxiOrderService {
     }
     
     private void notifyTaxiCustomer(TaxiOrder order) {
+        Driver driver = driverService.findByPhone(order.getDriverPhone());
+        String driverName =  driver != null ? driver.getName() : order.getDriverPhone();
         String msg = """
         הודעה שנשלחת ללקוח:
         🚕 המונית בדרך!
         📍 מאיפה: %s
         🎯 לאן: %s
-        📞 נהג: %s
+        👤 נהג: %s
+        📞 טלפון: %s
         
         """.formatted(
                 order.getPickUpLocation(),
                 order.getDestination(),
+                driverName,
                 order.getDriverPhone()
         );
 
