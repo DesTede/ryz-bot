@@ -1,9 +1,8 @@
 package com.example.yanivbot.Controllers;
 
 import com.example.yanivbot.Models.IncomingMessage;
-import com.example.yanivbot.Services.ConversationService;
+import com.example.yanivbot.Services.MessageRouterService;
 import com.example.yanivbot.Services.WhatsappService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,12 +26,10 @@ public class WhatsAppWebhookController {
     private WhatsappService whatsappService;
     
     @Autowired
-    private ConversationService conversationService;
+    private MessageRouterService messageRouterService;
     
     @Value("${whatsapp.webhook-verify-token:yanivbot_verify_token}")
     private String webhookVerifyToken;
-    
-    private final ObjectMapper objectMapper = new ObjectMapper();
     
     /**
      * Webhook GET endpoint for Meta verification during setup.
@@ -62,7 +59,7 @@ public class WhatsAppWebhookController {
     
     /**
      * Webhook POST endpoint for receiving messages from Meta.
-     * Routes message through ConversationService state machine.
+     * Routes message through MessageRouterService.
      */
     @PostMapping("/whatsapp")
     public ResponseEntity<Void> handleWebhook(@RequestBody Map<String, Object> payload) {
@@ -82,8 +79,8 @@ public class WhatsAppWebhookController {
             
             logger.info("Message received from {}: {}", phoneNumber, messageText);
             
-            // Route through your conversation state machine
-            conversationService.handleUserMessage(phoneNumber, messageText);
+            // Route through message router
+            messageRouterService.handleUserMessage(phoneNumber, messageText);
             
             return ResponseEntity.ok().build();
         } catch (Exception e) {
