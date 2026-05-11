@@ -59,34 +59,7 @@ public class WhatsappService {
         restTemplate.exchange(url, HttpMethod.POST, request, String.class);
     }
 
-    /**
-     * Meta webhook
-     * @param payload
-     * @return
-     */
-//    public void sendText(String to, String message) {
-//
-//        System.out.println("Attempting to send to: [" + to + "]");
-//        
-//        String url = "https://graph.facebook.com/v19.0/" + phoneNumberId + "/messages";
-//
-//        String body = """
-//        {
-//          "messaging_product": "whatsapp",
-//          "to": "%s",
-//          "type": "text",
-//          "text": { "body": "%s" }
-//        }
-//        """.formatted(to, message);
-//
-//        HttpHeaders headers = new HttpHeaders();
-//        headers.setBearerAuth(accessToken);
-//        headers.setContentType(MediaType.APPLICATION_JSON);
-//
-//        HttpEntity<String> request = new HttpEntity<>(body, headers);
-//
-//        restTemplate.exchange(url, HttpMethod.POST, request, String.class);
-//    }
+
 
 
     public IncomingMessage parseIncomingMessage(Map<String, Object> payload) {
@@ -153,20 +126,6 @@ public class WhatsappService {
         return "+" + phone;
         
         
-//        // Remove any spaces or dashes
-//        phone = phone.replaceAll("[\\s\\-]", "");
-//
-//        // Israeli number starting with 0 → replace with 972
-//        if (phone.startsWith("0")) {
-//            phone = "972" + phone.substring(1);
-//        }
-//
-//        // Add + if missing
-//        if (!phone.startsWith("+")) {
-//            phone = "+" + phone;
-//        }
-//
-//        return phone;
     }
 
     @Value("${admin.phones}")

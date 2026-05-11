@@ -129,7 +129,7 @@ public class OrderMonitorService {
     }
 
     private void checkUnclaimedDeliveryOrders() {
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(DELIVERY_ALERT_MINUTES);
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes( DELIVERY_ALERT_MINUTES);
         List<DeliveryOrder> unclaimedOrders = deliveryOrderRepo
                 .findByDeliveryStatusAndCreatedAtBefore(DeliveryStatus.CREATED, cutoff);
 
