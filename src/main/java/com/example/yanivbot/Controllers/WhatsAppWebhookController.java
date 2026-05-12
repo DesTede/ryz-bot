@@ -31,7 +31,7 @@ public class WhatsAppWebhookController {
     @Autowired
     private WhatsappService whatsappService;
     
-    @Value("${whatsapp.webhook-verify-token:yanivbot_verify_token}")
+    @Value("${whatsapp.webhook-verify-token:yanivbot_verify}")
     private String webhookVerifyToken;
     
     /**
