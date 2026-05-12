@@ -138,7 +138,6 @@ public class TaxiOrderService {
         order.setStatus(TaxiOrderStatus.COMPLETED);
         taxiOrderRepo.save(order);
 
-        // notify customer
         whatsappService.sendSafeText(order.getPhone(),
                 "✅ הנסיעה הסתיימה! תודה שנסעת איתנו.");
 
