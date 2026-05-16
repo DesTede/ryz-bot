@@ -62,6 +62,10 @@ public class WhatsAppWebhookController {
      */
     @PostMapping("/whatsapp")
     public ResponseEntity<Void> handleWebhook(@RequestBody Map<String, Object> payload) {
+
+        System.out.println("===== WEBHOOK CALLED =====");
+        System.out.println("Payload: " + payload);
+                
         try {
             logger.debug("Webhook payload received from Meta");
             
