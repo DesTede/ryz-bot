@@ -112,7 +112,12 @@ public class MessageController {
      */
     public void handleMetaMessage(IncomingMessage message) {
         if (message != null && message.getText() != null) {
-            processMessage(message);
+            String reply = processMessage(message);
+
+            // Actually send the response back!
+            if (reply != null && !reply.isEmpty()) {
+                whatsappService.sendText(message.getPhone(), reply);
+            }
         }
     }
     
