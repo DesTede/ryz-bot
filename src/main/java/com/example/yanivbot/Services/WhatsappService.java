@@ -189,15 +189,18 @@ public class WhatsappService {
     /**
      * Send request to Meta WhatsApp API
      */
-    private void sendRequestToMeta(Map<String, Object> payload) throws Exception {
+    private boolean sendRequestToMeta(Map<String, Object> payload) throws Exception {
         String url = String.format("%s/%s/%s/messages",
                 META_API_BASE, apiVersion, phoneNumberId);
 
         String jsonPayload = objectMapper.writeValueAsString(payload);
 
+        // FIX: Strip all whitespace from token
+        String cleanToken = accessToken.replaceAll("\\s+", "");
+
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("Authorization", "Bearer " + accessToken)
+                .header("Authorization", "Bearer " + cleanToken)  // Use cleanToken here
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonPayload, StandardCharsets.UTF_8))
                 .build();
@@ -207,9 +210,11 @@ public class WhatsappService {
 
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
             logger.info("Message sent successfully via Meta. Status: {}", response.statusCode());
+            return true;
         } else {
             logger.error("Failed to send message via Meta. Status: {}, Response: {}",
                     response.statusCode(), response.body());
+            return false;
         }
     }
 }
