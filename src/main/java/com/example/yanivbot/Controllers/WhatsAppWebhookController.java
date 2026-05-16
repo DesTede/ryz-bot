@@ -14,14 +14,7 @@ import java.util.Map;
 
 /**
  * Webhook endpoint for receiving messages from Meta WhatsApp Business API.
- * 
- * NOTE: This is for FUTURE use with Meta WhatsApp.
- * For now, use MessageController with your existing Twilio/JSON webhooks.
- * 
- * When you're ready to migrate to Meta completely:
- * 1. Configure webhook in Meta: https://your-domain/webhook/whatsapp
- * 2. This controller will receive messages
- * 3. Route to MessageController or a completed MessageRouterService
+ * Routes messages to MessageController for processing.
  */
 @RestController
 @RequestMapping("/webhook")
@@ -30,6 +23,9 @@ public class WhatsAppWebhookController {
     
     @Autowired
     private WhatsappService whatsappService;
+    
+    @Autowired
+    private MessageController messageController;
     
     @Value("${whatsapp.webhook-verify-token:yanivbot_verify}")
     private String webhookVerifyToken;
@@ -62,16 +58,14 @@ public class WhatsAppWebhookController {
     
     /**
      * Webhook POST endpoint for receiving messages from Meta.
-     * 
-     * For now: Parse message and route to MessageController's existing logic
-     * Later: Route through completed MessageRouterService
+     * Parses the message and routes to MessageController for processing.
      */
     @PostMapping("/whatsapp")
     public ResponseEntity<Void> handleWebhook(@RequestBody Map<String, Object> payload) {
         try {
             logger.debug("Webhook payload received from Meta");
             
-            // Parse incoming message using existing WhatsappService
+            // Parse incoming message using WhatsappService
             IncomingMessage incomingMessage = whatsappService.parseIncomingMessage(payload);
             
             if (incomingMessage == null) {
@@ -84,11 +78,9 @@ public class WhatsAppWebhookController {
             
             logger.info("Message received from {}: {}", phoneNumber, messageText);
             
-            // TODO: Route to MessageController or MessageRouterService
-            // For now, message is logged but not processed.
-            // When ready to use Meta, complete this routing.
-            
-            logger.debug("Meta webhook message received but routing not yet implemented");
+            // Route to MessageController to process the message
+            // MessageController.processMessage handles all the bot logic
+            messageController.handleMetaMessage(incomingMessage);
             
             return ResponseEntity.ok().build();
         } catch (Exception e) {

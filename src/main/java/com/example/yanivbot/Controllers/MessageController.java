@@ -105,6 +105,16 @@ public class MessageController {
 
         return ResponseEntity.ok("EVENT_RECEIVED");
     }
+
+
+    /**
+     * Called by WhatsAppWebhookController when Meta sends a message
+     */
+    public void handleMetaMessage(IncomingMessage message) {
+        if (message != null && message.getText() != null) {
+            processMessage(message);
+        }
+    }
     
     
     @PostMapping
