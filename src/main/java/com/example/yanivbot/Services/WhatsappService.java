@@ -91,11 +91,10 @@ public class WhatsappService {
     private void sendTextViaMeta(String to, String message) throws Exception {
         Map<String, Object> payload = new HashMap<>();
         payload.put("messaging_product", "whatsapp");
-        payload.put("recipient_type", "individual");
         payload.put("to", to);
 
         Map<String, Object> textObj = new HashMap<>();
-        textObj.put("preview_url", "false");
+        // REMOVE this line: textObj.put("preview_url", "false");
         textObj.put("body", message);
         payload.put("text", textObj);
 
