@@ -108,7 +108,7 @@ public class MessageController {
 
 
     /**
-     * Called by WhatsAppWebhookController when Meta sends a message
+     * Called by WhatsAppWebhookController when Meta sends a message.
      */
     public void handleMetaMessage(IncomingMessage message) {
         if (message != null && message.getText() != null) {
