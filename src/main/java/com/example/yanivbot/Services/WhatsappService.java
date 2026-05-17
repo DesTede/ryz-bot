@@ -198,6 +198,7 @@ public class WhatsappService {
         // FIX: Strip all whitespace from token
         String cleanToken = accessToken.replaceAll("\\s+", "");
 
+        System.out.println("Token:" + cleanToken + accessToken );
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Authorization", "Bearer " + cleanToken)  // Use cleanToken here
