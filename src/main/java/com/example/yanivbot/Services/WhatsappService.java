@@ -149,7 +149,7 @@ public class WhatsappService {
     }
 
     /**
-     * Normalize phone number to Meta format (972512345678)
+     * Normalize phone number to Meta format (972512345678, 972549711059)
      */
     public String normalizePhone(String phone) {
         phone = phone.replaceAll("[\\s\\-]", "");
