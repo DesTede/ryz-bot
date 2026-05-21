@@ -217,12 +217,12 @@ public class MessageController {
                 else {
                     convoService.updateState(convo, ConversationState.START);
                     return """
-                👋 סיימת משמרת!
+                            👋 סיימת משמרת!
 
-                בחר שירות:
-                🚕 מונית
-                
-                (או הקלד 00 לתפריט ראשי)""";
+                            שלום \uD83D\uDC4B בחר שירות:
+                            עבור מונית - 1
+                            עבור יצירת משלוח - 2
+                            (שלח 00 בכל עת לחזרה לתפריט הראשי)""";
                 }
             }
         }
@@ -337,7 +337,7 @@ public class MessageController {
                 if (message.getText().equals("1")) {
                     convoService.updateState(convo, ConversationState.TAXI_PICKUP);
                     return
-                            "מאיפה לאסוף אותך? '\uD83D\uDCCD' ";
+                            "מאיפה לאסוף אותך?(לא לשכוח עיר) '\uD83D\uDCCD' ";
 
                 }
                 return

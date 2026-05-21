@@ -123,7 +123,7 @@ public class TaxiOrderService {
                 "\n" +
                 "✅ נהג!" +
                 " הזמנה מספר " + orderId + " שויכה אליך" + 
-                "\"\uD83D\uDCDE טלפון לקוח: \" + order.getPhone()";
+                "\"\uD83D\uDCDE טלפון לקוח: \" " + order.getPhone();
     }
 
     public String completeOrder(long orderId, String driverPhone) {
