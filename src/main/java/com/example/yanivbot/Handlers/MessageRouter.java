@@ -84,7 +84,21 @@ public class MessageRouter {
             return null;
         }
 
-        // Route based on current state
+        // *** CHECK DRIVER COMMANDS FIRST (before state-based routing) ***
+        logger.info("Trying driver handler...");
+        String driverResult = driverHandler.handleMessage(convo, message);
+        logger.info("Driver handler returned: {}, state after: {}", driverResult, convo.getState());
+        if (driverResult != null) {
+            return driverResult;
+        }
+
+        // If state changed to START after driver command, handle it
+        if (convo.getState() == ConversationState.START) {
+            logger.info("State changed to START by driver handler, calling handleStart");
+            return handleStart(convo, message);
+        }
+
+        // *** THEN CHECK STATE-BASED ROUTING ***
         switch (convo.getState()) {
             case START:
                 return handleStart(convo, message);
@@ -108,7 +122,7 @@ public class MessageRouter {
 
             case AWAITING_DRIVER_LOCATION:
                 // Driver handler will process
-                String driverResult = driverHandler.handleMessage(convo, message);
+                driverResult = driverHandler.handleMessage(convo, message);
                 if (driverResult != null) {
                     return driverResult;
                 }
@@ -121,20 +135,6 @@ public class MessageRouter {
                     return businessResult;
                 }
                 break;
-        }
-
-        // Try driver commands (work from any state)
-        logger.info("Trying driver handler...");
-        String driverResult = driverHandler.handleMessage(convo, message);
-        logger.info("Driver handler returned: {}, state after: {}", driverResult, convo.getState());
-        if (driverResult != null) {
-            return driverResult;
-        }
-
-        // If state changed to START after driver command, handle it
-        if (convo.getState() == ConversationState.START) {
-            logger.info("State changed to START by driver handler, calling handleStart");
-            return handleStart(convo, message);
         }
 
         // Try taxi-specific commands (driver claiming/completing) (work from any state)
