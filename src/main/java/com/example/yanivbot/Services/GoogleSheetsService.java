@@ -76,7 +76,7 @@ public class GoogleSheetsService {
     }
 
     // Runs every 5 minutes
-    @Scheduled(fixedDelay = 300000)
+//    @Scheduled(fixedDelay = 300000)
     public void syncFromSheets() {
         System.out.println("Syncing from Google Sheets...");
         try {
