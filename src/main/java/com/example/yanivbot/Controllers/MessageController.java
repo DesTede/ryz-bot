@@ -185,6 +185,16 @@ public class MessageController {
                             עבור יצירת משלוח - 2
                             (שלח 00 בכל עת לחזרה לתפריט הראשי)""";
                 }
+                else {
+                    convoService.updateState(convo, ConversationState.START);
+                    return """
+                👋 סיימת משמרת!
+
+                בחר שירות:
+                🚕 מונית
+                
+                (או הקלד 00 לתפריט ראשי)""";
+                }
             }
         }
 
