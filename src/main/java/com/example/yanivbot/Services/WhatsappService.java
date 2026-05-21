@@ -180,8 +180,13 @@ public class WhatsappService {
      * Notify all admins
      */
     public void notifyAdmins(String message) {
-        for (String phone : getAdminPhones()) {
-            sendSafeText(phone.trim(), message);
+        List<String > admins = getAdminPhones();
+        logger.info("Notifying {} admins with message: {}", admins.size(), message);
+        
+        for (String phone : admins) {
+            phone = phone.trim();
+            logger.info("Sending to admin: {}", phone);
+            sendSafeText(phone, message);
         }
     }
 
