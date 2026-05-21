@@ -55,7 +55,7 @@ public class WhatsappService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
-    private static final String META_API_BASE = "https://graph.instagram.com";
+    private static final String META_API_BASE = "https://graph.facebook.com";
 
     /**
      * Send text message via configured provider (Meta or Twilio)
