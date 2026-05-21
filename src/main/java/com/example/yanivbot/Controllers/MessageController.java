@@ -152,7 +152,7 @@ public class MessageController {
                     return "✅ המיקום התקבל! התחלת משמרת בהצלחה. תקבל הזמנות מעכשיו.";
                 } catch (Exception e) {
                     logger.error("Failed to process location: {}", e.getMessage());
-                    return "❌ שגיאה בעיבוד המיקום. נסה שוב.";
+                    return "❌ שגיאה בעיבוד המיקום. נסה שוב❌.";
                 }
             }
         }
