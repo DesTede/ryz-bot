@@ -177,12 +177,11 @@ public class WhatsappService {
     }
 
     /**
-     * Notify all admins
+     * Notify all admins, with debugging
      */
     public void notifyAdmins(String message) {
         List<String > admins = getAdminPhones();
         logger.info("Notifying {} admins with message: {}", admins.size(), message);
-        
         for (String phone : admins) {
             phone = phone.trim();
             logger.info("Sending to admin: {}", phone);
