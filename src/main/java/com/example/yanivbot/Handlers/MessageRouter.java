@@ -66,6 +66,9 @@ public class MessageRouter {
      */
     public String route(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
+        ConversationState stateBefore = convo.getState();
+
+        logger.info("Route: txt='{}', state={}", txt, stateBefore);
 
         // Special commands that work from any state
         if (txt.equals("00")) {
@@ -121,13 +124,16 @@ public class MessageRouter {
         }
 
         // Try driver commands (work from any state)
+        logger.info("Trying driver handler...");
         String driverResult = driverHandler.handleMessage(convo, message);
+        logger.info("Driver handler returned: {}, state after: {}", driverResult, convo.getState());
         if (driverResult != null) {
             return driverResult;
         }
 
         // If state changed to START after driver command, handle it
         if (convo.getState() == ConversationState.START) {
+            logger.info("State changed to START by driver handler, calling handleStart");
             return handleStart(convo, message);
         }
 
