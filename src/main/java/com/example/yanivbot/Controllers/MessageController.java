@@ -5,6 +5,8 @@ import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +26,8 @@ public class MessageController {
     private final DeliveryOrderService deliveryOrderService;
     private final WhatsappService whatsappService;
     private final BotConfigService botConfigService;
-    
+    private static final Logger logger = LoggerFactory.getLogger(MessageController.class);
+
     public MessageController(ConversationService convoService,
                              TaxiOrderService taxiOrderService,
                              BusinessOwnerService businessOwnerService,
@@ -129,7 +132,33 @@ public class MessageController {
             return "⚠️ אנא שלח הודעת טקסט בלבד";
         }
 
-        String txt = message.getText().trim(); 
+        String txt = message.getText().trim();
+        Conversation convo = convoService.getOrCreate(message.getPhone());
+
+        // Handle location message for driver shift start
+        if (txt.startsWith("LOCATION:")) {
+            if (convo.getState() == ConversationState.AWAITING_DRIVER_LOCATION) {
+                try {
+                    String[] coords = txt.substring(9).split(",");
+                    double latitude = Double.parseDouble(coords[0]);
+                    double longitude = Double.parseDouble(coords[1]);
+
+                    logger.info("Driver {} clocking in at lat: {}, lng: {}",
+                            message.getPhone(), latitude, longitude);
+
+                    driverService.clockIn(message.getPhone());
+                    convoService.updateState(convo, ConversationState.START);
+
+                    return "✅ המיקום התקבל! התחלת משמרת בהצלחה. תקבל הזמנות מעכשיו.";
+                } catch (Exception e) {
+                    logger.error("Failed to process location: {}", e.getMessage());
+                    return "❌ שגיאה בעיבוד המיקום. נסה שוב.";
+                }
+            }
+        }
+        
+        
+//        String txt = message.getText().trim(); 
 
         //bot inactive check (admins can still turn it on)
         if (!botConfigService.isBotActive()) {
@@ -154,7 +183,7 @@ public class MessageController {
         //restart check
         switch (txt) {
             case "התחל מחדש", "תפריט", "00" -> {
-                Conversation convo = convoService.getOrCreate(message.getPhone());
+//                Conversation convo = convoService.getOrCreate(message.getPhone());
                 convo.setTempData(null);
                 convoService.updateState(convo, ConversationState.START);
                 return "🔄 מתחילים מחדש! שלח כל הודעה להתחלה.";
@@ -166,7 +195,7 @@ public class MessageController {
                 Driver driver = driverService.findByPhone(message.getPhone());
                 if (driver == null) return "❌ הטלפון שלך לא רשום במערכת כנהג.";
 
-                Conversation convo = convoService.getOrCreate(message.getPhone());
+//                Conversation convo = convoService.getOrCreate(message.getPhone());
                 convoService.updateState(convo, ConversationState.AWAITING_DRIVER_LOCATION);
 
                 return "📍 כדי להתחיל משמרת עליך לשתף מיקום בזמן אמת.\n" +
@@ -174,7 +203,7 @@ public class MessageController {
             }
             case "סיים משמרת" -> {
                 driverService.clockOut(message.getPhone());
-                Conversation convo = convoService.getOrCreate(message.getPhone());
+//                Conversation convo = convoService.getOrCreate(message.getPhone());
                 if (businessOwnerService.isBusinessOwner(message.getPhone())) {
                     convoService.updateState(convo, ConversationState.BUSINESS_MENU);
                     return """
@@ -218,7 +247,7 @@ public class MessageController {
             return deliveryOrderService.claimOrder(orderId, message.getPhone());
         }
 //        System.out.println("phone: " + message.getPhone());
-        Conversation convo = convoService.getOrCreate(message.getPhone());
+//        Conversation convo = convoService.getOrCreate(message.getPhone());
 
         //delivery customer location check
         if (txt.equals("מיקום")) {

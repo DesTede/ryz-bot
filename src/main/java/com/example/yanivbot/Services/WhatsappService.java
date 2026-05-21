@@ -121,7 +121,6 @@ public class WhatsappService {
      */
     public IncomingMessage parseIncomingMessage(Map<String, Object> payload) {
         try {
-            // Meta webhook structure: entry[0].changes[0].value.messages[0]
             List<Map<String, Object>> entry = (List<Map<String, Object>>) payload.get("entry");
             if (entry == null || entry.isEmpty()) return null;
 
@@ -133,13 +132,26 @@ public class WhatsappService {
 
             Map<String, Object> msg = messages.get(0);
             String from = (String) msg.get("from");
-            
-            Map<String, Object> textObj = (Map<String, Object>) msg.get("text");
-            String text = textObj != null ? (String) textObj.get("body") : null;
+            String type = (String) msg.get("type");
 
             IncomingMessage message = new IncomingMessage();
             message.setPhone(from);
-            message.setText(text);
+
+            // Handle text messages
+            if ("text".equals(type)) {
+                Map<String, Object> textObj = (Map<String, Object>) msg.get("text");
+                String text = textObj != null ? (String) textObj.get("body") : null;
+                message.setText(text);
+            }
+            // Handle location messages
+            else if ("location".equals(type)) {
+                Map<String, Object> location = (Map<String, Object>) msg.get("location");
+                Double latitude = ((Number) location.get("latitude")).doubleValue();
+                Double longitude = ((Number) location.get("longitude")).doubleValue();
+
+                // Set as special text to identify location
+                message.setText("LOCATION:" + latitude + "," + longitude);
+            }
 
             return message;
         } catch (Exception e) {
