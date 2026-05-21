@@ -13,92 +13,92 @@ import org.springframework.stereotype.Component;
 
 /**
  * Handles driver-specific commands.
- *
+ * 
  * Commands:
  * - "התחל משמרת": Driver starting shift (requires location)
  * - "סיים משמרת": Driver ending shift
  * - Location sharing: Updates driver location
- *
+ * 
  * State:
  * - AWAITING_DRIVER_LOCATION: Waiting for driver to share location after starting shift
  */
 @Component
 public class DriverConversationHandler implements ConversationHandler {
-
+    
     private static final Logger logger = LoggerFactory.getLogger(DriverConversationHandler.class);
-
+    
     private final DriverService driverService;
     private final ConversationService convoService;
     private final BusinessOwnerService businessOwnerService;
-
+    
     public DriverConversationHandler(DriverService driverService, ConversationService convoService, BusinessOwnerService businessOwnerService) {
         this.driverService = driverService;
         this.convoService = convoService;
         this.businessOwnerService = businessOwnerService;
     }
-
+    
     @Override
     public String handleMessage(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
-
+        
         // Check for driver starting shift: "התחל משמרת"
         if (txt.equals("התחל משמרת")) {
             return handleStartShift(convo, message);
         }
-
+        
         // Check for driver ending shift: "סיים משמרת"
         if (txt.equals("סיים משמרת")) {
             return handleEndShift(convo, message);
         }
-
+        
         // Check for location message during shift start
         if (txt.startsWith("LOCATION:")) {
             if (convo.getState() == ConversationState.AWAITING_DRIVER_LOCATION) {
                 return handleLocationForShiftStart(convo, message, txt);
             }
         }
-
+        
         // This handler doesn't handle other states
         return null;
     }
-
+    
     /**
      * Handle driver starting shift: "התחל משמרת"
-     *
+     * 
      * Checks if driver exists, then requests location
      */
     private String handleStartShift(Conversation convo, IncomingMessage message) {
         Driver driver = driverService.findByPhone(message.getPhone());
-
+        
         if (driver == null) {
             return "❌ הטלפון שלך לא רשום במערכת כנהג.";
         }
-
+        
         // Update state to wait for location
         convoService.updateState(convo, ConversationState.AWAITING_DRIVER_LOCATION);
-
+        
         return "📍 כדי להתחיל משמרת עליך לשתף מיקום בזמן אמת.\n" +
                 "שתף מיקום חי ואז תירשם כזמין לקבל הזמנות.";
     }
-
+    
     /**
      * Handle driver ending shift: "סיים משמרת"
-     *
+     * 
      * Clock out driver and return to appropriate menu based on user type
      */
     private String handleEndShift(Conversation convo, IncomingMessage message) {
         driverService.clockOut(message.getPhone());
-
+        
         // Reset state to START and let router handle the menu
         convoService.updateState(convo, ConversationState.START);
-
+        
         // Return null so MessageRouter calls handleStart() to determine correct menu
         return null;
     }
-
+    
     /**
      * Handle location message when driver is starting shift
-     *
+     * 
      * Parses location coordinates and updates driver location in database
      */
     private String handleLocationForShiftStart(Conversation convo, IncomingMessage message, String locationText) {
@@ -107,17 +107,17 @@ public class DriverConversationHandler implements ConversationHandler {
             String[] coords = locationText.substring(9).split(",");
             double latitude = Double.parseDouble(coords[0]);
             double longitude = Double.parseDouble(coords[1]);
-
-            logger.info("Driver {} clocking in at lat: {}, lng: {}",
-                    message.getPhone(), latitude, longitude);
-
+            
+            logger.info("Driver {} clocking in at lat: {}, lng: {}", 
+                message.getPhone(), latitude, longitude);
+            
             // Update driver location and clock in
             driverService.updateDriverLocation(message.getPhone(), latitude, longitude);
             driverService.clockIn(message.getPhone());
-
+            
             // Reset state to START
             convoService.updateState(convo, ConversationState.START);
-
+            
             return "✅ המיקום התקבל! התחלת משמרת בהצלחה. תקבל הזמנות מעכשיו.";
         } catch (Exception e) {
             logger.error("Failed to process location for driver {}: {}", message.getPhone(), e.getMessage());
