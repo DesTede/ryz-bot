@@ -2,7 +2,6 @@ package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.TaxiOrder;
-import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
@@ -113,7 +112,7 @@ public class TaxiOrderService {
         order.setDriverPhone(driverPhone);
         taxiOrderRepo.save(order);
 
-        // notify the customer 
+        // notify the customer with Google Maps link
         notifyTaxiCustomer(order);
         
         notifyOtherDrivers(orderId,driverPhone);
@@ -147,6 +146,15 @@ public class TaxiOrderService {
     private void notifyTaxiCustomer(TaxiOrder order) {
         Driver driver = driverService.findByPhone(order.getDriverPhone());
         String driverName =  driver != null ? driver.getName() : order.getDriverPhone();
+        String driverPhone = order.getDriverPhone();
+        
+        // Get driver's current location
+        double[] driverLocation = driverService.getDriverLocation(driverPhone);
+        String locationLink = "";
+        if (driverLocation != null && driverLocation.length == 2) {
+            locationLink = whatsappService.generateGoogleMapsLink(driverLocation[0], driverLocation[1]);
+        }
+        
         String msg = """
         הודעה שנשלחת ללקוח:
         🚕 המונית בדרך!
@@ -154,13 +162,16 @@ public class TaxiOrderService {
         🎯 לאן: %s
         👤 נהג: %s
         📞 טלפון: %s
-        
         """.formatted(
                 order.getPickUpLocation(),
                 order.getDestination(),
                 driverName,
-                order.getDriverPhone()
+                driverPhone
         );
+        
+        if (!locationLink.isEmpty()) {
+            msg += "\n🗺️ מיקום הנהג: " + locationLink;
+        }
 
         whatsappService.sendSafeText(order.getPhone(), msg);
     }
@@ -174,4 +185,32 @@ public class TaxiOrderService {
         });
     }
     
+    /**
+     * Get driver's current location as a Google Maps link
+     * Used when customer sends "מיקום"
+     */
+    public String getDriverLocation(String customerPhone) {
+        // Find active taxi order for this customer
+        TaxiOrder activeOrder = taxiOrderRepo
+                .findByPhoneAndStatusIn(customerPhone, List.of(TaxiOrderStatus.TAKEN, TaxiOrderStatus.CONFIRMED))
+                .orElse(null);
+        
+        if (activeOrder == null) {
+            return "❌ אין הזמנה פעילה כרגע.";
+        }
+        
+        Driver driver = driverService.findByPhone(activeOrder.getDriverPhone());
+        if (driver == null) {
+            return "❌ לא ניתן למצוא את הנהג.";
+        }
+        
+        double[] driverLocation = driverService.getDriverLocation(activeOrder.getDriverPhone());
+        if (driverLocation == null || driverLocation.length != 2) {
+            return "❌ מיקום הנהג לא זמין כרגע.";
+        }
+        
+        String locationLink = whatsappService.generateGoogleMapsLink(driverLocation[0], driverLocation[1]);
+        
+        return "🗺️ מיקום הנהג: " + locationLink;
+    }
 }

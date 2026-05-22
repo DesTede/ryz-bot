@@ -173,19 +173,19 @@ public class DeliveryConversationHandler implements ConversationHandler {
         
         try {
             // Create the delivery order
-            deliveryOrderService.createDelivery(convo,
+            deliveryOrderService.createDeliveryOrder(
                 message.getPhone(),  // business owner phone
-//                customerPhone,
-//                address,
-//                readyTime,
-//                price,
+                customerPhone,
+                address,
+                readyTime,
+                price,
                 notes
             );
             
             // Reset conversation state
             convoService.updateState(convo, ConversationState.START);
             
-            return "✅ ההזמנה נוצרה בהצלחה! המשלוח ישודר לנהגים כשהזמנה תהיה מוכנה.";
+            return "✅ ההזמנה נוצרה בהצלחה! המשלוח ישודרו לנהגים כשהסחורה תהיה מוכנה.";
         } catch (Exception e) {
             logger.error("Failed to create delivery order for {}: {}", message.getPhone(), e.getMessage());
             convoService.updateState(convo, ConversationState.START);

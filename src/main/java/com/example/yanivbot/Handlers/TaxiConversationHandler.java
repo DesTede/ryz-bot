@@ -41,6 +41,11 @@ public class TaxiConversationHandler implements ConversationHandler {
         String txt = message.getText().trim();
         ConversationState state = convo.getState();
         
+        // Check for customer requesting driver location: "מיקום"
+        if (txt.equals("מיקום")) {
+            return taxiOrderService.getDriverLocation(message.getPhone());
+        }
+        
         // Check for driver claiming taxi order: "מונית {id}"
         if (txt.matches("^מונית\\s+\\d+$")) {
             long orderId = Long.parseLong(txt.split("\\s+")[1]);
