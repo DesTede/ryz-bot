@@ -28,7 +28,7 @@ public class DriverService {
         whatsappService.notifyAdmins(
                 "⚠️ הזמנת " + typeStr + " חדשה #" + orderId + " נוצרה אך אין נהגים זמינים!\n" + orderDetails);
     }
-    
+
     public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng, String orderDetails, long orderId) {
         int maxDrivers = type == DriverType.TAXI ? 5 : 2;
         List<Driver> drivers = getClosestDrivers(type, lat, lng, maxDrivers);
@@ -38,36 +38,36 @@ public class DriverService {
             notifyAdminNoDrivers(type, orderDetails,orderId);
             return;
         }
-        
+
 
         for (Driver driver : drivers) {
             whatsappService.sendSafeText(driver.getPhone(), message);
         }
     }
-    
+
     public void dispatchToDrivers(DriverType type, String message, String orderDetails, long orderId) {
-        List<Driver> drivers = getActiveDrivers(type); 
+        List<Driver> drivers = getActiveDrivers(type);
         System.out.println("Dispatching to " + drivers.size() + " drivers of type " + type);
 
         if (drivers.isEmpty()) {
             notifyAdminNoDrivers(type, orderDetails, orderId);
             return;
         }
-        
+
         for (Driver driver : drivers) {
             whatsappService.sendSafeText(driver.getPhone(), message);
         }
     }
 
     public Driver findByPhone(String phone){
-        return driverRepo.findDriverByPhone(phone).orElse(null);    
+        return driverRepo.findDriverByPhone(phone).orElse(null);
     }
-    
+
     public String clockIn(String phone) {
         Driver driver = findByPhone(phone);
         if (driver == null)
             return "❌ הטלפון שלך לא רשום במערכת כנהג.";
-        
+
         driver.setActive(true);
         driverRepo.save(driver);
         return "✅ התחלת משמרת! תקבל הזמנות מעכשיו.";
@@ -75,13 +75,21 @@ public class DriverService {
 
     public void clockOut(String phone) {
         Driver driver = findByPhone(phone);
-        if (driver == null)
+        if (driver == null) {
+            System.err.println("clockOut: Driver not found for phone: " + phone);
             return;
-        
+        }
+
+        System.out.println("clockOut: Clocking out driver " + phone + ", was active: " + driver.isActive());
         driver.setActive(false);
-        driverRepo.save(driver);
+        Driver saved = driverRepo.save(driver);
+        System.out.println("clockOut: After save, driver active: " + saved.isActive());
+
+        // Verify by re-fetching from database
+        Driver verify = findByPhone(phone);
+        System.out.println("clockOut: Re-fetched from DB, driver active: " + verify.isActive());
     }
-    
+
     public List<Driver> getActiveDrivers(DriverType type) {
         return driverRepo.findByActiveAndTypeIn(true, List.of(type,DriverType.BOTH));
     }
@@ -91,8 +99,8 @@ public class DriverService {
         if (driver == null || driver.getLatitude() == null || driver.getLatitude() == 0) return null;
         return new double[]{driver.getLatitude(), driver.getLongitude()};
     }
-    
-    
+
+
     public void updateDriverLocation(String phone, Double latitude, Double longitude) {
         driverRepo.findDriverByPhone(phone).ifPresent(driver -> {
             driver.setLatitude(latitude);
