@@ -2,7 +2,7 @@ package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Entities.DeliveryOrder;
 import com.example.yanivbot.Entities.Driver;
-import com.example.yanivbot.Models.DeliveryOrderStatus;
+import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import org.springframework.stereotype.Service;
@@ -27,7 +27,23 @@ public class DeliveryOrderService {
 
     public void createDeliveryOrder(String businessOwnerPhone, String customerPhone, String address,
                                     String readyInMinutes, String price, String notes) {
-        DeliveryOrder order = new DeliveryOrder(businessOwnerPhone, customerPhone, address, readyInMinutes, price, notes);
+        // Parse readyInMinutes
+        int readyMin = 0;
+        try {
+            readyMin = Integer.parseInt(readyInMinutes);
+        } catch (NumberFormatException e) {
+            readyMin = 0;
+        }
+
+        // Parse price
+        double priceValue = 0;
+        try {
+            priceValue = Double.parseDouble(price);
+        } catch (NumberFormatException e) {
+            priceValue = 0;
+        }
+
+        DeliveryOrder order = new DeliveryOrder(businessOwnerPhone, customerPhone, "", address, readyMin, DeliveryStatus.CREATED, priceValue, notes);
         deliveryOrderRepo.save(order);
 
         System.out.println("Delivery order saved with ID: " + order.getId());
@@ -44,19 +60,18 @@ public class DeliveryOrderService {
         if (order == null)
             return "❌ הזמנה #" + orderId + " לא נמצאה.";
 
-        if (order.getStatus() != DeliveryOrderStatus.READY)
+        if (order.getDeliveryStatus() != DeliveryStatus.READY)
             return "❌ הזמנה #" + orderId + " לא מוכנה.";
 
         // Check if driver already has active delivery
-        DeliveryOrder activeOrder = deliveryOrderRepo
-                .findByDriverPhoneAndStatusIn(driverPhone, List.of(DeliveryOrderStatus.PICKED_UP))
-                .orElse(null);
+        List<DeliveryOrder> activeOrders = deliveryOrderRepo
+                .findByPickedUpByAndDeliveryStatusIn(driverPhone, List.of(DeliveryStatus.PICKED_UP));
 
-        if (activeOrder != null)
+        if (!activeOrders.isEmpty())
             return "❌ כבר יש לך משלוח פעיל. סיים אותו לפני שתיקח משלוח חדש.";
 
-        order.setStatus(DeliveryOrderStatus.PICKED_UP);
-        order.setDriverPhone(driverPhone);
+        order.setDeliveryStatus(DeliveryStatus.PICKED_UP);
+        order.setPickedUpBy(driverPhone);
         deliveryOrderRepo.save(order);
 
         // Notify customer with Google Maps link
@@ -69,12 +84,12 @@ public class DeliveryOrderService {
         DeliveryOrder order = deliveryOrderRepo.findById(orderId).orElse(null);
 
         if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
-        if (!order.getDriverPhone().equals(driverPhone))
+        if (order.getPickedUpBy() == null || !order.getPickedUpBy().equals(driverPhone))
             return "❌ הזמנה זו לא שויכה אליך.";
-        if (order.getStatus() != DeliveryOrderStatus.PICKED_UP)
+        if (order.getDeliveryStatus() != DeliveryStatus.PICKED_UP)
             return "❌ הזמנה #" + orderId + " לא במצב הנכון.";
 
-        order.setStatus(DeliveryOrderStatus.PICKED_UP);
+        order.setDeliveryStatus(DeliveryStatus.PICKED_UP);
         deliveryOrderRepo.save(order);
 
         return "✅ סיימת איסוף הזמנה #" + orderId + ".";
@@ -84,12 +99,12 @@ public class DeliveryOrderService {
         DeliveryOrder order = deliveryOrderRepo.findById(orderId).orElse(null);
 
         if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
-        if (!order.getDriverPhone().equals(driverPhone))
+        if (order.getPickedUpBy() == null || !order.getPickedUpBy().equals(driverPhone))
             return "❌ הזמנה זו לא שויכה אליך.";
-        if (order.getStatus() != DeliveryOrderStatus.PICKED_UP)
+        if (order.getDeliveryStatus() != DeliveryStatus.PICKED_UP)
             return "❌ הזמנה #" + orderId + " לא נמצאת בדרך.";
 
-        order.setStatus(DeliveryOrderStatus.DELIVERED);
+        order.setDeliveryStatus(DeliveryStatus.DELIVERED);
         deliveryOrderRepo.save(order);
 
         whatsappService.sendSafeText(order.getCustomerPhone(),
@@ -99,9 +114,9 @@ public class DeliveryOrderService {
     }
 
     private void notifyDeliveryCustomer(DeliveryOrder order) {
-        Driver driver = driverService.findByPhone(order.getDriverPhone());
-        String driverName = driver != null ? driver.getName() : order.getDriverPhone();
-        String driverPhone = order.getDriverPhone();
+        Driver driver = driverService.findByPhone(order.getPickedUpBy());
+        String driverName = driver != null ? driver.getName() : order.getPickedUpBy();
+        String driverPhone = order.getPickedUpBy();
 
         // Get driver's current location
         double[] driverLocation = driverService.getDriverLocation(driverPhone);
@@ -114,10 +129,10 @@ public class DeliveryOrderService {
         הודעה שנשלחת ללקוח:
         🚚 המשלוח בדרך!
         📍 לכתובת: %s
-         נהג: %s
+        👤 נהג: %s
         📞 טלפון: %s
         """.formatted(
-                order.getAddress(),
+                order.getDeliveryAddress(),
                 driverName,
                 driverPhone
         );
@@ -135,20 +150,20 @@ public class DeliveryOrderService {
      */
     public String getDriverLocation(String customerPhone) {
         // Find active delivery order for this customer
-        DeliveryOrder activeOrder = deliveryOrderRepo
-                .findByCustomerPhoneAndStatus(customerPhone, DeliveryOrderStatus.PICKED_UP)
+        var activeOrder = deliveryOrderRepo
+                .findByCustomerPhoneAndDeliveryStatus(customerPhone, DeliveryStatus.PICKED_UP)
                 .orElse(null);
 
         if (activeOrder == null) {
             return "❌ אין משלוח פעיל כרגע.";
         }
 
-        Driver driver = driverService.findByPhone(activeOrder.getDriverPhone());
+        Driver driver = driverService.findByPhone(activeOrder.getPickedUpBy());
         if (driver == null) {
             return "❌ לא ניתן למצוא את הנהג.";
         }
 
-        double[] driverLocation = driverService.getDriverLocation(activeOrder.getDriverPhone());
+        double[] driverLocation = driverService.getDriverLocation(activeOrder.getPickedUpBy());
         if (driverLocation == null || driverLocation.length != 2) {
             return "❌ מיקום הנהג לא זמין כרגע.";
         }
@@ -160,7 +175,7 @@ public class DeliveryOrderService {
 
     public String dispatchNow(String businessOwnerPhone) {
         // Find orders ready to dispatch for this business owner
-        List<DeliveryOrder> orders = deliveryOrderRepo.findByBusinessPhoneAndStatus(businessOwnerPhone, DeliveryOrderStatus.READY);
+        List<DeliveryOrder> orders = deliveryOrderRepo.findByBusinessPhoneAndDeliveryStatusAndPickedUpByIsNull(businessOwnerPhone, DeliveryStatus.READY);
 
         if (orders.isEmpty()) {
             return "❌ אין הזמנות מוכנות לשידור.";
@@ -178,24 +193,24 @@ public class DeliveryOrderService {
         🚚 הזמנת משלוח חדשה
         🆔 %d
         📍 לכתובת: %s
-        💰 מחיר: %s
+        💰 מחיר: %.2f
         📝 הערות: %s
         
         לקיחת ההזמנה: משלוח %d
         """.formatted(
                 order.getId(),
-                order.getAddress(),
-                order.getPrice(),
+                order.getDeliveryAddress(),
+                order.getDeliveryFee(),
                 order.getNotes(),
                 order.getId()
         );
 
         System.out.println("Broadcasting delivery order " + order.getId() + " to drivers");
 
-        double[] coords = geoCodingService.geocode(order.getAddress());
+        double[] coords = geoCodingService.geocode(order.getDeliveryAddress());
 
-        String orderDetails = "📍 לכתובת: " + order.getAddress() + "\n" +
-                "💰 מחיר: " + order.getPrice() + "\n" +
+        String orderDetails = "📍 לכתובת: " + order.getDeliveryAddress() + "\n" +
+                "💰 מחיר: " + order.getDeliveryFee() + "\n" +
                 "📞 לקוח: " + order.getCustomerPhone();
 
         if (coords != null) {

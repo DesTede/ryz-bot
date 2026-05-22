@@ -18,7 +18,7 @@ import java.util.Map;
 
 /**
  * Updated WhatsappService with support for both Twilio and Meta WhatsApp.
- * 
+ *
  * Routes messages to the appropriate provider based on configuration.
  * For production: Uses Meta WhatsApp Cloud API
  * For testing: Can still use Twilio if needed
@@ -94,7 +94,6 @@ public class WhatsappService {
         payload.put("to", to);
 
         Map<String, Object> textObj = new HashMap<>();
-        // REMOVE this line: textObj.put("preview_url", "false");
         textObj.put("body", message);
         payload.put("text", textObj);
 
@@ -112,7 +111,6 @@ public class WhatsappService {
                 "&To=whatsapp:%2B" + to.replace("+", "") +
                 "&Body=" + java.net.URLEncoder.encode(message, StandardCharsets.UTF_8);
 
-        // ... implement Twilio request (your existing code)
         logger.info("Twilio send: {}", body);
     }
 
@@ -165,19 +163,19 @@ public class WhatsappService {
      */
     public String normalizePhone(String phone) {
         phone = phone.replaceAll("[\\s\\-]", "");
-        
+
         if (phone.startsWith("+")) {
             phone = phone.substring(1);
         }
-        
+
         if (phone.startsWith("0")) {
             phone = "972" + phone.substring(1);
         }
-        
+
         if (phone.startsWith("5")) {
             phone = "972" + phone;
         }
-        
+
         return phone; // Meta doesn't need the +
     }
 
@@ -202,6 +200,13 @@ public class WhatsappService {
     }
 
     /**
+     * Generate Google Maps link with coordinates
+     */
+    public String generateGoogleMapsLink(double latitude, double longitude) {
+        return "https://www.google.com/maps/search/?api=1&query=" + latitude + "," + longitude;
+    }
+
+    /**
      * Send request to Meta WhatsApp API
      */
     private boolean sendRequestToMeta(Map<String, Object> payload) throws Exception {
@@ -212,10 +217,10 @@ public class WhatsappService {
 
         // FIX: Strip all whitespace from token
         String cleanToken = accessToken.replaceAll("\\s+", "");
-        
+
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("Authorization", "Bearer " + cleanToken)  // Use cleanToken here
+                .header("Authorization", "Bearer " + cleanToken)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonPayload, StandardCharsets.UTF_8))
                 .build();
