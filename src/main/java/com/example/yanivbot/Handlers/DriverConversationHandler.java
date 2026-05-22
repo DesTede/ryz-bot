@@ -89,19 +89,33 @@ public class DriverConversationHandler implements ConversationHandler {
     /**
      * Handle driver ending shift: "סיים משמרת"
      *
-     * Clock out driver and return to appropriate menu based on user type
+     * Clock out driver and show appropriate menu
      */
     private String handleEndShift(Conversation convo, IncomingMessage message) {
         logger.info("handleEndShift: Clocking out driver {}", message.getPhone());
 
         driverService.clockOut(message.getPhone());
 
-        // Reset state to START and let router handle the menu
-        convoService.updateState(convo, ConversationState.START);
-        logger.info("handleEndShift: State updated to START");
-
-        // Return null so MessageRouter calls handleStart() to determine correct menu
-        return null;
+        // Check if user is also a business owner
+        if (businessOwnerService.isBusinessOwner(message.getPhone())) {
+            convoService.updateState(convo, ConversationState.BUSINESS_MENU);
+            logger.info("handleEndShift: User is business owner, showing business menu");
+            return "👋 סיימת משמרת!\n\n" +
+                    "שלום 👋\n" +
+                    "בחר שירות:\n\n" +
+                    "עבור מונית - 1\n\n" +
+                    "עבור יצירת משלוח - 2\n\n" +
+                    "(שלח 00 בכל עת לחזרה לתפריט הראשי)";
+        } else {
+            // Regular customer menu
+            convoService.updateState(convo, ConversationState.TAXI_SERVICE);
+            logger.info("handleEndShift: User is regular customer, showing customer menu");
+            return "👋 סיימת משמרת!\n\n" +
+                    "שלום 👋\n" +
+                    "בחר שירות:\n\n" +
+                    "עבור מונית לחץ - 1\n\n" +
+                    "(שלח 00 בכל עת לחזרה לתפריט הראשי)";
+        }
     }
 
     /**
