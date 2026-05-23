@@ -25,7 +25,7 @@ public class ConversationService {
 
     /**
      * Get or create conversation for a phone number
-     * If conversation is in START state, send welcome message
+     * If conversation is in START state AND it's a brand new conversation, send welcome message
      */
     public Conversation getOrCreate(String phone) {
         Optional<Conversation> existing = convoRepo.findById(phone);
@@ -36,9 +36,10 @@ public class ConversationService {
             logger.info("  State: {}", convo.getState());
             logger.info("  TempData: {}", convo.getTempData());
 
-            // If conversation is in START state, send welcome message
-            if (convo.getState() == ConversationState.START) {
-                logger.info("Conversation in START state - sending welcome message");
+            // If conversation is in START state AND tempData is empty (not yet captured name)
+            // This means it was reset, so send welcome on NEXT message (not on the reset message itself)
+            if (convo.getState() == ConversationState.START && (convo.getTempData() == null || convo.getTempData().isEmpty())) {
+                logger.info("Conversation in START state with empty tempData - sending welcome message");
                 whatsappService.sendSafeText(phone, WELCOME_MESSAGE);
             }
 
@@ -54,7 +55,7 @@ public class ConversationService {
         convoRepo.save(convo);
         logger.info("getOrCreate: Created new conversation with state START");
 
-        // Send welcome message
+        // Send welcome message for new users
         logger.info("Sending welcome message to new user");
         whatsappService.sendSafeText(phone, WELCOME_MESSAGE);
 
