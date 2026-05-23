@@ -77,12 +77,15 @@ public class MessageRouter {
         }
 
         ConversationState state = convo.getState();
+        logger.info("Current state before switch: {}", state);
 
         switch (state) {
             case START:
+                logger.info("In START state");
                 return handleStart(convo, message.getPhone());
 
             case BUSINESS_MENU:
+                logger.info("In BUSINESS_MENU state");
                 String businessResponse = businessHandler.handleMessage(convo, message);
                 if (businessResponse != null) {
                     return businessResponse;
@@ -91,13 +94,23 @@ public class MessageRouter {
 
             case TAXI_SERVICE:
             case TAXI_CAR_TYPE:
+                logger.info("In TAXI state (TAXI_CAR_TYPE)");
+                String taxiResponse = taxiHandler.handleMessage(convo, message);
+                if (taxiResponse != null) {
+                    logger.info("TaxiHandler returned: {}", taxiResponse);
+                    return taxiResponse;
+                }
+                break;
+
             case TAXI_PICKUP:
             case TAXI_DESTINATION:
             case TAXI_NOTES:
             case AWAITING_TAXI_ORDER_CONFIRMATION:
-                String taxiResponse = taxiHandler.handleMessage(convo, message);
-                if (taxiResponse != null) {
-                    return taxiResponse;
+                logger.info("In TAXI state: {}", state);
+                String taxiResponse2 = taxiHandler.handleMessage(convo, message);
+                if (taxiResponse2 != null) {
+                    logger.info("TaxiHandler returned: {}", taxiResponse2);
+                    return taxiResponse2;
                 }
                 break;
 
@@ -106,20 +119,27 @@ public class MessageRouter {
             case DELIVERY_READY_TIME:
             case DELIVERY_PRICE:
             case DELIVERY_NOTES:
+                logger.info("In DELIVERY state: {}", state);
                 String deliveryResponse = deliveryHandler.handleMessage(convo, message);
                 if (deliveryResponse != null) {
                     return deliveryResponse;
                 }
                 break;
+
+            default:
+                logger.warn("Unknown state: {}", state);
+                break;
         }
 
+        logger.error("No handler processed the message, returning error");
         return "❌ משהו השתבש. אנא נסה שוב.";
     }
 
     private boolean isStartMenuButton(String txt) {
-        return txt.equals("start_service_taxi") ||
-                txt.equals("start_service_delivery") ||
-                txt.equals("start_contact_us");
+        boolean result = txt.equals("start_service_taxi") ||
+                txt.equals("start_service_delivery");
+        logger.info("isStartMenuButton('{}') = {}", txt, result);
+        return result;
     }
 
     private String handleStartMenuButton(Conversation convo, IncomingMessage message) {
