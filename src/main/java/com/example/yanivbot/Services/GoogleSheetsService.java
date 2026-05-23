@@ -14,20 +14,20 @@ import java.util.List;
 
 @Service
 public class GoogleSheetsService {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(GoogleSheetsService.class);
-    
+
     @Value("${google.sheets.id:}")
     private String sheetsId;
-    
+
     private final DriverRepository driverRepository;
     private final WhatsappService whatsappService;
-    
+
     public GoogleSheetsService(DriverRepository driverRepository, WhatsappService whatsappService) {
         this.driverRepository = driverRepository;
         this.whatsappService = whatsappService;
     }
-    
+
     /**
      * Sync drivers from Google Sheets to database
      * Called every 5 minutes
@@ -40,31 +40,31 @@ public class GoogleSheetsService {
             // 1. Read from Google Sheets API
             // 2. Parse driver data
             // 3. Update database
-            
+
             logger.info("Driver sync completed");
         } catch (Exception e) {
             logger.error("Error syncing drivers from Google Sheets: {}", e.getMessage());
         }
     }
-    
+
     /**
      * Add or update driver from Google Sheets data
      */
     public void addOrUpdateDriver(String phone, String name, String driverType, String carType, String carColor, String carModel) {
         try {
             phone = whatsappService.normalizePhone(phone);
-            
+
             Driver existingDriver = driverRepository.findDriverByPhone(phone).orElse(null);
-            
+
             DriverType type = DriverType.valueOf(driverType.toUpperCase());
             CarType carTypeEnum = null;
-            
+
             try {
                 carTypeEnum = CarType.valueOf(carType.toUpperCase());
             } catch (Exception e) {
                 logger.warn("Invalid car type: {}", carType);
             }
-            
+
             if (existingDriver != null) {
                 existingDriver.setName(name);
                 existingDriver.setType(type);
@@ -97,18 +97,12 @@ public class GoogleSheetsService {
             logger.error("Error adding/updating driver {}: {}", phone, e.getMessage());
         }
     }
-    
+
     /**
      * Get all drivers from database
      */
     public List<Driver> getAllDrivers() {
         return driverRepository.findAll();
     }
-    
-    /**
-     * Get drivers by type
-     */
-    public List<Driver> getDriversByType(DriverType type) {
-        return driverRepository.findByType(type);
-    }
+
 }
