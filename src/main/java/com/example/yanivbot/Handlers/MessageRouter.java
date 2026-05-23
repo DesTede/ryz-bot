@@ -58,8 +58,11 @@ public class MessageRouter {
         // Handle START state - customer entering name (only for regular customers, not drivers or business owners)
         if (convo.getState() == ConversationState.START && !isStartMenuButton(txt) && !driverHandler.isDriver(message.getPhone()) && !businessOwnerService.isBusinessOwner(message.getPhone())) {
             logger.info("Customer {} entered name: {}", message.getPhone(), txt);
-            convoService.saveTempData(convo, txt); // Save customer name
-            showServiceMenu(message.getPhone());
+            // Save customer name in conversation for later use
+            convoService.saveTempData(convo, txt);
+            // Also save/update customer in customer pool with the name
+            // customerService.saveOrUpdateCustomer(message.getPhone(), txt); // If you have this
+            showServiceMenu(message.getPhone(), txt); // Pass name to show personalized message
             return null;
         }
 
@@ -164,8 +167,8 @@ public class MessageRouter {
         whatsappService.sendSafeText(phone, bodyText);
     }
 
-    private void showServiceMenu(String phone) {
-        String bodyText = "מה בא לך?";
+    private void showServiceMenu(String phone, String customerName) {
+        String bodyText = "מה בא לך " + customerName + "?";
 
         whatsappService.sendInteractiveButtons(
                 phone,
@@ -183,7 +186,6 @@ public class MessageRouter {
                 bodyText,
                 new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת"),
                 new WhatsappService.InteractiveButton("driver_end_shift", "🔴 סיים משמרת")
-                
         );
     }
 
