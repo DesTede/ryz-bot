@@ -3,10 +3,9 @@ package com.example.yanivbot.Handlers;
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
+import com.example.yanivbot.Services.BusinessOwnerService;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.WhatsappService;
-import com.example.yanivbot.Services.BusinessOwnerService;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -69,7 +68,12 @@ public class MessageRouter {
 
         if (isStartMenuButton(txt)) {
             logger.info("Processing START menu button: {}", txt);
-            return handleStartMenuButton(convo, message);
+            String buttonResponse = handleStartMenuButton(convo, message);
+            if (buttonResponse != null) {
+                return buttonResponse;
+            }
+            // If null, we already sent the message via WhatsApp (e.g., car type buttons)
+            return null;
         }
 
         ConversationState state = convo.getState();
@@ -120,21 +124,25 @@ public class MessageRouter {
 
     private String handleStartMenuButton(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
+        logger.info("handleStartMenuButton called with: {}", txt);
 
         if (txt.equals("start_service_taxi")) {
+            logger.info("Customer {} chose taxi - setting state to TAXI_CAR_TYPE", message.getPhone());
             // Set state to TAXI_CAR_TYPE directly (skip TAXI_SERVICE)
             convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
-            logger.info("Customer {} chosen taxi, showing car type selection", message.getPhone());
+            logger.info("State updated, now showing car type selection");
             showCarTypeSelection(message.getPhone());
-            return null;
+            logger.info("Car type selection shown, returning null");
+            return null; // Already sent via WhatsApp, return null
         }
 
         if (txt.equals("start_service_delivery")) {
+            logger.info("Business owner {} chose delivery", message.getPhone());
             convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_PHONE);
-            logger.info("Business owner {} chosen delivery", message.getPhone());
             return "מה שם הלקוח?";
         }
 
+        logger.warn("Unknown start menu button: {}", txt);
         return null;
     }
 
