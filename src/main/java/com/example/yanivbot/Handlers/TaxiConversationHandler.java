@@ -34,6 +34,8 @@ public class TaxiConversationHandler implements ConversationHandler {
         String txt = message.getText().trim();
         ConversationState state = convo.getState();
 
+        logger.info("TaxiConversationHandler | State: {} | Message: '{}'", state, txt);
+
         // Check for driver claiming taxi order: "מונית {id}"
         if (txt.matches("^מונית\\s+\\d+$")) {
             long orderId = Long.parseLong(txt.split("\\s+")[1]);
@@ -64,6 +66,7 @@ public class TaxiConversationHandler implements ConversationHandler {
                 return handleTaxiConfirmation(convo, message);
 
             default:
+                logger.debug("No handler for state: {}", state);
                 return null;
         }
     }
@@ -136,12 +139,22 @@ public class TaxiConversationHandler implements ConversationHandler {
         convoService.saveTempData(convo, orderData + "|" + notes);
         convoService.updateState(convo, ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION);
 
-        showConfirmationButtons(message.getPhone(), carType, pickupLocation, destination, notes);
-        return null; // Return null - we already sent the message via WhatsApp
+        try {
+            logger.info("Showing confirmation buttons for customer {}", message.getPhone());
+            showConfirmationButtons(message.getPhone(), carType, pickupLocation, destination, notes);
+            logger.info("Confirmation buttons sent successfully");
+            return null; // Return null - we already sent the message via WhatsApp
+        } catch (Exception e) {
+            logger.error("Error sending confirmation buttons: {}", e.getMessage(), e);
+            // If buttons fail, send as text
+            return buildConfirmationText(carType, pickupLocation, destination, notes);
+        }
     }
 
     private String handleTaxiConfirmation(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
+
+        logger.info("TaxiConfirmation | Message: '{}'", txt);
 
         if (txt.equals("order_confirm_no") || txt.equals("לא")) {
             convoService.updateState(convo, ConversationState.START);
@@ -150,6 +163,7 @@ public class TaxiConversationHandler implements ConversationHandler {
         }
 
         if (!txt.equals("order_confirm_yes") && !txt.equals("כן")) {
+            logger.warn("Invalid confirmation response: '{}'", txt);
             return "אנא בחר: אשר (כן) או בטל (לא)";
         }
 
@@ -161,41 +175,44 @@ public class TaxiConversationHandler implements ConversationHandler {
         String notes = parts.length > 3 ? parts[3] : "";
 
         try {
+            logger.info("Creating taxi order for customer {}", message.getPhone());
             taxiOrderService.createTaxiOrder(message.getPhone(), pickupLocation, destination, notes, CarType.valueOf(carType));
             convoService.updateState(convo, ConversationState.START);
+            logger.info("Taxi order created successfully");
             return "✅ ההזמנה אושרה! מחפשים נהג קרוב אליך";
         } catch (Exception e) {
-            logger.error("Failed to create taxi order for {}: {}", message.getPhone(), e.getMessage());
+            logger.error("Failed to create taxi order for {}: {}", message.getPhone(), e.getMessage(), e);
             convoService.updateState(convo, ConversationState.START);
             return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
         }
     }
 
-    private void showCarTypeButtons(String phone) {
-        String bodyText = "מעולה 👍\nעכשיו בחרו את סוג הרכב:";
-
-        whatsappService.sendInteractiveButtons(
-                phone,
-                bodyText,
-                new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "🏍️ אופנוע"),
-                new WhatsappService.InteractiveButton("taxi_car_type_private_car", "🚗 מכונית פרטית"),
-                new WhatsappService.InteractiveButton("taxi_car_type_minivan", "🚐 מיניוואן")
-        );
-    }
-
+    /**
+     * Send confirmation buttons with order summary
+     */
     private void showConfirmationButtons(String phone, String carType, String pickupLocation, String destination, String notes) {
-        String bodyText = "🚀 הנה סיכום הנסיעה שלכם:\n" +
-                "🚘 רכב: " + CarType.valueOf(carType).getHebrewName() + "\n" +
-                "📍 איסוף: " + pickupLocation + "\n" +
-                "🎯 יעד: " + destination + "\n" +
-                "📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n\n" +
-                "אם הכול נראה טוב — בחרו ✅";
+        String bodyText = buildConfirmationText(carType, pickupLocation, destination, notes);
 
-        whatsappService.sendInteractiveButtons(
+        logger.info("Sending confirmation buttons to {}", phone);
+
+        // Use the SAFE method that catches exceptions internally
+        whatsappService.sendInteractiveButtonsSafe(
                 phone,
                 bodyText,
                 new WhatsappService.InteractiveButton("order_confirm_yes", "✅ כן - אשר"),
                 new WhatsappService.InteractiveButton("order_confirm_no", "❌ לא - בטל")
         );
+    }
+
+    /**
+     * Build confirmation summary text
+     */
+    private String buildConfirmationText(String carType, String pickupLocation, String destination, String notes) {
+        return "🚀 הנה סיכום הנסיעה שלכם:\n" +
+                "🚘 רכב: " + CarType.valueOf(carType).getHebrewName() + "\n" +
+                "📍 איסוף: " + pickupLocation + "\n" +
+                "🎯 יעד: " + destination + "\n" +
+                "📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n\n" +
+                "אם הכול נראה טוב — בחרו ✅";
     }
 }

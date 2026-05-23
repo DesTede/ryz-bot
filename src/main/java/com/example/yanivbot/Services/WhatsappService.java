@@ -258,4 +258,47 @@ public class WhatsappService {
             this.title = title;
         }
     }
+
+    /**
+     * Add this to your WhatsappService class
+     *
+     * Safe version of sendInteractiveButtons that catches and logs exceptions
+     * instead of letting them propagate to the caller
+     */
+
+    /**
+     * Send interactive buttons safely - catches exceptions to prevent error messages
+     * to the user
+     */
+    public void sendInteractiveButtonsSafe(String phone, String bodyText, InteractiveButton... buttons) {
+        try {
+            logger.info("Sending interactive buttons to {}: {}", phone, bodyText);
+            sendInteractiveButtons(phone, bodyText, buttons);
+            logger.info("Interactive buttons sent successfully to {}", phone);
+        } catch (Exception e) {
+            logger.error("Error sending interactive buttons to {}: {}", phone, e.getMessage(), e);
+            // Fall back to sending as regular text
+            logger.warn("Falling back to text-only message");
+            sendSafeText(phone, bodyText);
+        }
+    }
+
+    /**
+     * Send interactive buttons with header and footer safely
+     */
+    public void sendInteractiveButtonsSafe(String phone, String header, String body, String footer, InteractiveButton... buttons) {
+        try {
+            logger.info("Sending interactive buttons (with header) to {}", phone);
+            sendInteractiveButtons(phone, header, body, footer, buttons);
+            logger.info("Interactive buttons sent successfully to {}", phone);
+        } catch (Exception e) {
+            logger.error("Error sending interactive buttons to {}: {}", phone, e.getMessage(), e);
+            // Fall back to sending as regular text
+            String fullText = (header != null ? header + "\n" : "") +
+                    body +
+                    (footer != null ? "\n" + footer : "");
+            logger.warn("Falling back to text-only message");
+            sendSafeText(phone, fullText);
+        }
+    }
 }
