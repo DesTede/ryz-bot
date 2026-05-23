@@ -19,17 +19,23 @@ public class TaxiOrderService {
     private final WhatsappService whatsappService;
     private final DriverService driverService;
     private final GeoCodingService geoCodingService;
+    private final CustomerService customerService;
 
     public TaxiOrderService(ConversationService convoService, TaxiOrderRepository taxiOrderRepo, WhatsappService whatsappService,
-                            DriverService driverService, GeoCodingService geoCodingService) {
+                            DriverService driverService, GeoCodingService geoCodingService, CustomerService customerService) {
         this.convoService = convoService;
         this.taxiOrderRepo = taxiOrderRepo;
         this.whatsappService = whatsappService;
         this.driverService = driverService;
         this.geoCodingService = geoCodingService;
+        this.customerService = customerService;
     }
 
     public void createTaxiOrder(String customerPhone, String pickUp, String destination, String notes, CarType carType) {
+        // SAVE CUSTOMER
+        String customerName = "לקוח";  // Default name, will be replaced by WhatsApp profile name if available
+        customerService.saveOrUpdateCustomer(customerPhone, customerName);
+        
         TaxiOrder taxiOrder = new TaxiOrder(customerPhone, pickUp, destination, notes);
         taxiOrder.setRequestedCarType(carType);
 
