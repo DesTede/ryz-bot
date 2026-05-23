@@ -1,202 +1,235 @@
 package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Entities.Driver;
+import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Repositories.DriverRepository;
+import com.example.yanivbot.Repositories.TaxiOrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 @Service
 public class DriverService {
 
+    private static final Logger logger = LoggerFactory.getLogger(DriverService.class);
+
+    private final DriverRepository driverRepo;
+    private final TaxiOrderRepository taxiOrderRepo;
+    private final WhatsappService whatsappService;
+    private final GoogleSheetsService googleSheetsService;
+
     @Value("${admin.phones}")
     private String adminPhones;
-    private final DriverRepository driverRepo;
-    private final WhatsappService whatsappService;
 
-    public DriverService(DriverRepository driverRepo, WhatsappService whatsappService) {
+    public DriverService(DriverRepository driverRepo, TaxiOrderRepository taxiOrderRepo,
+                         WhatsappService whatsappService, GoogleSheetsService googleSheetsService) {
         this.driverRepo = driverRepo;
+        this.taxiOrderRepo = taxiOrderRepo;
         this.whatsappService = whatsappService;
+        this.googleSheetsService = googleSheetsService;
     }
 
-    private void notifyAdminNoDrivers(DriverType type, String orderDetails, long orderId) {
-        String typeStr = type == DriverType.TAXI ? "מונית" : "משלוח";
-        whatsappService.notifyAdmins(
-                "⚠️ הזמנת " + typeStr + " חדשה #" + orderId + " נוצרה אך אין נהגים זמינים!\n" + orderDetails);
-    }
-
-    public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng, String orderDetails, long orderId) {
-        int maxDrivers = type == DriverType.TAXI ? 5 : 2;
-        List<Driver> drivers = getClosestDrivers(type, lat, lng, maxDrivers);
-
-        if (drivers.isEmpty()) {
-            System.err.println("No drivers found for type: " + type);
-            notifyAdminNoDrivers(type, orderDetails, orderId);
-            return;
-        }
-
-
-        for (Driver driver : drivers) {
-            whatsappService.sendSafeText(driver.getPhone(), message);
+    /**
+     * Clock in a driver (start shift)
+     */
+    public void clockIn(String phone) {
+        Driver driver = driverRepo.findDriverByPhone(phone).orElse(null);
+        if (driver != null) {
+            driver.setActive(true);
+            driver.setLocationUpdatedAt(LocalDateTime.now());
+            driverRepo.save(driver);
+            logger.info("Driver {} clocked in", phone);
         }
     }
 
     /**
-     * NEW: Dispatch to drivers matching specific car type
+     * Clock out a driver (end shift)
      */
-    public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng, String orderDetails, long orderId, CarType carType) {
-        int maxDrivers = type == DriverType.TAXI ? 5 : 2;
-        List<Driver> drivers = getClosestDrivers(type, lat, lng, maxDrivers);
-
-        // Filter by car type
-        drivers = drivers.stream()
-                .filter(d -> d.getCarType() == carType)
-                .collect(Collectors.toList());
-
-        if (drivers.isEmpty()) {
-            System.err.println("No drivers found for type: " + type + " with car type: " + carType);
-            notifyAdminNoDrivers(type, orderDetails, orderId);
-            return;
-        }
-
-        for (Driver driver : drivers) {
-            whatsappService.sendSafeText(driver.getPhone(), message);
-        }
-    }
-
-    public void dispatchToDrivers(DriverType type, String message, String orderDetails, long orderId) {
-        List<Driver> drivers = getActiveDrivers(type);
-        System.out.println("Dispatching to " + drivers.size() + " drivers of type " + type);
-
-        if (drivers.isEmpty()) {
-            notifyAdminNoDrivers(type, orderDetails, orderId);
-            return;
-        }
-
-        for (Driver driver : drivers) {
-            whatsappService.sendSafeText(driver.getPhone(), message);
-        }
-    }
-
-    /**
-     * NEW: Dispatch to drivers matching specific car type
-     */
-    public void dispatchToDrivers(DriverType type, String message, String orderDetails, long orderId, CarType carType) {
-        List<Driver> drivers = getActiveDrivers(type);
-
-        // Filter by car type
-        drivers = drivers.stream()
-                .filter(d -> d.getCarType() == carType)
-                .collect(Collectors.toList());
-
-        System.out.println("Dispatching to " + drivers.size() + " drivers of type " + type + " with car type " + carType);
-
-        if (drivers.isEmpty()) {
-            notifyAdminNoDrivers(type, orderDetails, orderId);
-            return;
-        }
-
-        for (Driver driver : drivers) {
-            whatsappService.sendSafeText(driver.getPhone(), message);
-        }
-    }
-
-    public Driver findByPhone(String phone){
-        return driverRepo.findDriverByPhone(phone).orElse(null);
-    }
-
-    public String clockIn(String phone) {
-        Driver driver = findByPhone(phone);
-        if (driver == null)
-            return "❌ הטלפון שלך לא רשום במערכת כנהג.";
-
-        driver.setActive(true);
-        driverRepo.save(driver);
-        return "✅ התחלת משמרת! תקבל הזמנות מעכשיו.";
-    }
-
     public void clockOut(String phone) {
-        Driver driver = findByPhone(phone);
-        if (driver == null) {
-            System.err.println("clockOut: Driver not found for phone: " + phone);
-            return;
+        Driver driver = driverRepo.findDriverByPhone(phone).orElse(null);
+        if (driver != null) {
+            driver.setActive(false);
+            driverRepo.save(driver);
+            logger.info("Driver {} clocked out", phone);
         }
-
-        System.out.println("clockOut: Clocking out driver " + phone + ", was active: " + driver.isActive());
-        driver.setActive(false);
-        Driver saved = driverRepo.save(driver);
-        System.out.println("clockOut: After save, driver active: " + saved.isActive());
-
-        // Verify by re-fetching from database
-        Driver verify = findByPhone(phone);
-        System.out.println("clockOut: Re-fetched from DB, driver active: " + verify.isActive());
     }
 
-    public List<Driver> getActiveDrivers(DriverType type) {
-        return driverRepo.findByActiveAndTypeIn(true, List.of(type,DriverType.BOTH));
-    }
-
-    public double[] getDriverLocation(String phone) {
-        Driver driver = findByPhone(phone);
-        if (driver == null || driver.getLatitude() == 0) return null;
-        return new double[]{driver.getLatitude(), driver.getLongitude()};
-    }
-
-
-    public void updateDriverLocation(String phone, Double latitude, Double longitude) {
-        driverRepo.findDriverByPhone(phone).ifPresent(driver -> {
+    /**
+     * Update driver location
+     */
+    public void updateDriverLocation(String phone, double latitude, double longitude) {
+        Driver driver = driverRepo.findDriverByPhone(phone).orElse(null);
+        if (driver != null) {
             driver.setLatitude(latitude);
             driver.setLongitude(longitude);
             driver.setLocationUpdatedAt(LocalDateTime.now());
             driverRepo.save(driver);
-        });
+            logger.info("Driver {} location updated to {}, {}", phone, latitude, longitude);
+        }
     }
 
-    public List<Driver> getClosestDrivers(DriverType type, Double lat, Double lng, int maxDrivers) {
-        List<Driver> drivers = getActiveDrivers(type);
+    /**
+     * Find driver by phone
+     */
+    public Driver findByPhone(String phone) {
+        return driverRepo.findDriverByPhone(phone).orElse(null);
+    }
 
-        final double MAX_RADIUS_KM = 5.0;
+    /**
+     * Get all active drivers of a specific type
+     */
+    public List<Driver> getActiveDrivers(DriverType type) {
+        return driverRepo.findByActiveAndTypeIn(true, List.of(type, DriverType.BOTH));
+    }
 
-        List<Driver> closeDrivers = drivers.stream()
-                .filter(d -> d.getLatitude() > 0 && d.getLongitude() > 0)
-                .filter(d -> calculateDistance(lat, lng, d.getLatitude(), d.getLongitude()) <= MAX_RADIUS_KM)
-                .sorted((a, b) -> {
-                    double distA = calculateDistance(lat, lng, a.getLatitude(), a.getLongitude());
-                    double distB = calculateDistance(lat, lng, b.getLatitude(), b.getLongitude());
-                    return Double.compare(distA, distB);
-                })
-                .limit(maxDrivers)
-                .collect(Collectors.toList());
+    /**
+     * Get driver location as [latitude, longitude]
+     */
+    public double[] getDriverLocation(String driverPhone) {
+        Driver driver = findByPhone(driverPhone);
+        if (driver != null && driver.getLatitude() != 0 && driver.getLongitude() != 0) {
+            return new double[]{driver.getLatitude(), driver.getLongitude()};
+        }
+        return null;
+    }
 
-        if (closeDrivers.isEmpty()) {
-            System.out.println("No drivers within " + MAX_RADIUS_KM + "km, falling back to all active drivers");
-            return drivers.stream()
-                    .filter(d -> d.getLatitude() > 0 && d.getLongitude() > 0)
-                    .sorted((a, b) -> {
-                        double distA = calculateDistance(lat, lng, a.getLatitude(), a.getLongitude());
-                        double distB = calculateDistance(lat, lng, b.getLatitude(), b.getLongitude());
-                        return Double.compare(distA, distB);
-                    })
-                    .limit(maxDrivers)
-                    .collect(Collectors.toList());
+    /**
+     * Dispatch to closest drivers based on location
+     */
+    public void dispatchToClosestDrivers(DriverType type, String message, double latitude, double longitude,
+                                         String orderDetails, long orderId, CarType... carTypes) {
+        List<Driver> availableDrivers = getActiveDrivers(type);
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No available drivers of type {} for order #{}", type, orderId);
+            return;
         }
 
-        return closeDrivers;
+        // Filter by car type if specified
+        if (carTypes.length > 0) {
+            CarType requiredCarType = carTypes[0];
+            availableDrivers = availableDrivers.stream()
+                    .filter(d -> d.getCarType() == null || d.getCarType() == requiredCarType)
+                    .toList();
+        }
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No available drivers with car type {} for order #{}",
+                    carTypes.length > 0 ? carTypes[0] : "ANY", orderId);
+            return;
+        }
+
+        logger.info("Dispatching to {} drivers of type {}", availableDrivers.size(), type);
+
+        // Send to closest drivers (simple distance calculation)
+        for (Driver driver : availableDrivers) {
+            if (driver.getLatitude() != 0 && driver.getLongitude() != 0) {
+                whatsappService.sendSafeText(driver.getPhone(), message);
+            }
+        }
     }
 
-    public double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
-        final int R = 6371; // Earth radius in km
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLng = Math.toRadians(lng2 - lng1);
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
+    /**
+     * Dispatch to all available drivers (no location filtering)
+     */
+    public void dispatchToDrivers(DriverType type, String message, String orderDetails, long orderId, CarType... carTypes) {
+        List<Driver> availableDrivers = getActiveDrivers(type);
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No available drivers of type {} for order #{}", type, orderId);
+            alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
+            return;
+        }
+
+        // Filter by car type if specified
+        if (carTypes.length > 0) {
+            CarType requiredCarType = carTypes[0];
+            availableDrivers = availableDrivers.stream()
+                    .filter(d -> d.getCarType() == null || d.getCarType() == requiredCarType)
+                    .toList();
+        }
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No available drivers with car type {} for order #{}",
+                    carTypes.length > 0 ? carTypes[0] : "ANY", orderId);
+            alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
+            return;
+        }
+
+        logger.info("Dispatching to {} drivers of type {}", availableDrivers.size(), type);
+
+        // Send message to all available drivers
+        for (Driver driver : availableDrivers) {
+            whatsappService.sendSafeText(driver.getPhone(), message);
+        }
+    }
+
+    /**
+     * Alert admins if no drivers are available for an order
+     *
+     * Uses adminAlertedNoDrivers flag to ensure alert is sent ONLY ONCE
+     * when the order is created, not repeatedly by OrderMonitorService
+     */
+    public void alertAdminIfNoDriversAvailable(long orderId, DriverType type, String orderDetails) {
+        // Get the order
+        Optional<TaxiOrder> orderOpt = taxiOrderRepo.findById(orderId);
+        if (orderOpt.isEmpty()) {
+            logger.warn("Order #{} not found", orderId);
+            return;
+        }
+
+        TaxiOrder order = orderOpt.get();
+
+        // Only send alert once per order
+        if (order.isAdminAlertedNoDrivers()) {
+            logger.info("No drivers alert already sent for order #{}, skipping", orderId);
+            return;
+        }
+
+        logger.warn("No drivers available for order #{} - alerting admins", orderId);
+
+        String adminMessage = "⚠️ הזמנת " + (type == DriverType.TAXI ? "מונית" : "משלוח") +
+                " חדשה #" + orderId + " נוצרה אך אין נהגים זמינים!\n" +
+                orderDetails;
+
+        notifyAdmins(adminMessage);
+
+        // Mark as alerted so this message is never sent again for this order
+        order.setAdminAlertedNoDrivers(true);
+        taxiOrderRepo.save(order);
+    }
+
+    /**
+     * Notify all admins
+     */
+    private void notifyAdmins(String message) {
+        if (adminPhones == null || adminPhones.isEmpty()) {
+            logger.warn("No admin phones configured");
+            return;
+        }
+
+        String[] phones = adminPhones.split(",");
+        for (String phone : phones) {
+            phone = phone.trim();
+            if (!phone.isEmpty()) {
+                logger.info("Sending admin alert to: {}", phone);
+                whatsappService.sendSafeText(phone, message);
+            }
+        }
+    }
+
+    /**
+     * Sync drivers from Google Sheets (called by GoogleSheetsService)
+     */
+    public void syncDriversFromSheets(List<Driver> drivers) {
+        logger.info("Syncing {} drivers from Google Sheets", drivers.size());
+        driverRepo.saveAll(drivers);
     }
 }

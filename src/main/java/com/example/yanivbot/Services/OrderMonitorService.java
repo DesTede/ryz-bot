@@ -8,6 +8,8 @@ import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,8 @@ import java.util.List;
 
 @Service
 public class OrderMonitorService {
+
+    private static final Logger logger = LoggerFactory.getLogger(OrderMonitorService.class);
 
     private final TaxiOrderRepository taxiOrderRepo;
     private final DeliveryOrderRepository deliveryOrderRepo;
@@ -64,7 +68,7 @@ public class OrderMonitorService {
             if (order.getPickedUpBy() != null) continue; // already claimed
             if (order.isDispatched()) continue; // already dispatched
 
-            System.out.println("Dispatching delivery order #" + order.getId());
+            logger.info("Dispatching delivery order #{}", order.getId());
 
             String businessAddress = businessOwnerService.getBusinessAddress(order.getBusinessPhone());
             double[] coords = businessAddress != null ? geoCodingService.geocode(businessAddress) : null;
@@ -74,7 +78,7 @@ public class OrderMonitorService {
                     "📞 עסק: " + order.getBusinessPhone();
 
             if (coords != null) {
-                driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, coords[0], coords[1], orderDetails,order.getId());
+                driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, coords[0], coords[1], orderDetails, order.getId());
             } else {
                 driverService.dispatchToDrivers(DriverType.DELIVERY, msg, orderDetails, order.getId());
             }
@@ -84,27 +88,42 @@ public class OrderMonitorService {
         }
     }
 
+    /**
+     * Check unclaimed taxi orders
+     *
+     * Prevents duplicate alerts:
+     * - adminAlertedNoDrivers: Set by DriverService when no drivers are initially available
+     * - adminAlerted: Set here after TAXI_ALERT_MINUTES to prevent repeated alerts
+     */
     private void checkUnclaimedTaxiOrders() {
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(TAXI_ALERT_MINUTES);
         List<TaxiOrder> unclaimedOrders = taxiOrderRepo
                 .findByStatusAndCreatedAtBefore(TaxiOrderStatus.CREATED, cutoff);
 
         for (TaxiOrder order : unclaimedOrders) {
-            if (order.isAdminAlerted()) continue;
+            // Skip if admin was already alerted about this order
+            if (order.isAdminAlerted()) {
+                logger.debug("Order #{} already alerted, skipping", order.getId());
+                continue;
+            }
 
-            // notify admins
-            whatsappService.notifyAdmins(
-                    "⚠️ הזמנת מונית #" + order.getId() + " לא נלקחה כבר " +
-                            TAXI_ALERT_MINUTES + " דקות!\n" +
-                            "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
-                            "🎯 לאן: " + order.getDestination() + "\n" +
-                            "📞 לקוח: " + order.getPhone());
+            logger.warn("Order #{} unclaimed for {} minutes - alerting admins",
+                    order.getId(), TAXI_ALERT_MINUTES);
 
-            // notify customer
+            // Notify admins - "Order unclaimed for X minutes" alert
+            String adminMsg = "⚠️ הזמנת מונית #" + order.getId() + " לא נלקחה כבר " +
+                    TAXI_ALERT_MINUTES + " דקות!\n" +
+                    "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
+                    "🎯 לאן: " + order.getDestination() + "\n" +
+                    "📞 לקוח: " + order.getPhone();
+
+            whatsappService.notifyAdmins(adminMsg);
+
+            // Notify customer
             whatsappService.sendSafeText(order.getPhone(),
                     "⚠️ טרם נמצא נהג להזמנתך. אנו ממשיכים לחפש...");
 
-            // re-broadcast to ALL drivers
+            // Re-broadcast to ALL drivers
             String msg = """
                     🚕 הזמנת מונית לא נלקחה - שידור מחדש!
                     🆔 %d
@@ -123,32 +142,55 @@ public class OrderMonitorService {
 
             driverService.dispatchToDrivers(DriverType.TAXI, msg, orderDetails, order.getId());
 
+            // Mark as alerted to prevent sending this alert again
             order.setAdminAlerted(true);
             taxiOrderRepo.save(order);
         }
     }
 
+    /**
+     * Check unclaimed delivery orders
+     */
     private void checkUnclaimedDeliveryOrders() {
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes( DELIVERY_ALERT_MINUTES);
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(DELIVERY_ALERT_MINUTES);
         List<DeliveryOrder> unclaimedOrders = deliveryOrderRepo
                 .findByDeliveryStatusAndCreatedAtBefore(DeliveryStatus.CREATED, cutoff);
 
         for (DeliveryOrder order : unclaimedOrders) {
-            if (order.isAdminAlerted()) continue;
-            if (order.getPickedUpBy() != null) continue;
-            if (!order.isDispatched()) continue; // only alert if already dispatched to drivers
+            // Skip if already alerted
+            if (order.isAdminAlerted()) {
+                logger.debug("Delivery order #{} already alerted, skipping", order.getId());
+                continue;
+            }
 
-            // notify admins
-            whatsappService.notifyAdmins(
-                    "⚠️ הזמנת משלוח #" + order.getId() + " לא נלקחה כבר " +
-                            DELIVERY_ALERT_MINUTES + " דקות!\n" +
-                            "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
-                            "📞 עסק: " + order.getBusinessPhone());
+            // Skip if already claimed
+            if (order.getPickedUpBy() != null) {
+                logger.debug("Delivery order #{} already claimed, skipping", order.getId());
+                continue;
+            }
 
-            // notify business
+            // Skip if not yet dispatched
+            if (!order.isDispatched()) {
+                logger.debug("Delivery order #{} not yet dispatched, skipping", order.getId());
+                continue;
+            }
+
+            logger.warn("Delivery order #{} unclaimed for {} minutes - alerting admins",
+                    order.getId(), DELIVERY_ALERT_MINUTES);
+
+            // Notify admins - "Order unclaimed for X minutes" alert
+            String adminMsg = "⚠️ הזמנת משלוח #" + order.getId() + " לא נלקחה כבר " +
+                    DELIVERY_ALERT_MINUTES + " דקות!\n" +
+                    "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
+                    "📞 עסק: " + order.getBusinessPhone();
+
+            whatsappService.notifyAdmins(adminMsg);
+
+            // Notify business owner
             whatsappService.sendSafeText(order.getBusinessPhone(),
                     "⚠️ טרם נמצא שליח להזמנה #" + order.getId() + ". אנו ממשיכים לחפש...");
 
+            // Mark as alerted to prevent sending this alert again
             order.setAdminAlerted(true);
             deliveryOrderRepo.save(order);
         }
@@ -178,31 +220,34 @@ public class OrderMonitorService {
         );
     }
 
-    // check if active driver's location is updated every 15 minutes. if not sends a reminder
+    // Commented out: Check if active driver's location is updated every 15 minutes
+    // This feature will be implemented in the future
     
+    /*
     private static final int LOCATION_STALE_MINUTES = 15; // alert if no update in 15 min
 
-//    @Scheduled(fixedDelay = 600000)
-//    public void checkDriverLocations() {
-//        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(LOCATION_STALE_MINUTES);
-//
-//        // get all active drivers of any type
-//        List<Driver> allActiveDrivers = new ArrayList<>();
-//        allActiveDrivers.addAll(driverService.getActiveDrivers(DriverType.TAXI));
-//        allActiveDrivers.addAll(driverService.getActiveDrivers(DriverType.DELIVERY));
-//
-//        // deduplicate by phone
-//        allActiveDrivers.stream()
-//                .collect(java.util.stream.Collectors.toMap(
-//                        Driver::getPhone, d -> d, (d1, d2) -> d1))
-//                .values()
-//                .forEach(driver -> {
-//                    if (driver.getLocationUpdatedAt() != null &&
-//                            driver.getLocationUpdatedAt().isBefore(cutoff)) {
-//                        whatsappService.sendSafeText(driver.getPhone(),
-//                                "📍 המיקום שלך לא עודכן כבר " + LOCATION_STALE_MINUTES + " דקות.\n" +
-//                                        "אנא שלח מיקום מעודכן כדי להמשיך לקבל הזמנות.");
-//                    }
-//                });
-//    }
+    @Scheduled(fixedDelay = 600000)
+    public void checkDriverLocations() {
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(LOCATION_STALE_MINUTES);
+
+        // get all active drivers of any type
+        List<Driver> allActiveDrivers = new ArrayList<>();
+        allActiveDrivers.addAll(driverService.getActiveDrivers(DriverType.TAXI));
+        allActiveDrivers.addAll(driverService.getActiveDrivers(DriverType.DELIVERY));
+
+        // deduplicate by phone
+        allActiveDrivers.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        Driver::getPhone, d -> d, (d1, d2) -> d1))
+                .values()
+                .forEach(driver -> {
+                    if (driver.getLocationUpdatedAt() != null &&
+                            driver.getLocationUpdatedAt().isBefore(cutoff)) {
+                        whatsappService.sendSafeText(driver.getPhone(),
+                                "📍 המיקום שלך לא עודכן כבר " + LOCATION_STALE_MINUTES + " דקות.\n" +
+                                        "אנא שלח מיקום מעודכן כדי להמשיך לקבל הזמנות.");
+                    }
+                });
+    }
+    */
 }
