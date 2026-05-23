@@ -192,9 +192,9 @@ public class TaxiConversationHandler implements ConversationHandler {
         whatsappService.sendInteractiveButtons(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "1️⃣ אופנוע – לעקוף את כל הפקקים"),
-                new WhatsappService.InteractiveButton("taxi_car_type_private_car", "2️⃣ מכונית פרטית – פשוט ולעניין"),
-                new WhatsappService.InteractiveButton("taxi_car_type_minivan", "3️⃣ הסעות גדולות +6")
+                new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "🏍️ אופנוע"),
+                new WhatsappService.InteractiveButton("taxi_car_type_private_car", "🚗 מכונית פרטית"),
+                new WhatsappService.InteractiveButton("taxi_car_type_minivan", "🚐 מיניוואן")
         );
     }
 

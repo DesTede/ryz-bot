@@ -173,8 +173,7 @@ public class MessageRouter {
         whatsappService.sendInteractiveButtons(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("start_service_taxi", "🚕 מונית"),
-                new WhatsappService.InteractiveButton("start_service_delivery", "🚚 משלוח")
+                new WhatsappService.InteractiveButton("start_service_taxi", "🚕 מונית")
         );
     }
 
@@ -190,7 +189,13 @@ public class MessageRouter {
     }
 
     private void showBusinessMenu(String phone) {
-        businessHandler.showBusinessMenuButtons(phone);
+        String bodyText = "🚀 שלום וברוכים הבאים ל־Moovez Business\nניהול משלוחים ונסיעות בקלות ובמהירות ⚡\nמה תרצו לעשות? 👇";
+
+        whatsappService.sendInteractiveButtons(
+                phone,
+                bodyText,
+                new WhatsappService.InteractiveButton("business_taxi_option", "🚕 מונית")
+        );
     }
 
     private void showCarTypeSelection(String phone) {
@@ -199,9 +204,9 @@ public class MessageRouter {
         whatsappService.sendInteractiveButtons(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "1️⃣ אופנוע – לעקוף את כל הפקקים"),
-                new WhatsappService.InteractiveButton("taxi_car_type_private_car", "2️⃣ מכונית פרטית – פשוט ולעניין"),
-                new WhatsappService.InteractiveButton("taxi_car_type_minivan", "3️⃣ הסעות גדולות +6")
+                new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "🏍️ אופנוע"),
+                new WhatsappService.InteractiveButton("taxi_car_type_private_car", "🚗 מכונית פרטית"),
+                new WhatsappService.InteractiveButton("taxi_car_type_minivan", "🚐 מיניוואן")
         );
     }
 }
