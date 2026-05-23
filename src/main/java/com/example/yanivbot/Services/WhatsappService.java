@@ -1,240 +1,198 @@
 package com.example.yanivbot.Services;
 
-import com.example.yanivbot.Models.IncomingMessage;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
-/**
- * Updated WhatsappService with support for both Twilio and Meta WhatsApp.
- *
- * Routes messages to the appropriate provider based on configuration.
- * For production: Uses Meta WhatsApp Cloud API
- * For testing: Can still use Twilio if needed
- */
 @Service
 public class WhatsappService {
 
     private static final Logger logger = LoggerFactory.getLogger(WhatsappService.class);
 
-    @Value("${whatsapp.phone-number-id}")
-    private String phoneNumberId;
-
     @Value("${whatsapp.access-token}")
     private String accessToken;
 
-    @Value("${whatsapp.api-version:v18.0}")
+    @Value("${whatsapp.phone-number-id}")
+    private String phoneNumberId;
+
+    @Value("${whatsapp.api-version:v23.0}")
     private String apiVersion;
 
-    @Value("${whatsapp.provider:meta}")
-    private String provider; // "meta" or "twilio"
-
-    @Value("${twilio.account-sid:}")
-    private String twilioAccountSid;
-
-    @Value("${twilio.auth-token:}")
-    private String twilioAuthToken;
-
-    @Value("${twilio.whatsapp-number:}")
-    private String twilioWhatsappNumber;
-
-    @Value("${admin.phones}")
-    private String adminPhones;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final HttpClient httpClient = HttpClient.newHttpClient();
-
-    private static final String META_API_BASE = "https://graph.facebook.com";
+    public WhatsappService() {
+    }
 
     /**
-     * Send text message via configured provider (Meta or Twilio)
+     * Send text message
      */
-    public void sendText(String to, String message) {
+    public void sendText(String phone, String message) {
         try {
-            if ("meta".equalsIgnoreCase(provider)) {
-                sendTextViaMeta(to, message);
-            } else if ("twilio".equalsIgnoreCase(provider)) {
-                sendTextViaTwilio(to, message);
-            } else {
-                logger.error("Unknown provider: {}", provider);
-            }
+            JSONObject payload = new JSONObject();
+            payload.put("messaging_product", "whatsapp");
+            payload.put("recipient_type", "individual");
+            payload.put("to", phone);
+            payload.put("type", "text");
+
+            JSONObject text = new JSONObject();
+            text.put("preview_url", false);
+            text.put("body", message);
+            payload.put("text", text);
+
+            sendRequest(payload);
         } catch (Exception e) {
-            logger.error("Failed to send text message to {}: {}", to, e.getMessage(), e);
+            logger.error("Error sending text to {}: {}", phone, e.getMessage());
         }
     }
 
     /**
-     * Send text message without throwing exceptions
+     * Send text with safe exception handling
      */
-    public void sendSafeText(String to, String message) {
+    public void sendSafeText(String phone, String message) {
         try {
-            sendText(to, message);
+            sendText(phone, message);
         } catch (Exception e) {
-            logger.warn("Safe send failed to {}: {}", to, e.getMessage());
+            logger.error("Error in sendSafeText to {}: {}", phone, e.getMessage());
         }
     }
 
     /**
-     * Send text message via Meta WhatsApp
+     * Send interactive button message
+     *
+     * @param phone - Recipient phone
+     * @param headerText - Header text (optional, can be null)
+     * @param bodyText - Main message text
+     * @param footerText - Footer text (optional, can be null)
+     * @param buttons - Array of buttons (max 3)
      */
-    private void sendTextViaMeta(String to, String message) throws Exception {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("messaging_product", "whatsapp");
-        payload.put("to", to);
-
-        Map<String, Object> textObj = new HashMap<>();
-        textObj.put("body", message);
-        payload.put("text", textObj);
-
-        sendRequestToMeta(payload);
-    }
-
-    /**
-     * Send text message via Twilio (legacy, for testing)
-     */
-    private void sendTextViaTwilio(String to, String message) throws Exception {
-        String accountSid = twilioAccountSid;
-        String url = "https://api.twilio.com/2010-04-01/Accounts/" + accountSid + "/Messages.json";
-
-        String body = "From=whatsapp:" + twilioWhatsappNumber.replace("+", "") +
-                "&To=whatsapp:%2B" + to.replace("+", "") +
-                "&Body=" + java.net.URLEncoder.encode(message, StandardCharsets.UTF_8);
-
-        logger.info("Twilio send: {}", body);
-    }
-
-    /**
-     * Parse incoming message from Meta webhook
-     */
-    public IncomingMessage parseIncomingMessage(Map<String, Object> payload) {
+    public void sendInteractiveButtons(String phone, String headerText, String bodyText, String footerText, InteractiveButton... buttons) {
         try {
-            List<Map<String, Object>> entry = (List<Map<String, Object>>) payload.get("entry");
-            if (entry == null || entry.isEmpty()) return null;
-
-            Map<String, Object> changes = ((List<Map<String, Object>>) entry.get(0).get("changes")).get(0);
-            Map<String, Object> value = (Map<String, Object>) changes.get("value");
-            List<Map<String, Object>> messages = (List<Map<String, Object>>) value.get("messages");
-
-            if (messages == null || messages.isEmpty()) return null;
-
-            Map<String, Object> msg = messages.get(0);
-            String from = (String) msg.get("from");
-            String type = (String) msg.get("type");
-
-            IncomingMessage message = new IncomingMessage();
-            message.setPhone(from);
-
-            // Handle text messages
-            if ("text".equals(type)) {
-                Map<String, Object> textObj = (Map<String, Object>) msg.get("text");
-                String text = textObj != null ? (String) textObj.get("body") : null;
-                message.setText(text);
-            }
-            // Handle location messages
-            else if ("location".equals(type)) {
-                Map<String, Object> location = (Map<String, Object>) msg.get("location");
-                Double latitude = ((Number) location.get("latitude")).doubleValue();
-                Double longitude = ((Number) location.get("longitude")).doubleValue();
-
-                // Set as special text to identify location
-                message.setText("LOCATION:" + latitude + "," + longitude);
+            if (buttons.length > 3) {
+                logger.warn("Max 3 buttons allowed, truncating to 3");
             }
 
-            return message;
+            JSONObject payload = new JSONObject();
+            payload.put("messaging_product", "whatsapp");
+            payload.put("recipient_type", "individual");
+            payload.put("to", phone);
+            payload.put("type", "interactive");
+
+            JSONObject interactive = new JSONObject();
+            interactive.put("type", "button");
+
+            // Body (required)
+            JSONObject body = new JSONObject();
+            body.put("text", bodyText);
+            interactive.put("body", body);
+
+            // Header (optional)
+            if (headerText != null && !headerText.isEmpty()) {
+                JSONObject header = new JSONObject();
+                header.put("type", "text");
+                header.put("text", headerText);
+                interactive.put("header", header);
+            }
+
+            // Footer (optional)
+            if (footerText != null && !footerText.isEmpty()) {
+                JSONObject footer = new JSONObject();
+                footer.put("text", footerText);
+                interactive.put("footer", footer);
+            }
+
+            // Buttons
+            JSONArray buttonArray = new JSONArray();
+            for (int i = 0; i < Math.min(buttons.length, 3); i++) {
+                JSONObject button = new JSONObject();
+                button.put("type", "reply");
+
+                JSONObject reply = new JSONObject();
+                reply.put("id", buttons[i].id);
+                reply.put("title", buttons[i].title);
+                button.put("reply", reply);
+
+                buttonArray.put(button);
+            }
+            interactive.put("action", new JSONObject().put("buttons", buttonArray));
+
+            payload.put("interactive", interactive);
+
+            sendRequest(payload);
+            logger.info("Sent interactive button message to {}", phone);
         } catch (Exception e) {
-            logger.error("Failed to parse incoming message: {}", e.getMessage());
-            return null;
+            logger.error("Error sending interactive buttons to {}: {}", phone, e.getMessage());
         }
     }
 
     /**
-     * Normalize phone number to Meta format (972512345678, 972549711059)
+     * Send interactive buttons with just body text (no header/footer)
      */
-    public String normalizePhone(String phone) {
-        phone = phone.replaceAll("[\\s\\-]", "");
-
-        if (phone.startsWith("+")) {
-            phone = phone.substring(1);
-        }
-
-        if (phone.startsWith("0")) {
-            phone = "972" + phone.substring(1);
-        }
-
-        if (phone.startsWith("5")) {
-            phone = "972" + phone;
-        }
-
-        return phone; // Meta doesn't need the +
+    public void sendInteractiveButtons(String phone, String bodyText, InteractiveButton... buttons) {
+        sendInteractiveButtons(phone, null, bodyText, null, buttons);
     }
 
     /**
-     * Get admin phone numbers
-     */
-    public List<String> getAdminPhones() {
-        return List.of(adminPhones.split(","));
-    }
-
-    /**
-     * Notify all admins, with debugging
-     */
-    public void notifyAdmins(String message) {
-        List<String > admins = getAdminPhones();
-        logger.info("Notifying {} admins with message: {}", admins.size(), message);
-        for (String phone : admins) {
-            phone = phone.trim();
-            logger.info("Sending to admin: {}", phone);
-            sendSafeText(phone, message);
-        }
-    }
-
-    /**
-     * Generate Google Maps link with coordinates
+     * Generate Google Maps link
      */
     public String generateGoogleMapsLink(double latitude, double longitude) {
         return "https://www.google.com/maps/search/?api=1&query=" + latitude + "," + longitude;
     }
 
     /**
-     * Send request to Meta WhatsApp API
+     * Notify admins about important events
      */
-    private boolean sendRequestToMeta(Map<String, Object> payload) throws Exception {
-        String url = String.format("%s/%s/%s/messages",
-                META_API_BASE, apiVersion, phoneNumberId);
+    public void notifyAdmins(String message) {
+        // This would be populated from environment variable
+        String adminPhonesStr = System.getenv("ADMIN_PHONES");
+        if (adminPhonesStr != null && !adminPhonesStr.isEmpty()) {
+            String[] phones = adminPhonesStr.split(",");
+            for (String phone : phones) {
+                sendSafeText(phone.trim(), message);
+            }
+        }
+    }
 
-        String jsonPayload = objectMapper.writeValueAsString(payload);
+    /**
+     * Send request to WhatsApp API
+     */
+    private void sendRequest(JSONObject payload) throws Exception {
+        String url = "https://graph.facebook.com/" + apiVersion + "/" + phoneNumberId + "/messages";
 
-        // FIX: Strip all whitespace from token
-        String cleanToken = accessToken.replaceAll("\\s+", "");
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setDoOutput(true);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Authorization", "Bearer " + cleanToken)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonPayload, StandardCharsets.UTF_8))
-                .build();
+        try (OutputStream os = conn.getOutputStream()) {
+            byte[] input = payload.toString().getBytes(StandardCharsets.UTF_8);
+            os.write(input, 0, input.length);
+        }
 
-        HttpResponse<String> response = httpClient.send(request,
-                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        int responseCode = conn.getResponseCode();
+        if (responseCode != 200) {
+            logger.error("WhatsApp API error: {} - {}", responseCode, conn.getResponseMessage());
+        }
 
-        if (response.statusCode() >= 200 && response.statusCode() < 300) {
-            logger.info("Message sent successfully via Meta. Status: {}", response.statusCode());
-            return true;
-        } else {
-            logger.error("Failed to send message via Meta. Status: {}, Response: {}",
-                    response.statusCode(), response.body());
-            return false;
+        conn.disconnect();
+    }
+
+    /**
+     * Helper class for interactive buttons
+     */
+    public static class InteractiveButton {
+        public String id;
+        public String title;
+
+        public InteractiveButton(String id, String title) {
+            this.id = id;
+            this.title = title;
         }
     }
 }
