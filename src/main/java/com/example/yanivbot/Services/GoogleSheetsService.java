@@ -99,7 +99,7 @@ public class GoogleSheetsService {
     }
 
     /**
-     * Get all drivers from database
+     * Get all drivers from databaseץ
      */
     public List<Driver> getAllDrivers() {
         return driverRepository.findAll();
