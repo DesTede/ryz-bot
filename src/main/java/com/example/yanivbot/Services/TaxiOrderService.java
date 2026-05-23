@@ -60,7 +60,6 @@ public class TaxiOrderService {
     public void broadcastToDrivers(TaxiOrder order) {
         String msg =
                 """
-        הודעת הזמנה חדשה לנהגים קרובים
         🚕 הזמנת מונית חדשה
         🆔 %d
         🚗 סוג כלי רכב: %s
