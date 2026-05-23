@@ -3,86 +3,107 @@ package com.example.yanivbot.Handlers;
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
-import com.example.yanivbot.Services.BusinessOwnerService;
 import com.example.yanivbot.Services.ConversationService;
+import com.example.yanivbot.Services.BusinessOwnerService;
+import com.example.yanivbot.Services.DriverService;
+import com.example.yanivbot.Services.CustomerService;
 import com.example.yanivbot.Services.WhatsappService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+/**
+ * Routes incoming messages to the appropriate conversation handler based on state.
+ *
+ * CRITICAL: When a handler returns null (message already sent via WhatsApp),
+ * we MUST return null instead of falling through to the error message!
+ */
 @Component
 public class MessageRouter {
 
     private static final Logger logger = LoggerFactory.getLogger(MessageRouter.class);
 
-    private final ConversationService convoService;
     private final TaxiConversationHandler taxiHandler;
     private final DeliveryConversationHandler deliveryHandler;
-    private final DriverConversationHandler driverHandler;
     private final BusinessConversationHandler businessHandler;
-    private final WhatsappService whatsappService;
+    private final DriverConversationHandler driverHandler;
+    private final ConversationService convoService;
     private final BusinessOwnerService businessOwnerService;
+    private final DriverService driverService;
+    private final CustomerService customerService;
+    private final WhatsappService whatsappService;
 
-    public MessageRouter(ConversationService convoService,
-                         TaxiConversationHandler taxiHandler,
+    public MessageRouter(TaxiConversationHandler taxiHandler,
                          DeliveryConversationHandler deliveryHandler,
-                         DriverConversationHandler driverHandler,
                          BusinessConversationHandler businessHandler,
-                         WhatsappService whatsappService,
-                         BusinessOwnerService businessOwnerService) {
-        this.convoService = convoService;
+                         DriverConversationHandler driverHandler,
+                         ConversationService convoService,
+                         BusinessOwnerService businessOwnerService,
+                         DriverService driverService,
+                         CustomerService customerService,
+                         WhatsappService whatsappService) {
         this.taxiHandler = taxiHandler;
         this.deliveryHandler = deliveryHandler;
-        this.driverHandler = driverHandler;
         this.businessHandler = businessHandler;
-        this.whatsappService = whatsappService;
+        this.driverHandler = driverHandler;
+        this.convoService = convoService;
         this.businessOwnerService = businessOwnerService;
+        this.driverService = driverService;
+        this.customerService = customerService;
+        this.whatsappService = whatsappService;
     }
 
+    /**
+     * Route incoming message to appropriate handler based on conversation state and user type
+     */
     public String route(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
+        String phone = message.getPhone();
 
-        logger.info("Routing message for {}: '{}' | State: {}", message.getPhone(), txt, convo.getState());
+        logger.info("Routing message for {}: '{}' | State: {}", phone, txt, convo.getState());
 
+        // Reset conversation if user sends "00"
         if (txt.equals("00")) {
             convoService.updateState(convo, ConversationState.START);
-            return handleStart(convo, message.getPhone());
+            return "🔄 איפוס משתמש. בואו נתחיל מחדש! 🚀";
         }
 
+        // Try driver handler first (drivers have priority)
         String driverResponse = driverHandler.handleMessage(convo, message);
         if (driverResponse != null) {
-            logger.info("Driver handler returned response");
+            logger.info("DriverHandler processed message");
             return driverResponse;
         }
 
-        // Handle START state - customer entering name (only for regular customers, not drivers or business owners)
-        if (convo.getState() == ConversationState.START && !isStartMenuButton(txt) && !driverHandler.isDriver(message.getPhone()) && !businessOwnerService.isBusinessOwner(message.getPhone())) {
-            logger.info("Customer {} entered name: {}", message.getPhone(), txt);
-            // Save customer name in conversation for later use
+        // If in START state and not a driver/business owner, capture name
+        ConversationState state = convo.getState();
+        if (state == ConversationState.START && !txt.isEmpty() && !isStartMenuButton(txt) &&
+                driverService.findByPhone(phone) == null && !businessOwnerService.isBusinessOwner(phone)) {
+            logger.info("Capturing customer name: {}", txt);
+            // Save name (optional: uncomment if using Customer entity)
+            // customerService.saveOrUpdateCustomer(phone, txt);
             convoService.saveTempData(convo, txt);
-            // Also save/update customer in customer pool with the name
-            // customerService.saveOrUpdateCustomer(message.getPhone(), txt); // If you have this
-            showServiceMenu(message.getPhone(), txt); // Pass name to show personalized message
+            showServiceMenu(phone, txt);
             return null;
         }
 
+        // Check for start menu buttons (Taxi/Delivery selection)
         if (isStartMenuButton(txt)) {
             logger.info("Processing START menu button: {}", txt);
             String buttonResponse = handleStartMenuButton(convo, message);
             if (buttonResponse != null) {
                 return buttonResponse;
             }
-            // If null, we already sent the message via WhatsApp (e.g., car type buttons)
+            // If null, we already sent the message via WhatsApp (car type buttons)
             return null;
         }
 
-        ConversationState state = convo.getState();
         logger.info("Current state before switch: {}", state);
 
         switch (state) {
             case START:
                 logger.info("In START state");
-                return handleStart(convo, message.getPhone());
+                return handleStart(convo, phone);
 
             case BUSINESS_MENU:
                 logger.info("In BUSINESS_MENU state");
@@ -90,7 +111,7 @@ public class MessageRouter {
                 if (businessResponse != null) {
                     return businessResponse;
                 }
-                break;
+                return null;
 
             case TAXI_SERVICE:
             case TAXI_CAR_TYPE:
@@ -100,19 +121,32 @@ public class MessageRouter {
                     logger.info("TaxiHandler returned: {}", taxiResponse);
                     return taxiResponse;
                 }
-                break;
+                // Handler sent message directly (e.g., buttons)
+                return null;
 
             case TAXI_PICKUP:
             case TAXI_DESTINATION:
             case TAXI_NOTES:
-            case AWAITING_TAXI_ORDER_CONFIRMATION:
                 logger.info("In TAXI state: {}", state);
                 String taxiResponse2 = taxiHandler.handleMessage(convo, message);
                 if (taxiResponse2 != null) {
                     logger.info("TaxiHandler returned: {}", taxiResponse2);
                     return taxiResponse2;
                 }
-                break;
+                // Handler sent message directly (e.g., confirmation buttons)
+                logger.info("TaxiHandler returned null - message sent via WhatsApp");
+                return null;
+
+            case AWAITING_TAXI_ORDER_CONFIRMATION:
+                logger.info("In AWAITING_TAXI_ORDER_CONFIRMATION state");
+                String confirmResponse = taxiHandler.handleMessage(convo, message);
+                if (confirmResponse != null) {
+                    logger.info("TaxiHandler returned confirmation: {}", confirmResponse);
+                    return confirmResponse;
+                }
+                // Handler sent message directly
+                logger.info("TaxiHandler returned null");
+                return null;
 
             case DELIVERY_CUSTOMER_PHONE:
             case DELIVERY_ADDRESS:
@@ -124,114 +158,73 @@ public class MessageRouter {
                 if (deliveryResponse != null) {
                     return deliveryResponse;
                 }
-                break;
+                return null;
 
             default:
                 logger.warn("Unknown state: {}", state);
-                break;
+                return null;
         }
-
-        logger.error("No handler processed the message, returning error");
-        return "❌ משהו השתבש. אנא נסה שוב.";
     }
 
-    private boolean isStartMenuButton(String txt) {
-        boolean result = txt.equals("start_service_taxi") ||
-                txt.equals("start_service_delivery");
-        logger.info("isStartMenuButton('{}') = {}", txt, result);
-        return result;
+    /**
+     * Handle START state - determine if user is customer, driver, or business owner
+     */
+    private String handleStart(Conversation convo, String phone) {
+        // Customer should already have been handled
+        return null;
     }
 
+    /**
+     * Show service selection menu (Taxi only for customers)
+     */
+    private void showServiceMenu(String phone, String name) {
+        String message = "מה בא לך " + name + "?";
+
+        try {
+            whatsappService.sendInteractiveButtonsSafe(
+                    phone,
+                    message,
+                    new WhatsappService.InteractiveButton("start_service_taxi", "🚕 מונית")
+            );
+        } catch (Exception e) {
+            logger.error("Error sending service menu: {}", e.getMessage());
+            whatsappService.sendSafeText(phone, message + "\n🚕 מונית");
+        }
+    }
+
+    /**
+     * Handle start menu button clicks
+     */
     private String handleStartMenuButton(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
-        logger.info("handleStartMenuButton called with: {}", txt);
+        String phone = message.getPhone();
 
         if (txt.equals("start_service_taxi")) {
-            logger.info("Customer {} chose taxi - setting state to TAXI_CAR_TYPE", message.getPhone());
-            // Set state to TAXI_CAR_TYPE directly (skip TAXI_SERVICE)
+            logger.info("Customer selected taxi service");
             convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
-            logger.info("State updated, now showing car type selection");
-            showCarTypeSelection(message.getPhone());
-            logger.info("Car type selection shown, returning null");
-            return null; // Already sent via WhatsApp, return null
-        }
 
-        if (txt.equals("start_service_delivery")) {
-            logger.info("Business owner {} chose delivery", message.getPhone());
-            convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_PHONE);
-            return "מה שם הלקוח?";
+            String bodyText = "מעולה 👍\nעכשיו בחרו את סוג הרכב:";
+            whatsappService.sendInteractiveButtonsSafe(
+                    phone,
+                    bodyText,
+                    new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "🏍️ אופנוע"),
+                    new WhatsappService.InteractiveButton("taxi_car_type_private_car", "🚗 מכונית פרטית"),
+                    new WhatsappService.InteractiveButton("taxi_car_type_minivan", "🚐 מיניוואן")
+            );
+            return null; // Buttons already sent
         }
 
         logger.warn("Unknown start menu button: {}", txt);
         return null;
     }
 
-    private String handleStart(Conversation convo, String phone) {
-        // Check if driver first
-        if (driverHandler.isDriver(phone)) {
-            // Show driver menu
-            showDriverMenu(phone);
-            return null;
-        }
-
-        // Check if business owner (from Business entity in database)
-        if (businessOwnerService.isBusinessOwner(phone)) {
-            // Show business owner menu
-            convoService.updateState(convo, ConversationState.BUSINESS_MENU);
-            showBusinessMenu(phone);
-            return null;
-        }
-
-        // Regular customer - show welcome message
-        showWelcomeMessage(phone);
-        return null;
-    }
-
-    private void showWelcomeMessage(String phone) {
-        String bodyText = "ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡\nאז איך קוראים לך?";
-        whatsappService.sendSafeText(phone, bodyText);
-    }
-
-    private void showServiceMenu(String phone, String customerName) {
-        String bodyText = "מה בא לך " + customerName + "?";
-
-        whatsappService.sendInteractiveButtons(
-                phone,
-                bodyText,
-                new WhatsappService.InteractiveButton("start_service_taxi", "🚕 מונית")
-        );
-    }
-
-    private void showDriverMenu(String phone) {
-        String bodyText = "ברוך הבא למערכת הנהגים של Moovez\nכדי להתחיל לקבל נסיעות לחץ על";
-
-        whatsappService.sendInteractiveButtons(
-                phone,
-                bodyText,
-                new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת"),
-                new WhatsappService.InteractiveButton("driver_end_shift", "🔴 סיים משמרת")
-        );
-    }
-
-    private void showBusinessMenu(String phone) {
-        String bodyText = "🚀 שלום וברוכים הבאים ל־Moovez Business\nניהול משלוחים ונסיעות בקלות ובמהירות ⚡\nמה תרצו לעשות? 👇";
-
-        whatsappService.sendInteractiveButtons(
-                phone,
-                bodyText,
-                new WhatsappService.InteractiveButton("business_taxi_option", "🚕 מונית")
-        );
-    }
-
-    private void showCarTypeSelection(String phone) {
-        String bodyText = "מעולה 👍\nעכשיו בחרו את סוג הרכב:";
-
-        whatsappService.sendInteractiveButtons(
-                phone,
-                bodyText,
-                new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "🏍️ אופנוע"),
-                new WhatsappService.InteractiveButton("taxi_car_type_private_car", "🚗 מכונית פרטית"),
-                new WhatsappService.InteractiveButton("taxi_car_type_minivan", "🚐 מיניוואן")
-        );
+    /**
+     * Check if text is a start menu button ID
+     */
+    private boolean isStartMenuButton(String txt) {
+        boolean result = txt.equals("start_service_taxi") ||
+                txt.equals("start_service_delivery");
+        logger.info("isStartMenuButton('{}') = {}", txt, result);
+        return result;
     }
 }
