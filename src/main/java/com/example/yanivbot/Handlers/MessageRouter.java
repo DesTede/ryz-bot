@@ -15,8 +15,10 @@ import org.springframework.stereotype.Component;
 /**
  * Routes incoming messages to the appropriate conversation handler based on state.
  *
- * CRITICAL: When a handler returns null (message already sent via WhatsApp),
- * we MUST return null instead of falling through to the error message!
+ * CRITICAL FIXES:
+ * 1. When handler returns null, DON'T fall through to error message
+ * 2. Only capture name ONCE - use START_MENU state for menu display
+ * 3. Don't re-capture name if already in START_MENU
  */
 @Component
 public class MessageRouter {
@@ -61,22 +63,27 @@ public class MessageRouter {
         String phone = message.getPhone();
         ConversationState state = convo.getState();
 
-        logger.info("Routing message for {}: '{}' | State: {}", phone, txt, state);
+        logger.info("========== ROUTE START ==========");
+        logger.info("Phone: {}", phone);
+        logger.info("Message: '{}'", txt);
+        logger.info("State: {}", state);
+        logger.info("================================");
 
         // Reset conversation if user sends "00"
         if (txt.equals("00")) {
+            logger.info("Reset signal received");
             convoService.updateState(convo, ConversationState.START);
             convoService.saveTempData(convo, "");
             return "🔄 איפוס משתמש. בואו נתחיל מחדש! 🚀";
         }
 
-        // Handle START state - capture customer name or check user type
+        // ===== START STATE =====
         if (state == ConversationState.START) {
-            logger.info("User in START state, determining user type");
+            logger.info("In START state - determining user type");
 
             // Check if user is a driver
             if (driverService.findByPhone(phone) != null) {
-                logger.info("User is a driver");
+                logger.info("User is a DRIVER");
                 String driverResponse = driverHandler.handleMessage(convo, message);
                 if (driverResponse != null) {
                     return driverResponse;
@@ -86,7 +93,7 @@ public class MessageRouter {
 
             // Check if user is a business owner
             if (businessOwnerService.isBusinessOwner(phone)) {
-                logger.info("User is a business owner");
+                logger.info("User is a BUSINESS OWNER");
                 convoService.updateState(convo, ConversationState.BUSINESS_MENU);
                 String businessResponse = businessHandler.handleMessage(convo, message);
                 if (businessResponse != null) {
@@ -95,23 +102,25 @@ public class MessageRouter {
                 return null;
             }
 
-            // Regular customer - capture name and show menu
-            logger.info("User is a regular customer, capturing name: {}", txt);
+            // Regular customer - capture name and move to START_MENU
+            logger.info("User is a CUSTOMER - capturing name: '{}'", txt);
             String name = txt;
             convoService.saveTempData(convo, name);
             convoService.updateState(convo, ConversationState.START_MENU);
 
             // Show service menu with customer's name
+            logger.info("Showing service menu for customer: {}", name);
             showServiceMenu(phone, name);
             return null; // Menu buttons already sent
         }
 
-        // Handle START_MENU state - customer selecting service (Taxi)
+        // ===== START_MENU STATE =====
+        // Customer has entered name and is seeing the menu
         if (state == ConversationState.START_MENU) {
-            logger.info("User in START_MENU state");
+            logger.info("In START_MENU state");
 
             if (txt.equals("start_service_taxi")) {
-                logger.info("Customer selected Taxi service");
+                logger.info("Customer selected TAXI service");
                 convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
 
                 String bodyText = "מעולה 👍\nעכשיו בחרו את סוג הרכב:";
@@ -126,11 +135,11 @@ public class MessageRouter {
             }
 
             // Invalid choice - ask them to use the menu
-            logger.warn("Invalid menu choice: {}", txt);
+            logger.warn("Invalid menu choice in START_MENU: '{}'", txt);
             return "אנא בחר מהתפריט למעלה 👆";
         }
 
-        // Handle BUSINESS_MENU state
+        // ===== BUSINESS_MENU STATE =====
         if (state == ConversationState.BUSINESS_MENU) {
             logger.info("In BUSINESS_MENU state");
             String businessResponse = businessHandler.handleMessage(convo, message);
@@ -140,7 +149,7 @@ public class MessageRouter {
             return null;
         }
 
-        // Handle TAXI states
+        // ===== TAXI STATES =====
         if (state == ConversationState.TAXI_CAR_TYPE ||
                 state == ConversationState.TAXI_PICKUP ||
                 state == ConversationState.TAXI_DESTINATION ||
@@ -150,7 +159,7 @@ public class MessageRouter {
             logger.info("In TAXI state: {}", state);
             String taxiResponse = taxiHandler.handleMessage(convo, message);
             if (taxiResponse != null) {
-                logger.info("TaxiHandler returned: {}", taxiResponse);
+                logger.info("TaxiHandler returned response");
                 return taxiResponse;
             }
             // Handler sent message directly (e.g., buttons)
@@ -158,7 +167,7 @@ public class MessageRouter {
             return null;
         }
 
-        // Handle DELIVERY states
+        // ===== DELIVERY STATES =====
         if (state == ConversationState.DELIVERY_CUSTOMER_PHONE ||
                 state == ConversationState.DELIVERY_ADDRESS ||
                 state == ConversationState.DELIVERY_READY_TIME ||
@@ -173,7 +182,7 @@ public class MessageRouter {
             return null;
         }
 
-        logger.warn("Unknown state: {} - returning null", state);
+        logger.warn("========== UNKNOWN STATE: {} ==========", state);
         return null;
     }
 
@@ -184,13 +193,15 @@ public class MessageRouter {
         String message = "מה בא לך " + name + "?";
 
         try {
+            logger.info("Sending service menu to {}: {}", phone, message);
             whatsappService.sendInteractiveButtonsSafe(
                     phone,
                     message,
                     new WhatsappService.InteractiveButton("start_service_taxi", "🚕 מונית")
             );
+            logger.info("Service menu sent successfully");
         } catch (Exception e) {
-            logger.error("Error sending service menu: {}", e.getMessage());
+            logger.error("Error sending service menu: {}", e.getMessage(), e);
             whatsappService.sendSafeText(phone, message + "\n🚕 מונית");
         }
     }
