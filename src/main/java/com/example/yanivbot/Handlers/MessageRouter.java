@@ -6,6 +6,7 @@ import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.WhatsappService;
 import com.example.yanivbot.Services.BusinessOwnerService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -121,8 +122,9 @@ public class MessageRouter {
         String txt = message.getText().trim();
 
         if (txt.equals("start_service_taxi")) {
-            convoService.updateState(convo, ConversationState.TAXI_SERVICE);
-            logger.info("Customer {} chosen taxi", message.getPhone());
+            // Set state to TAXI_CAR_TYPE directly (skip TAXI_SERVICE)
+            convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
+            logger.info("Customer {} chosen taxi, showing car type selection", message.getPhone());
             showCarTypeSelection(message.getPhone());
             return null;
         }
@@ -131,11 +133,6 @@ public class MessageRouter {
             convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_PHONE);
             logger.info("Business owner {} chosen delivery", message.getPhone());
             return "מה שם הלקוח?";
-        }
-
-        if (txt.equals("start_contact_us")) {
-            logger.info("Customer {} requested contact info", message.getPhone());
-            return "📞 יצור קשר: +972-527-718199";
         }
 
         return null;

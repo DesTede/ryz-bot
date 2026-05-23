@@ -48,9 +48,6 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         // Handle state-based flows
         switch (state) {
-            case TAXI_SERVICE:
-                return handleTaxiService(convo, message);
-
             case TAXI_CAR_TYPE:
                 return handleTaxiCarType(convo, message);
 
@@ -69,18 +66,6 @@ public class TaxiConversationHandler implements ConversationHandler {
             default:
                 return null;
         }
-    }
-
-    private String handleTaxiService(Conversation convo, IncomingMessage message) {
-        String txt = message.getText().trim();
-
-        if (txt.equals("start_service_taxi") || txt.equals("1")) {
-            convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
-            showCarTypeButtons(message.getPhone());
-            return null;
-        }
-
-        return "🚗 1️⃣ הזמנת נסיעה";
     }
 
     private String handleTaxiCarType(Conversation convo, IncomingMessage message) {
