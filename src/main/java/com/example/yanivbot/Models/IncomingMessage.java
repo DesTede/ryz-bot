@@ -1,17 +1,19 @@
 package com.example.yanivbot.Models;
 
-import jakarta.persistence.Entity;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@NoArgsConstructor
-
 public class IncomingMessage {
-    
+
     private String phone;
     private String text;
-    private boolean isGroupMessage;
+    private String messageId;
+
+    public IncomingMessage() {
+    }
+
+    public IncomingMessage(String phone, String text, String messageId) {
+        this.phone = phone;
+        this.text = text;
+        this.messageId = messageId;
+    }
 
     public String getPhone() {
         return phone;
@@ -29,11 +31,11 @@ public class IncomingMessage {
         this.text = text;
     }
 
-    public boolean isGroupMessage() {
-        return isGroupMessage;
+    public String getMessageId() {
+        return messageId;
     }
 
-    public void setGroupMessage(boolean groupMessage) {
-        isGroupMessage = groupMessage;
+    public void setMessageId(String messageId) {
+        this.messageId = messageId;
     }
 }

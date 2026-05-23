@@ -1,5 +1,6 @@
 package com.example.yanivbot.Services;
 
+import com.example.yanivbot.Models.IncomingMessage;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -11,6 +12,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @Service
 public class WhatsappService {
@@ -27,6 +29,51 @@ public class WhatsappService {
     private String apiVersion;
 
     public WhatsappService() {
+    }
+
+    /**
+     * Parse incoming message from Meta WhatsApp webhook
+     */
+    public IncomingMessage parseIncomingMessage(Map<String, Object> payload) {
+        try {
+            JSONObject entry = new JSONObject(payload).getJSONArray("entry").getJSONObject(0);
+            JSONObject change = entry.getJSONArray("changes").getJSONObject(0);
+            JSONObject value = change.getJSONObject("value");
+            JSONObject message = value.getJSONArray("messages").getJSONObject(0);
+
+            String phone = message.getString("from");
+            String messageId = message.getString("id");
+            String text = "";
+
+            if (message.getString("type").equals("text")) {
+                text = message.getJSONObject("text").getString("body");
+            }
+
+            return new IncomingMessage(phone, text, messageId);
+        } catch (Exception e) {
+            logger.error("Error parsing incoming message: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Normalize phone number to international format
+     */
+    public String normalizePhone(String phone) {
+        // Remove all non-digits
+        phone = phone.replaceAll("[^0-9]", "");
+
+        // If starts with 0 (Israeli local format), replace with 972
+        if (phone.startsWith("0")) {
+            phone = "972" + phone.substring(1);
+        }
+
+        // Ensure it starts with 972 (Israeli country code)
+        if (!phone.startsWith("972")) {
+            phone = "972" + phone;
+        }
+
+        return phone;
     }
 
     /**

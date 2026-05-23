@@ -1,14 +1,22 @@
-package com.example.yanivbot.Entities;
+// Fix for line 162 in GoogleSheetsService.java
+// Change this:
+// new Driver(name, phone, active, DriverType.TAXI)
 
+// To this:
+// Driver driver = new Driver(phone, name, DriverType.TAXI);
+// driver.setActive(active);
+
+// OR if you want to create updated Driver constructor:
+
+package com.example.yanivbot.Services;
+
+import com.example.yanivbot.Models.CarType;
 import jakarta.persistence.*;
 import lombok.Data;
-import com.example.yanivbot.Models.CarType;
-import com.example.yanivbot.Models.DriverType;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "drivers")
 @Data
 public class Driver {
 
@@ -16,10 +24,9 @@ public class Driver {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @Column(unique = true, nullable = false)
     private String phone;
-
     private String name;
+
     private boolean active;
 
     private double latitude;
@@ -27,7 +34,7 @@ public class Driver {
     private LocalDateTime locationUpdatedAt;
 
     @Enumerated(EnumType.STRING)
-    private DriverType type;
+    private com.example.yanivbot.Models.DriverType type;
 
     @Enumerated(EnumType.STRING)
     private CarType carType;
@@ -38,14 +45,15 @@ public class Driver {
     public Driver() {
     }
 
-    public Driver(String phone, String name, DriverType type) {
+    public Driver(String phone, String name, com.example.yanivbot.Models.DriverType type) {
         this.phone = phone;
         this.name = name;
         this.type = type;
         this.active = false;
     }
 
-    public Driver(String phone, String name, boolean active, DriverType type) {
+    // ALTERNATIVE: Full constructor with all fields
+    public Driver(String phone, String name, boolean active, com.example.yanivbot.Models.DriverType type) {
         this.phone = phone;
         this.name = name;
         this.active = active;
@@ -108,11 +116,11 @@ public class Driver {
         this.locationUpdatedAt = locationUpdatedAt;
     }
 
-    public DriverType getType() {
+    public com.example.yanivbot.Models.DriverType getType() {
         return type;
     }
 
-    public void setType(DriverType type) {
+    public void setType(com.example.yanivbot.Models.DriverType type) {
         this.type = type;
     }
 
