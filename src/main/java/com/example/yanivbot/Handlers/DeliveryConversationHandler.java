@@ -10,13 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Handles delivery order flows with interactive buttons
- *
- * Updated to use interactive buttons for:
- * - Delivery ready time selection (Now/5min/10min/15min/20min/Other)
- * - Driver order actions (Pick Up/Delivered/Call)
- */
 @Component
 public class DeliveryConversationHandler implements ConversationHandler {
 
@@ -37,7 +30,6 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String txt = message.getText().trim();
         ConversationState state = convo.getState();
 
-        // Check for driver delivery actions: "איסוף {id}" or "נמסר {id}"
         if (txt.matches("^איסוף\\s+\\d+$")) {
             long orderId = Long.parseLong(txt.split("\\s+")[1]);
             return deliveryOrderService.markPickedUp(orderId, message.getPhone());
@@ -48,7 +40,6 @@ public class DeliveryConversationHandler implements ConversationHandler {
             return deliveryOrderService.markDelivered(orderId, message.getPhone());
         }
 
-        // Handle state-based flows
         switch (state) {
             case DELIVERY_CUSTOMER_PHONE:
                 return handleCustomerPhone(convo, message);
@@ -69,7 +60,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String phone = message.getText().trim();
         convoService.saveTempData(convo, phone);
         convoService.updateState(convo, ConversationState.DELIVERY_ADDRESS);
-        return "כתובת המסירה 📍";
+        return "📞 מה מספר הטלפון של הלקוח?";
     }
 
     private String handleAddress(Conversation convo, IncomingMessage message) {
@@ -78,43 +69,21 @@ public class DeliveryConversationHandler implements ConversationHandler {
         convoService.saveTempData(convo, tempData);
         convoService.updateState(convo, ConversationState.DELIVERY_READY_TIME);
 
-        // Show ready time with INTERACTIVE BUTTONS
-        showReadyTimeButtons(message.getPhone());
-        return null; // Already sent via WhatsApp
+        showReadyTimeButton(message.getPhone());
+        return null;
     }
 
-    /**
-     * DELIVERY_READY_TIME state: Show ready time with INTERACTIVE BUTTONS
-     *
-     * Button options: "delivery_ready_now", "delivery_ready_5min", "delivery_ready_10min", 
-     *                  "delivery_ready_15min", "delivery_ready_20min", "delivery_ready_other"
-     */
     private String handleReadyTime(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
         int minutes = 0;
 
-        // Handle button clicks
-        if (txt.equals("delivery_ready_now")) {
-            minutes = 0;
-        } else if (txt.equals("delivery_ready_5min")) {
-            minutes = 5;
-        } else if (txt.equals("delivery_ready_10min")) {
-            minutes = 10;
-        } else if (txt.equals("delivery_ready_15min")) {
-            minutes = 15;
-        } else if (txt.equals("delivery_ready_20min")) {
-            minutes = 20;
-        } else if (txt.equals("delivery_ready_other")) {
-            return "הזן מספר דקות:";
-        }
-        // Fallback: support old numeric input
-        else if (txt.equals("עכשיו")) {
+        if (txt.equals("delivery_ready_now") || txt.equals("עכשיו")) {
             minutes = 0;
         } else {
             try {
                 minutes = Integer.parseInt(txt);
             } catch (NumberFormatException e) {
-                return "בחר זמן מוכן או הזן מספר דקות";
+                return "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו: עכשיו\nאו הקלידו זמן הכנה";
             }
         }
 
@@ -122,7 +91,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         convoService.saveTempData(convo, tempData);
         convoService.updateState(convo, ConversationState.DELIVERY_PRICE);
 
-        return "מחיר המשלוח 💰";
+        return "מה סכום המשלוח לתשלום?\nאם ההזמנה כבר שולמה רשמו: 0";
     }
 
     private String handlePrice(Conversation convo, IncomingMessage message) {
@@ -131,7 +100,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         convoService.saveTempData(convo, tempData);
         convoService.updateState(convo, ConversationState.DELIVERY_NOTES);
 
-        return "הערות נוספות? (או הקלד 'לא')";
+        return "📝 יש הערות נוספות לשליח?\n(קומה, קוד כניסה, הערה להזמנה וכו׳)\nאם אין הערות רשמו: לא";
     }
 
     private String handleNotes(Conversation convo, IncomingMessage message) {
@@ -144,16 +113,17 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String[] parts = tempData.split("\\|");
 
         if (parts.length >= 5) {
-            String businessPhone = message.getPhone();  // The business owner who created the order
-            String customerPhone = parts[0];
-            String address = parts[1];
-            String readyInMinutes = parts[2];  // Keep as String
-            String price = parts[3];           // Keep as String
-            String notesStr = parts.length > 4 ? parts[4] : "";
+            String businessPhone = message.getPhone();
+            String customerName = parts[0];
+            String customerPhone = parts[1];
+            String address = parts[2];
+            int readyInMinutes = Integer.parseInt(parts[3]);
+            double price = Double.parseDouble(parts[4]);
+            String notesStr = parts.length > 5 ? parts[5] : "";
 
-            // Call with all String parameters
             deliveryOrderService.createDeliveryOrder(
                     businessPhone,
+                    customerName,
                     customerPhone,
                     address,
                     readyInMinutes,
@@ -162,34 +132,19 @@ public class DeliveryConversationHandler implements ConversationHandler {
             );
 
             convoService.updateState(convo, ConversationState.START);
-            return "✅ ההזמנה נוצרה בהצלחה! המשלוח ישודר לנהגים.";
+            return "✅ אנא אשרו את פרטי המשלוח:\n📞 שם לקוח: [CUSTOMER_NAME]\n📞 טלפון לקוח: [CUSTOMER_PHONE]\n📍 כתובת מסירה: [DELIVERY_ADDRESS]\n⏱️ זמן הכנה: [READY_TIME]\n💰 סכום לתשלום: [PRICE]\n📝 הערות: [NOTES / אין]";
         }
 
         return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
     }
 
-    /**
-     * Send ready time selection with INTERACTIVE BUTTONS
-     * Note: Max 3 buttons per message in WhatsApp, so we show top 3 options + "Other"
-     */
-    private void showReadyTimeButtons(String phone) {
-        String bodyText = "בכמה דקות ההזמנה תהיה מוכנה?";
+    private void showReadyTimeButton(String phone) {
+        String bodyText = "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו: עכשיו\nאו הקלידו זמן הכנה";
 
         whatsappService.sendInteractiveButtons(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("delivery_ready_now", "⏱️ עכשיו"),
-                new WhatsappService.InteractiveButton("delivery_ready_5min", "5 דקות"),
-                new WhatsappService.InteractiveButton("delivery_ready_10min", "10 דקות")
-        );
-
-        // Send second message with more options
-        whatsappService.sendInteractiveButtons(
-                phone,
-                "",
-                new WhatsappService.InteractiveButton("delivery_ready_15min", "15 דקות"),
-                new WhatsappService.InteractiveButton("delivery_ready_20min", "20 דקות"),
-                new WhatsappService.InteractiveButton("delivery_ready_other", "אחר")
+                new WhatsappService.InteractiveButton("delivery_ready_now", "⏱️ עכשיו")
         );
     }
 }

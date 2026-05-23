@@ -12,19 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Handles all taxi order conversation flows with interactive buttons.
- *
- * Updated to use interactive buttons for:
- * - Car type selection
- * - Order confirmation (Yes/No)
- *
- * Manages states:
- * - TAXI_SERVICE: Customer selecting service
- * - TAXI_CAR_TYPE: Customer selecting car type (WITH BUTTONS)
- * - TAXI_PICKUP: Customer entering pickup location
- * - TAXI_DESTINATION: Customer entering destination
- * - TAXI_NOTES: Customer entering optional notes
- * - AWAITING_TAXI_ORDER_CONFIRMATION: Waiting for customer confirmation (WITH BUTTONS)
+ * Handles all taxi order conversation flows with interactive buttons and updated messages.
  */
 @Component
 public class TaxiConversationHandler implements ConversationHandler {
@@ -79,102 +67,74 @@ public class TaxiConversationHandler implements ConversationHandler {
                 return handleTaxiConfirmation(convo, message);
 
             default:
-                // This handler doesn't handle other states
                 return null;
         }
     }
 
-    /**
-     * TAXI_SERVICE state: Customer choosing to order taxi
-     *
-     * Button click: "start_service_taxi" or "business_taxi"
-     */
     private String handleTaxiService(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
 
-        // Check if it's a button click for taxi service
-        if (txt.equals("start_service_taxi") || txt.equals("business_taxi") || txt.equals("1")) {
+        if (txt.equals("start_service_taxi") || txt.equals("1")) {
             convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
             showCarTypeButtons(message.getPhone());
-            return null; // Already sent via WhatsApp
+            return null;
         }
 
-        return "בחר שירות:\nעבור מונית לחץ - 1";
+        return "🚗 1️⃣ הזמנת נסיעה";
     }
 
-    /**
-     * TAXI_CAR_TYPE state: Customer selecting car type with INTERACTIVE BUTTONS
-     *
-     * Button options: "taxi_car_type_motorcycle", "taxi_car_type_private_car", "taxi_car_type_minivan"
-     */
     private String handleTaxiCarType(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
         CarType selectedCarType = null;
 
-        // Handle button clicks
         if (txt.equals("taxi_car_type_motorcycle")) {
             selectedCarType = CarType.MOTORCYCLE;
         } else if (txt.equals("taxi_car_type_private_car")) {
             selectedCarType = CarType.PRIVATE_CAR;
         } else if (txt.equals("taxi_car_type_minivan")) {
             selectedCarType = CarType.MINIVAN;
-        }
-        // Fallback: support old numeric input "1", "2", "3"
-        else if (txt.equals("1")) {
+        } else if (txt.equals("1")) {
             selectedCarType = CarType.MOTORCYCLE;
         } else if (txt.equals("2")) {
             selectedCarType = CarType.PRIVATE_CAR;
         } else if (txt.equals("3")) {
             selectedCarType = CarType.MINIVAN;
         } else {
-            return "בחירה לא חוקית. בחר אופנוע, מכונית פרטית, או מיניוואן";
+            return "🚫 אופס… נראה שנבחרה אפשרות שלא קיימת\nבחרו אפשרות מהרשימה כדי להמשיך 🚀";
         }
 
-        // Save car type to temp data
         convoService.saveTempData(convo, selectedCarType.name());
         convoService.updateState(convo, ConversationState.TAXI_PICKUP);
 
-        return "מאיפה לאסוף אותך? (לא לשכוח עיר) 📍";
+        return "🚗 מעולה!\nעכשיו שלחו את נקודת האיסוף שלכם 📍";
     }
 
-    /**
-     * TAXI_PICKUP state: Customer entering pickup location
-     */
     private String handleTaxiPickup(Conversation convo, IncomingMessage message) {
         String pickupLocation = message.getText().trim();
 
-        // Get car type from temp data and append pickup location
         String carType = convo.getTempData();
         String orderData = carType + "|" + pickupLocation;
         convoService.saveTempData(convo, orderData);
         convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
 
-        return "לאן תרצה ללכת? 🎯";
+        return "📍 נקודת האיסוף נקלטה בהצלחה ✅\nעכשיו שלחו יעד נסיעה 👇";
     }
 
-    /**
-     * TAXI_DESTINATION state: Customer entering destination
-     */
     private String handleTaxiDestination(Conversation convo, IncomingMessage message) {
         String destination = message.getText().trim();
 
-        // Get the order data (carType|pickup) from temp data
         String orderData = convo.getTempData();
         String[] parts = orderData.split("\\|");
         String carType = parts[0];
         String pickupLocation = parts[1];
 
-        // Save both in temp data as "carType|pickup|destination"
         orderData = carType + "|" + pickupLocation + "|" + destination;
         convoService.saveTempData(convo, orderData);
         convoService.updateState(convo, ConversationState.TAXI_NOTES);
 
-        return "הערות נוספות? (או הקלד 'לא')";
+        return "💬 רוצים להוסיף משהו לנהג?\nכתבו את ההערה כאן 👇\nאם אין הערות, רשמו: לא";
     }
 
-    /**
-     * TAXI_NOTES state: Customer optionally entering notes
-     */
     private String handleTaxiNotes(Conversation convo, IncomingMessage message) {
         String notes = message.getText().trim();
 
@@ -182,43 +142,32 @@ public class TaxiConversationHandler implements ConversationHandler {
             notes = "";
         }
 
-        // Get the order data (carType|pickup|destination)
         String orderData = convo.getTempData();
         String[] parts = orderData.split("\\|");
         String carType = parts[0];
         String pickupLocation = parts[1];
         String destination = parts[2];
 
-        // Move to confirmation state
         convoService.saveTempData(convo, orderData + "|" + notes);
         convoService.updateState(convo, ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION);
 
-        // Show confirmation with INTERACTIVE BUTTONS
         showConfirmationButtons(message.getPhone(), carType, pickupLocation, destination, notes);
-        return null; // Already sent via WhatsApp
+        return null;
     }
 
-    /**
-     * AWAITING_TAXI_ORDER_CONFIRMATION state: Waiting for customer to confirm order with BUTTONS
-     *
-     * Button options: "order_confirm_yes", "order_confirm_no"
-     */
     private String handleTaxiConfirmation(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
 
-        // Handle button clicks
         if (txt.equals("order_confirm_no") || txt.equals("לא")) {
-            // User cancelled the order
             convoService.updateState(convo, ConversationState.START);
-            whatsappService.sendSafeText(message.getPhone(), "❌ ההזמנה בוטלה.");
-            return null; // Menu will be shown by router
+            whatsappService.sendSafeText(message.getPhone(), "❗ שימו לב\nביטול ההזמנה ימחק את כל פרטי הנסיעה.\nלהמשך ביטול הקלידו: כן\nכדי לחזור להזמנה הקלידו: לא\n❌ ההזמנה בוטלה בהצלחה.\nנשמח לעמוד לשירותכם שוב ב־Movez💙\nלהתחלת הזמנה חדשה שלחו הודעה 🚀");
+            return null;
         }
 
         if (!txt.equals("order_confirm_yes") && !txt.equals("כן")) {
             return "אנא בחר: אשר (כן) או בטל (לא)";
         }
 
-        // User confirmed - create the taxi order
         String orderData = convo.getTempData();
         String[] parts = orderData.split("\\|");
         String carType = parts[0];
@@ -228,11 +177,8 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         try {
             taxiOrderService.createTaxiOrder(message.getPhone(), pickupLocation, destination, notes, CarType.valueOf(carType));
-
-            // Reset conversation state
             convoService.updateState(convo, ConversationState.START);
-
-            return "✅ ההזמנה נוצרה בהצלחה! נחפש לך נהג קרוב...";
+            return "✅ ההזמנה אושרה! מחפשים נהג קרוב אליך";
         } catch (Exception e) {
             logger.error("Failed to create taxi order for {}: {}", message.getPhone(), e.getMessage());
             convoService.updateState(convo, ConversationState.START);
@@ -240,30 +186,25 @@ public class TaxiConversationHandler implements ConversationHandler {
         }
     }
 
-    /**
-     * Send car type selection with INTERACTIVE BUTTONS
-     */
     private void showCarTypeButtons(String phone) {
-        String bodyText = "בחר סוג כלי רכב:";
+        String bodyText = "מעולה 👍\nעכשיו בחרו את סוג הרכב:";
 
         whatsappService.sendInteractiveButtons(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "🏍️ אופנוע"),
-                new WhatsappService.InteractiveButton("taxi_car_type_private_car", "🚗 מכונית פרטית"),
-                new WhatsappService.InteractiveButton("taxi_car_type_minivan", "🚐 מיניוואן")
+                new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "1️⃣ אופנוע – לעקוף את כל הפקקים"),
+                new WhatsappService.InteractiveButton("taxi_car_type_private_car", "2️⃣ מכונית פרטית – פשוט ולעניין"),
+                new WhatsappService.InteractiveButton("taxi_car_type_minivan", "3️⃣ הסעות גדולות +6")
         );
     }
 
-    /**
-     * Send order confirmation with INTERACTIVE BUTTONS
-     */
     private void showConfirmationButtons(String phone, String carType, String pickupLocation, String destination, String notes) {
-        String bodyText = "אנא אשר את הפרטים:\n" +
-                "🚗 כלי רכב: " + CarType.valueOf(carType).getHebrewName() + "\n" +
-                "📍 מאיפה: " + pickupLocation + "\n" +
-                "🎯 לאן: " + destination + "\n" +
-                "📝 הערות: " + (notes.isEmpty() ? "אין" : notes);
+        String bodyText = "🚀 הנה סיכום הנסיעה שלכם:\n" +
+                "🚘 רכב: " + CarType.valueOf(carType).getHebrewName() + "\n" +
+                "📍 איסוף: " + pickupLocation + "\n" +
+                "🎯 יעד: " + destination + "\n" +
+                "📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n\n" +
+                "אם הכול נראה טוב — בחרו ✅";
 
         whatsappService.sendInteractiveButtons(
                 phone,

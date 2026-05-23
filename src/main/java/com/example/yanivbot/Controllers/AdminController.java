@@ -10,13 +10,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
-
+    
     private final GoogleSheetsService googleSheetsService;
-
+    
     public AdminController(GoogleSheetsService googleSheetsService) {
         this.googleSheetsService = googleSheetsService;
     }
-
+    
     /**
      * Get all drivers
      */
@@ -25,7 +25,7 @@ public class AdminController {
         List<Driver> drivers = googleSheetsService.getAllDrivers();
         return ResponseEntity.ok(drivers);
     }
-
+    
     /**
      * Sync drivers from Google Sheets
      */

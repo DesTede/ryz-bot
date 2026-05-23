@@ -40,26 +40,22 @@ public class MessageRouter {
 
         logger.info("Routing message for {}: '{}' | State: {}", message.getPhone(), txt, convo.getState());
 
-        // Handle reset command "00"
         if (txt.equals("00")) {
             convoService.updateState(convo, ConversationState.START);
             return handleStart(message.getPhone());
         }
 
-        // Check driver commands FIRST (before state-based routing)
         String driverResponse = driverHandler.handleMessage(convo, message);
         if (driverResponse != null) {
             logger.info("Driver handler returned response");
             return driverResponse;
         }
 
-        // Handle button clicks for START menu
         if (isStartMenuButton(txt)) {
             logger.info("Processing START menu button: {}", txt);
             return handleStartMenuButton(convo, message);
         }
 
-        // Route based on conversation state
         ConversationState state = convo.getState();
 
         switch (state) {
@@ -100,34 +96,26 @@ public class MessageRouter {
         return "❌ משהו השתבש. אנא נסה שוב.";
     }
 
-    /**
-     * Check if message is a START menu button click
-     */
     private boolean isStartMenuButton(String txt) {
         return txt.equals("start_service_taxi") ||
                 txt.equals("start_service_delivery") ||
                 txt.equals("start_contact_us");
     }
 
-    /**
-     * Handle START menu button clicks
-     */
     private String handleStartMenuButton(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
 
         if (txt.equals("start_service_taxi")) {
-            // Customer chose taxi
             convoService.updateState(convo, ConversationState.TAXI_SERVICE);
-            // Show car type buttons
-            logger.info("Customer {} chosen taxi, showing car type selection", message.getPhone());
-            return "בחר סוג כלי רכב:\n\n1️⃣ אופנוע\n2️⃣ מכונית פרטית\n3️⃣ מיניוואן";
+            logger.info("Customer {} chosen taxi", message.getPhone());
+            showCarTypeSelection(message.getPhone());
+            return null;
         }
 
         if (txt.equals("start_service_delivery")) {
-            // Customer chose delivery (business owner)
             convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_PHONE);
             logger.info("Business owner {} chosen delivery", message.getPhone());
-            return "טלפון הלקוח 📞";
+            return "מה שם הלקוח?";
         }
 
         if (txt.equals("start_contact_us")) {
@@ -138,68 +126,55 @@ public class MessageRouter {
         return null;
     }
 
-    /**
-     * Handle START state - show main menu with interactive buttons
-     */
     private String handleStart(String phone) {
-        // Check if driver
         if (driverHandler.isDriver(phone)) {
-            // Show driver/business menu
             if (driverHandler.isBusinessOwner(phone)) {
                 showBusinessMenu(phone);
             } else {
                 showDriverMenu(phone);
             }
-            return null; // Already sent via WhatsApp
+            return null;
         }
 
-        // Show customer menu with interactive buttons
         showCustomerMenu(phone);
-        return null; // Already sent via WhatsApp
+        return null;
     }
 
-    /**
-     * Send customer menu with interactive buttons
-     */
     private void showCustomerMenu(String phone) {
-        String bodyText = "שלום 👋 בחר שירות:";
+        String bodyText = "ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡\nאז איך קוראים לך?";
 
         whatsappService.sendInteractiveButtons(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("start_service_taxi", "🚕 מונית (Taxi)"),
-                new WhatsappService.InteractiveButton("start_service_delivery", "🚚 משלוח (Delivery)"),
-                new WhatsappService.InteractiveButton("start_contact_us", "📞 התקשר אלינו")
+                new WhatsappService.InteractiveButton("start_service_taxi", "🚕 מונית"),
+                new WhatsappService.InteractiveButton("start_service_delivery", "🚚 משלוח")
         );
     }
 
-    /**
-     * Send driver menu with interactive buttons
-     */
     private void showDriverMenu(String phone) {
-        String bodyText = "שלום נהג 👋 בחר פעולה:";
+        String bodyText = "ברוך הבא למערכת הנהגים של Moovez\nכדי להתחיל לקבל נסיעות לחץ על";
 
         whatsappService.sendInteractiveButtons(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("driver_start_shift", "✅ התחל משמרת"),
-                new WhatsappService.InteractiveButton("driver_end_shift", "🔚 סיים משמרת"),
-                new WhatsappService.InteractiveButton("start_contact_us", "📞 תמיכה")
+                new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת"),
+                new WhatsappService.InteractiveButton("driver_end_shift", "🔴 סיים משמרת")
         );
     }
 
-    /**
-     * Send business owner menu with interactive buttons
-     */
     private void showBusinessMenu(String phone) {
-        String bodyText = "שלום בעלים 👋 בחר שירות:";
+        businessHandler.showBusinessMenuButtons(phone);
+    }
+
+    private void showCarTypeSelection(String phone) {
+        String bodyText = "מעולה 👍\nעכשיו בחרו את סוג הרכב:";
 
         whatsappService.sendInteractiveButtons(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("business_taxi_option", "🚕 מונית"),
-                new WhatsappService.InteractiveButton("business_delivery_option", "🚚 משלוח"),
-                new WhatsappService.InteractiveButton("driver_end_shift", "🔚 סיים משמרת")
+                new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "1️⃣ אופנוע – לעקוף את כל הפקקים"),
+                new WhatsappService.InteractiveButton("taxi_car_type_private_car", "2️⃣ מכונית פרטית – פשוט ולעניין"),
+                new WhatsappService.InteractiveButton("taxi_car_type_minivan", "3️⃣ הסעות גדולות +6")
         );
     }
 }
