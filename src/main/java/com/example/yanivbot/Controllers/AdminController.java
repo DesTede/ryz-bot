@@ -13,6 +13,7 @@ import java.util.List;
 /**
  * [COMPLETE FILE]
  * Admin endpoints for managing drivers, businesses, and syncing with Google Sheets
+ * Syncs both נהגים (drivers) and עסקים (businesses) tables
  */
 @RestController
 @RequestMapping("/admin")
@@ -45,25 +46,31 @@ public class AdminController {
     }
 
     /**
-     * Manually sync all drivers and businesses from Google Sheets
+     * Manually sync all drivers AND businesses from Google Sheets
      * Admin can call this after adding new drivers/businesses to the sheet
      * instead of waiting for the @Scheduled sync (which runs every 5 minutes)
+     *
+     * Syncs:
+     * - נהגים (drivers) table
+     * - עסקים (businesses) table
      */
     @PostMapping("/sync-sheets")
     public ResponseEntity<String> syncSheetsManually() {
         try {
             logger.info("=== MANUAL GOOGLE SHEETS SYNC INITIATED ===");
 
-            // Sync drivers from Google Sheets
-            logger.info("Syncing drivers from Google Sheets...");
+            // Sync drivers from Google Sheets (נהגים)
+            logger.info("Syncing drivers from Google Sheets (נהגים)...");
             googleSheetsService.syncDriversFromSheets();
             logger.info("✅ Drivers synced successfully");
 
-            // Optionally sync businesses if you have a sync method for them
-            // googleSheetsService.syncBusinessesFromSheets();
+            // Sync businesses from Google Sheets (עסקים)
+            logger.info("Syncing businesses from Google Sheets (עסקים)...");
+            googleSheetsService.syncBusinessesFromSheets();
+            logger.info("✅ Businesses synced successfully");
 
             logger.info("=== MANUAL SYNC COMPLETED SUCCESSFULLY ===");
-            return ResponseEntity.ok("✅ Google Sheets synced successfully!\n- Drivers updated\n- Ready to dispatch");
+            return ResponseEntity.ok("✅ Google Sheets synced successfully!\n- Drivers (נהגים) updated\n- Businesses (עסקים) updated\n- Ready to dispatch");
         } catch (Exception e) {
             logger.error("Manual sync failed: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body("❌ Sync failed: " + e.getMessage());
@@ -79,7 +86,7 @@ public class AdminController {
         try {
             logger.info("Checking sync status");
             // You can extend this to return last sync time from database if needed
-            return ResponseEntity.ok("✅ Admin panel is operational\nManual sync available at POST /admin/sync-sheets");
+            return ResponseEntity.ok("✅ Admin panel is operational\nManual sync available at POST /admin/sync-sheets\nSyncs: נהגים (drivers) + עסקים (businesses)");
         } catch (Exception e) {
             logger.error("Error getting sync status: {}", e.getMessage());
             return ResponseEntity.status(500).body("❌ Error: " + e.getMessage());
