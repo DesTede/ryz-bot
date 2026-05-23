@@ -1,6 +1,9 @@
 package com.example.yanivbot.Models;
 
 public enum ConversationState {
+/*
+added new state
+* */
     START,
     AWAITING_TAXI_CONFIRMATION,
     TAXI_SERVICE,
