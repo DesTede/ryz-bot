@@ -1,6 +1,7 @@
 package com.example.yanivbot.Handlers;
 
 import com.example.yanivbot.Entities.Conversation;
+import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.ConversationService;
@@ -12,16 +13,15 @@ import org.springframework.stereotype.Component;
 /**
  * Handles all taxi order conversation flows.
  * 
+ * Updated to include car type selection.
+ * 
  * Manages states:
  * - TAXI_SERVICE: Customer selecting service
+ * - TAXI_CAR_TYPE: Customer selecting car type (NEW)
  * - TAXI_PICKUP: Customer entering pickup location
  * - TAXI_DESTINATION: Customer entering destination
  * - TAXI_NOTES: Customer entering optional notes
  * - AWAITING_TAXI_ORDER_CONFIRMATION: Waiting for customer confirmation
- * 
- * Also handles:
- * - Driver claiming taxi orders: "מונית {id}"
- * - Driver completing taxi orders: "הסתיים {id}"
  */
 @Component
 public class TaxiConversationHandler implements ConversationHandler {
@@ -41,11 +41,6 @@ public class TaxiConversationHandler implements ConversationHandler {
         String txt = message.getText().trim();
         ConversationState state = convo.getState();
         
-        // Check for customer requesting driver location: "מיקום"
-        if (txt.equals("מיקום")) {
-            return taxiOrderService.getDriverLocation(message.getPhone());
-        }
-        
         // Check for driver claiming taxi order: "מונית {id}"
         if (txt.matches("^מונית\\s+\\d+$")) {
             long orderId = Long.parseLong(txt.split("\\s+")[1]);
@@ -62,6 +57,9 @@ public class TaxiConversationHandler implements ConversationHandler {
         switch (state) {
             case TAXI_SERVICE:
                 return handleTaxiService(convo, message);
+                
+            case TAXI_CAR_TYPE:
+                return handleTaxiCarType(convo, message);
                 
             case TAXI_PICKUP:
                 return handleTaxiPickup(convo, message);
@@ -90,11 +88,40 @@ public class TaxiConversationHandler implements ConversationHandler {
         String txt = message.getText().trim();
         
         if (txt.equals("1")) {
-            convoService.updateState(convo, ConversationState.TAXI_PICKUP);
-            return "מאיפה לאסוף אותך? (לא לשכוח עיר) 📍";
+            convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
+            return "בחר סוג כלי רכב:\n\n" +
+                    "1️⃣ אופנוע\n" +
+                    "2️⃣ מכונית פרטית\n" +
+                    "3️⃣ מיניוואן";
         }
         
         return "בחר שירות:\nעבור מונית לחץ - 1";
+    }
+    
+    /**
+     * TAXI_CAR_TYPE state: Customer selecting car type
+     * 
+     * Options: 1 = Motorcycle, 2 = Private Car, 3 = Minivan
+     */
+    private String handleTaxiCarType(Conversation convo, IncomingMessage message) {
+        String txt = message.getText().trim();
+        CarType selectedCarType = null;
+        
+        if (txt.equals("1")) {
+            selectedCarType = CarType.MOTORCYCLE;
+        } else if (txt.equals("2")) {
+            selectedCarType = CarType.PRIVATE_CAR;
+        } else if (txt.equals("3")) {
+            selectedCarType = CarType.MINIVAN;
+        } else {
+            return "בחירה לא חוקית. בחר 1, 2 או 3";
+        }
+        
+        // Save car type to temp data
+        convoService.saveTempData(convo, selectedCarType.name());
+        convoService.updateState(convo, ConversationState.TAXI_PICKUP);
+        
+        return "מאיפה לאסוף אותך? (לא לשכוח עיר) 📍";
     }
     
     /**
@@ -103,8 +130,10 @@ public class TaxiConversationHandler implements ConversationHandler {
     private String handleTaxiPickup(Conversation convo, IncomingMessage message) {
         String pickupLocation = message.getText().trim();
         
-        // Save pickup location as temp data
-        convoService.saveTempData(convo, pickupLocation);
+        // Get car type from temp data and append pickup location
+        String carType = convo.getTempData();
+        String orderData = carType + "|" + pickupLocation;
+        convoService.saveTempData(convo, orderData);
         convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
         
         return "לאן תרצה ללכת? 🎯";
@@ -116,11 +145,14 @@ public class TaxiConversationHandler implements ConversationHandler {
     private String handleTaxiDestination(Conversation convo, IncomingMessage message) {
         String destination = message.getText().trim();
         
-        // Get the pickup location from temp data
-        String pickupLocation = convo.getTempData();
+        // Get the order data (carType|pickup) from temp data
+        String orderData = convo.getTempData();
+        String[] parts = orderData.split("\\|");
+        String carType = parts[0];
+        String pickupLocation = parts[1];
         
-        // Save both in temp data as "pickup|destination"
-        String orderData = pickupLocation + "|" + destination;
+        // Save both in temp data as "carType|pickup|destination"
+        orderData = carType + "|" + pickupLocation + "|" + destination;
         convoService.saveTempData(convo, orderData);
         convoService.updateState(convo, ConversationState.TAXI_NOTES);
         
@@ -137,17 +169,19 @@ public class TaxiConversationHandler implements ConversationHandler {
             notes = "";
         }
         
-        // Get the order data (pickup|destination)
+        // Get the order data (carType|pickup|destination)
         String orderData = convo.getTempData();
         String[] parts = orderData.split("\\|");
-        String pickupLocation = parts[0];
-        String destination = parts[1];
+        String carType = parts[0];
+        String pickupLocation = parts[1];
+        String destination = parts[2];
         
         // Move to confirmation state
         convoService.saveTempData(convo, orderData + "|" + notes);
         convoService.updateState(convo, ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION);
         
         return "אנא אשר את הפרטים:\n" +
+                "🚗 כלי רכב: " + CarType.valueOf(carType).getHebrewName() + "\n" +
                 "📍 מאיפה: " + pickupLocation + "\n" +
                 "🎯 לאן: " + destination + "\n" +
                 "📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n\n" +
@@ -169,12 +203,13 @@ public class TaxiConversationHandler implements ConversationHandler {
         // User confirmed - create the taxi order
         String orderData = convo.getTempData();
         String[] parts = orderData.split("\\|");
-        String pickupLocation = parts[0];
-        String destination = parts[1];
-        String notes = parts.length > 2 ? parts[2] : "";
+        String carType = parts[0];
+        String pickupLocation = parts[1];
+        String destination = parts[2];
+        String notes = parts.length > 3 ? parts[3] : "";
         
         try {
-            taxiOrderService.createTaxiOrder(message.getPhone(), pickupLocation, destination, notes);
+            taxiOrderService.createTaxiOrder(message.getPhone(), pickupLocation, destination, notes, CarType.valueOf(carType));
             
             // Reset conversation state
             convoService.updateState(convo, ConversationState.START);

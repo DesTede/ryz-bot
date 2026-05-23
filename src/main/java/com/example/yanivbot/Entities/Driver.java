@@ -1,62 +1,54 @@
 package com.example.yanivbot.Entities;
 
-import com.example.yanivbot.Models.DriverType;
+import com.example.yanivbot.Models.CarType;
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Entity
-//@NoArgsConstructor
 @Data
 public class Driver {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
-    private String name;
+    
     private String phone;
-    private Boolean active;
-    @Enumerated(EnumType.STRING)
-    private DriverType type;
-    private int activeTaxiOrders;
-    private int activeDeliveryOrders;
-    private Double latitude;
-    private Double longitude;
+    private String name;
+    
+    private boolean active;
+    
+    private double latitude;
+    private double longitude;
     private LocalDateTime locationUpdatedAt;
+    
+    @Enumerated(EnumType.STRING)
+    private com.example.yanivbot.Models.DriverType type;
+    
+    // NEW FIELDS FOR CAR INFO
+    @Enumerated(EnumType.STRING)
+    private CarType carType;  // MOTORCYCLE, PRIVATE_CAR, MINIVAN
+    
+    private String carColor;   // e.g., "שחור", "לבן", "אדום"
+    private String carModel;   // e.g., "טויוטה פריוס", "הונדה סיוויק"
+    
     public Driver() {
     }
 
-    public Driver(String name, String phone, Boolean active, DriverType driverType) {
-        this.name = name;
+    public Driver(String phone, String name, com.example.yanivbot.Models.DriverType type) {
         this.phone = phone;
-        this.active = active;
-        this.type = driverType;
-    }
-
-    public Driver(String name, String phone, Boolean active, DriverType type,
-                  Double latitude, Double longitude, LocalDateTime locationUpdatedAt,int activeTaxiOrders, int activeDeliveryOrders) {
         this.name = name;
-        this.phone = phone;
-        this.active = active;
         this.type = type;
-        this.latitude = latitude;
-        this.longitude = longitude;
-        this.locationUpdatedAt = locationUpdatedAt;
-        this.activeTaxiOrders = activeTaxiOrders;
-        this.activeDeliveryOrders = activeDeliveryOrders;
+        this.active = false;
     }
 
     public long getId() {
         return id;
     }
-    public String getName() {
-        return name;
-    }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setId(long id) {
+        this.id = id;
     }
 
     public String getPhone() {
@@ -67,7 +59,15 @@ public class Driver {
         this.phone = phone;
     }
 
-    public Boolean isActive() {
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public boolean isActive() {
         return active;
     }
 
@@ -75,27 +75,19 @@ public class Driver {
         this.active = active;
     }
 
-    public DriverType getType() {
-        return type;
-    }
-
-    public void setType(DriverType driverType) {
-        this.type = driverType;
-    }
-
-    public Double getLatitude() {
+    public double getLatitude() {
         return latitude;
     }
 
-    public void setLatitude(Double latitude) {
+    public void setLatitude(double latitude) {
         this.latitude = latitude;
     }
 
-    public Double getLongitude() {
+    public double getLongitude() {
         return longitude;
     }
 
-    public void setLongitude(Double longitude) {
+    public void setLongitude(double longitude) {
         this.longitude = longitude;
     }
 
@@ -107,19 +99,35 @@ public class Driver {
         this.locationUpdatedAt = locationUpdatedAt;
     }
 
-    public int getActiveTaxiOrders() {
-        return activeTaxiOrders;
+    public com.example.yanivbot.Models.DriverType getType() {
+        return type;
     }
 
-    public void setActiveTaxiOrders(int activeTaxiOrders) {
-        this.activeTaxiOrders = activeTaxiOrders;
+    public void setType(com.example.yanivbot.Models.DriverType type) {
+        this.type = type;
     }
 
-    public int getActiveDeliveryOrders() {
-        return activeDeliveryOrders;
+    public CarType getCarType() {
+        return carType;
     }
 
-    public void setActiveDeliveryOrders(int activeDeliveryOrders) {
-        this.activeDeliveryOrders = activeDeliveryOrders;
+    public void setCarType(CarType carType) {
+        this.carType = carType;
+    }
+
+    public String getCarColor() {
+        return carColor;
+    }
+
+    public void setCarColor(String carColor) {
+        this.carColor = carColor;
+    }
+
+    public String getCarModel() {
+        return carModel;
+    }
+
+    public void setCarModel(String carModel) {
+        this.carModel = carModel;
     }
 }

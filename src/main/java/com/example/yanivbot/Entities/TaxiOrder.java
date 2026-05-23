@@ -1,14 +1,13 @@
 package com.example.yanivbot.Entities;
 
+import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Entity
-//@NoArgsConstructor
 @Data
 public class TaxiOrder {
     
@@ -19,11 +18,16 @@ public class TaxiOrder {
     private String phone;
     
     private String driverPhone;
-    private  String pickUpLocation;
-    private  String destination;
+    private String pickUpLocation;
+    private String destination;
     
     @Enumerated(EnumType.STRING)
     private TaxiOrderStatus status;
+    
+    // NEW FIELD: Car type requested by customer
+    @Enumerated(EnumType.STRING)
+    private CarType requestedCarType;
+    
     private LocalDateTime createdAt;
     private String notes;
 
@@ -105,5 +109,13 @@ public class TaxiOrder {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+    
+    public CarType getRequestedCarType() {
+        return requestedCarType;
+    }
+    
+    public void setRequestedCarType(CarType requestedCarType) {
+        this.requestedCarType = requestedCarType;
     }
 }

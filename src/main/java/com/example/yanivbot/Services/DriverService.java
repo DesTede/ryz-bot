@@ -1,6 +1,7 @@
 package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Entities.Driver;
+import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Repositories.DriverRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,7 +36,7 @@ public class DriverService {
 
         if (drivers.isEmpty()) {
             System.err.println("No drivers found for type: " + type);
-            notifyAdminNoDrivers(type, orderDetails,orderId);
+            notifyAdminNoDrivers(type, orderDetails, orderId);
             return;
         }
 
@@ -45,9 +46,55 @@ public class DriverService {
         }
     }
 
+    /**
+     * NEW: Dispatch to drivers matching specific car type
+     */
+    public void dispatchToClosestDrivers(DriverType type, String message, double lat, double lng, String orderDetails, long orderId, CarType carType) {
+        int maxDrivers = type == DriverType.TAXI ? 5 : 2;
+        List<Driver> drivers = getClosestDrivers(type, lat, lng, maxDrivers);
+
+        // Filter by car type
+        drivers = drivers.stream()
+                .filter(d -> d.getCarType() == carType)
+                .collect(Collectors.toList());
+
+        if (drivers.isEmpty()) {
+            System.err.println("No drivers found for type: " + type + " with car type: " + carType);
+            notifyAdminNoDrivers(type, orderDetails, orderId);
+            return;
+        }
+
+        for (Driver driver : drivers) {
+            whatsappService.sendSafeText(driver.getPhone(), message);
+        }
+    }
+
     public void dispatchToDrivers(DriverType type, String message, String orderDetails, long orderId) {
         List<Driver> drivers = getActiveDrivers(type);
         System.out.println("Dispatching to " + drivers.size() + " drivers of type " + type);
+
+        if (drivers.isEmpty()) {
+            notifyAdminNoDrivers(type, orderDetails, orderId);
+            return;
+        }
+
+        for (Driver driver : drivers) {
+            whatsappService.sendSafeText(driver.getPhone(), message);
+        }
+    }
+
+    /**
+     * NEW: Dispatch to drivers matching specific car type
+     */
+    public void dispatchToDrivers(DriverType type, String message, String orderDetails, long orderId, CarType carType) {
+        List<Driver> drivers = getActiveDrivers(type);
+
+        // Filter by car type
+        drivers = drivers.stream()
+                .filter(d -> d.getCarType() == carType)
+                .collect(Collectors.toList());
+
+        System.out.println("Dispatching to " + drivers.size() + " drivers of type " + type + " with car type " + carType);
 
         if (drivers.isEmpty()) {
             notifyAdminNoDrivers(type, orderDetails, orderId);
@@ -96,7 +143,7 @@ public class DriverService {
 
     public double[] getDriverLocation(String phone) {
         Driver driver = findByPhone(phone);
-        if (driver == null || driver.getLatitude() == null || driver.getLatitude() == 0) return null;
+        if (driver == null || driver.getLatitude() == 0) return null;
         return new double[]{driver.getLatitude(), driver.getLongitude()};
     }
 
@@ -116,7 +163,7 @@ public class DriverService {
         final double MAX_RADIUS_KM = 5.0;
 
         List<Driver> closeDrivers = drivers.stream()
-                .filter(d -> d.getLatitude() != null && d.getLatitude() != 0 && d.getLongitude() != null && d.getLongitude() != 0)
+                .filter(d -> d.getLatitude() > 0 && d.getLongitude() > 0)
                 .filter(d -> calculateDistance(lat, lng, d.getLatitude(), d.getLongitude()) <= MAX_RADIUS_KM)
                 .sorted((a, b) -> {
                     double distA = calculateDistance(lat, lng, a.getLatitude(), a.getLongitude());
@@ -129,7 +176,7 @@ public class DriverService {
         if (closeDrivers.isEmpty()) {
             System.out.println("No drivers within " + MAX_RADIUS_KM + "km, falling back to all active drivers");
             return drivers.stream()
-                    .filter(d -> d.getLatitude() != 0 && d.getLongitude() != 0)
+                    .filter(d -> d.getLatitude() > 0 && d.getLongitude() > 0)
                     .sorted((a, b) -> {
                         double distA = calculateDistance(lat, lng, a.getLatitude(), a.getLongitude());
                         double distB = calculateDistance(lat, lng, b.getLatitude(), b.getLongitude());
