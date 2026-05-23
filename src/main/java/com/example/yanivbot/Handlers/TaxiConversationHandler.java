@@ -137,7 +137,7 @@ public class TaxiConversationHandler implements ConversationHandler {
         convoService.updateState(convo, ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION);
 
         showConfirmationButtons(message.getPhone(), carType, pickupLocation, destination, notes);
-        return null;
+        return null; // Return null - we already sent the message via WhatsApp
     }
 
     private String handleTaxiConfirmation(Conversation convo, IncomingMessage message) {

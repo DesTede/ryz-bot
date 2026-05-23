@@ -40,9 +40,7 @@ public class TaxiOrderService {
         taxiOrderRepo.save(taxiOrder);
 
         broadcastToDrivers(taxiOrder);
-
-        String msg = "✅ ההזמנה אושרה! מחפשים נהג קרוב אליך";
-        whatsappService.sendSafeText(customerPhone, msg);
+        // Don't send message here - the handler will send it
     }
 
     public void broadcastToDrivers(TaxiOrder order) {
