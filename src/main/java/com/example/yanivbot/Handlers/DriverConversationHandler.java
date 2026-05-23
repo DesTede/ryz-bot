@@ -2,7 +2,6 @@ package com.example.yanivbot.Handlers;
 
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.ConversationState;
-import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.DriverService;
@@ -13,8 +12,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * Handles driver-specific commands:
- * - התחל משמרת (Start shift with location)
+ * Handles driver-specific commands with interactive buttons:
+ * - התחל משמרת (Start shift with location confirmation button)
  * - סיים משמרת (End shift)
  * - Location sharing (LOCATION:lat,lng)
  */
@@ -72,8 +71,9 @@ public class DriverConversationHandler implements ConversationHandler {
 
         convoService.updateState(convo, ConversationState.AWAITING_DRIVER_LOCATION);
 
-        return "📍 כדי להתחיל משמרת עליך לשתף מיקום בזמן אמת.\n" +
-                "שתף מיקום חי ואז תירשם כזמין לקבל הזמנות.";
+        // Show confirmation with INTERACTIVE BUTTONS
+        showShiftStartConfirmation(message.getPhone());
+        return null; // Already sent via WhatsApp
     }
 
     private String handleLocationShare(Conversation convo, IncomingMessage message) {
@@ -89,7 +89,7 @@ public class DriverConversationHandler implements ConversationHandler {
             double longitude = Double.parseDouble(parts[1]);
 
             driverService.updateDriverLocation(message.getPhone(), latitude, longitude);
-            String clockInMessage = driverService.clockIn(message.getPhone());
+            driverService.clockIn(message.getPhone());
 
             convoService.updateState(convo, ConversationState.START);
 
@@ -100,9 +100,27 @@ public class DriverConversationHandler implements ConversationHandler {
         }
     }
 
+    /**
+     * AWAITING_DRIVER_LOCATION state with INTERACTIVE BUTTONS
+     *
+     * Button options: "driver_share_location_start", "driver_cancel_shift_start"
+     */
     private String handleLocationAwait(Conversation convo, IncomingMessage message) {
-        // If we're waiting for location, any message that starts with LOCATION: should work
-        if (message.getText().startsWith("LOCATION:")) {
+        String txt = message.getText().trim();
+
+        // Handle button clicks
+        if (txt.equals("driver_share_location_start")) {
+            // User tapped "Share Location" button - they need to share location via WhatsApp
+            return "📍 אנא שתף את המיקום שלך מהקלסטר כדי להתחיל משמרת.";
+        }
+
+        if (txt.equals("driver_cancel_shift_start")) {
+            convoService.updateState(convo, ConversationState.START);
+            return "❌ ביטול התחלת משמרת.";
+        }
+
+        // If location is shared, process it
+        if (txt.startsWith("LOCATION:")) {
             return handleLocationShare(convo, message);
         }
 
@@ -112,7 +130,6 @@ public class DriverConversationHandler implements ConversationHandler {
 
     private String handleEndShift(Conversation convo, IncomingMessage message) {
         driverService.clockOut(message.getPhone());
-
         convoService.updateState(convo, ConversationState.START);
 
         // Check if business owner to show different menu
@@ -133,6 +150,20 @@ public class DriverConversationHandler implements ConversationHandler {
     }
 
     /**
+     * Send shift start confirmation with INTERACTIVE BUTTONS
+     */
+    private void showShiftStartConfirmation(String phone) {
+        String bodyText = "התחל משמרת?";
+
+        whatsappService.sendInteractiveButtons(
+                phone,
+                bodyText,
+                new WhatsappService.InteractiveButton("driver_share_location_start", "📍 שתף מיקום והתחל"),
+                new WhatsappService.InteractiveButton("driver_cancel_shift_start", "❌ ביטול")
+        );
+    }
+
+    /**
      * Helper: Check if phone is registered as a driver
      */
     public boolean isDriver(String phone) {
@@ -143,7 +174,6 @@ public class DriverConversationHandler implements ConversationHandler {
      * Helper: Check if phone is a business owner
      */
     public boolean isBusinessOwner(String phone) {
-        // Check if phone is in the ADMIN_PHONES list
         if (adminPhones != null && !adminPhones.isEmpty()) {
             String[] phones = adminPhones.split(",");
             for (String adminPhone : phones) {
