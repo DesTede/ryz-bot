@@ -112,8 +112,8 @@ public class MessageRouter {
                 phone,
                 bodyText,
                 new WhatsappService.InteractiveButton("start_service_taxi", "🚕 מונית (Taxi)"),
-                new WhatsappService.InteractiveButton("start_service_delivery", "🚚 משלוח (Delivery)"),
-                new WhatsappService.InteractiveButton("start_contact_us", "📞 התקשר אלינו")
+                new WhatsappService.InteractiveButton("start_service_delivery", "🚚 משלוח (Delivery)")
+                
         );
     }
 
