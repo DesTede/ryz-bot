@@ -8,24 +8,27 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import java.util.Optional;
 
+/**
+ * [COMPLETE FILE]
+ * Manages conversation state and persistence for users.
+ *
+ * NOTE: Welcome message is handled by MessageRouter, not here.
+ * ConversationService only manages state and data persistence.
+ */
 @Service
 public class ConversationService {
 
     private static final Logger logger = LoggerFactory.getLogger(ConversationService.class);
 
     private final ConversationRepository convoRepo;
-    private final WhatsappService whatsappService;
 
-    private static final String WELCOME_MESSAGE = "ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡\nאז איך קוראים לך?";
-
-    public ConversationService(ConversationRepository convoRepo, WhatsappService whatsappService) {
+    public ConversationService(ConversationRepository convoRepo) {
         this.convoRepo = convoRepo;
-        this.whatsappService = whatsappService;
     }
 
     /**
-     * Get or create conversation for a phone number
-     * If conversation is in START state AND it's a brand new conversation, send welcome message
+     * Get existing conversation or create new one
+     * Returns conversation object without sending any messages
      */
     public Conversation getOrCreate(String phone) {
         Optional<Conversation> existing = convoRepo.findById(phone);
@@ -35,14 +38,6 @@ public class ConversationService {
             logger.info("getOrCreate: Found existing conversation for {}", phone);
             logger.info("  State: {}", convo.getState());
             logger.info("  TempData: {}", convo.getTempData());
-
-            // If conversation is in START state AND tempData is empty (not yet captured name)
-            // This means it was reset, so send welcome on NEXT message (not on the reset message itself)
-            if (convo.getState() == ConversationState.START && (convo.getTempData() == null || convo.getTempData().isEmpty())) {
-                logger.info("Conversation in START state with empty tempData - sending welcome message");
-                whatsappService.sendSafeText(phone, WELCOME_MESSAGE);
-            }
-
             return convo;
         }
 
@@ -54,11 +49,6 @@ public class ConversationService {
         convo.setTempData("");
         convoRepo.save(convo);
         logger.info("getOrCreate: Created new conversation with state START");
-
-        // Send welcome message for new users
-        logger.info("Sending welcome message to new user");
-        whatsappService.sendSafeText(phone, WELCOME_MESSAGE);
-
         return convo;
     }
 

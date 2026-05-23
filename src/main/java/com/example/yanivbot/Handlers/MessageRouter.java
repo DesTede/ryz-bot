@@ -13,12 +13,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
+ * [COMPLETE FILE]
  * Routes incoming messages to the appropriate conversation handler based on state.
  *
  * CRITICAL FIXES:
  * 1. When handler returns null, DON'T fall through to error message
  * 2. Only capture name ONCE - use START_MENU state for menu display
- * 3. Don't re-capture name if already in START_MENU
+ * 3. Send welcome message on START state and return early (don't process message)
  */
 @Component
 public class MessageRouter {
@@ -34,6 +35,8 @@ public class MessageRouter {
     private final DriverService driverService;
     private final CustomerService customerService;
     private final WhatsappService whatsappService;
+
+    private static final String WELCOME_MESSAGE = "ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡\nאז איך קוראים לך?";
 
     public MessageRouter(TaxiConversationHandler taxiHandler,
                          DeliveryConversationHandler deliveryHandler,
@@ -102,8 +105,21 @@ public class MessageRouter {
                 return null;
             }
 
-            // Regular customer - capture name and move to START_MENU
-            logger.info("User is a CUSTOMER - capturing name: '{}'", txt);
+            // Regular customer in START state
+            logger.info("User is a CUSTOMER in START state");
+
+            // Check if we already sent welcome (tempData will be set after welcome is sent)
+            // If tempData is empty, send welcome and return (don't capture name yet)
+            if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
+                logger.info("Sending welcome message, will capture name on next message");
+                whatsappService.sendSafeText(phone, WELCOME_MESSAGE);
+                // Set a flag in tempData so we know welcome was sent
+                convoService.saveTempData(convo, "WELCOME_SENT");
+                return null;
+            }
+
+            // Welcome was already sent, now capture the name
+            logger.info("Welcome already sent, capturing name: '{}'", txt);
             String name = txt;
             convoService.saveTempData(convo, name);
             convoService.updateState(convo, ConversationState.START_MENU);
