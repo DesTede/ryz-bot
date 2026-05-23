@@ -5,6 +5,7 @@ import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.WhatsappService;
+import com.example.yanivbot.Services.BusinessOwnerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -20,19 +21,22 @@ public class MessageRouter {
     private final DriverConversationHandler driverHandler;
     private final BusinessConversationHandler businessHandler;
     private final WhatsappService whatsappService;
+    private final BusinessOwnerService businessOwnerService;
 
     public MessageRouter(ConversationService convoService,
                          TaxiConversationHandler taxiHandler,
                          DeliveryConversationHandler deliveryHandler,
                          DriverConversationHandler driverHandler,
                          BusinessConversationHandler businessHandler,
-                         WhatsappService whatsappService) {
+                         WhatsappService whatsappService,
+                         BusinessOwnerService businessOwnerService) {
         this.convoService = convoService;
         this.taxiHandler = taxiHandler;
         this.deliveryHandler = deliveryHandler;
         this.driverHandler = driverHandler;
         this.businessHandler = businessHandler;
         this.whatsappService = whatsappService;
+        this.businessOwnerService = businessOwnerService;
     }
 
     public String route(Conversation convo, IncomingMessage message) {
@@ -42,13 +46,21 @@ public class MessageRouter {
 
         if (txt.equals("00")) {
             convoService.updateState(convo, ConversationState.START);
-            return handleStart(message.getPhone());
+            return handleStart(convo, message.getPhone());
         }
 
         String driverResponse = driverHandler.handleMessage(convo, message);
         if (driverResponse != null) {
             logger.info("Driver handler returned response");
             return driverResponse;
+        }
+
+        // Handle START state - customer entering name (only for regular customers, not drivers or business owners)
+        if (convo.getState() == ConversationState.START && !isStartMenuButton(txt) && !driverHandler.isDriver(message.getPhone()) && !businessOwnerService.isBusinessOwner(message.getPhone())) {
+            logger.info("Customer {} entered name: {}", message.getPhone(), txt);
+            convoService.saveTempData(convo, txt); // Save customer name
+            showServiceMenu(message.getPhone());
+            return null;
         }
 
         if (isStartMenuButton(txt)) {
@@ -60,7 +72,7 @@ public class MessageRouter {
 
         switch (state) {
             case START:
-                return handleStart(message.getPhone());
+                return handleStart(convo, message.getPhone());
 
             case BUSINESS_MENU:
                 String businessResponse = businessHandler.handleMessage(convo, message);
@@ -126,22 +138,34 @@ public class MessageRouter {
         return null;
     }
 
-    private String handleStart(String phone) {
+    private String handleStart(Conversation convo, String phone) {
+        // Check if driver first
         if (driverHandler.isDriver(phone)) {
-            if (driverHandler.isBusinessOwner(phone)) {
-                showBusinessMenu(phone);
-            } else {
-                showDriverMenu(phone);
-            }
+            // Show driver menu
+            showDriverMenu(phone);
             return null;
         }
 
-        showCustomerMenu(phone);
+        // Check if business owner (from Business entity in database)
+        if (businessOwnerService.isBusinessOwner(phone)) {
+            // Show business owner menu
+            convoService.updateState(convo, ConversationState.BUSINESS_MENU);
+            showBusinessMenu(phone);
+            return null;
+        }
+
+        // Regular customer - show welcome message
+        showWelcomeMessage(phone);
         return null;
     }
 
-    private void showCustomerMenu(String phone) {
+    private void showWelcomeMessage(String phone) {
         String bodyText = "ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡\nאז איך קוראים לך?";
+        whatsappService.sendSafeText(phone, bodyText);
+    }
+
+    private void showServiceMenu(String phone) {
+        String bodyText = "מה בא לך?";
 
         whatsappService.sendInteractiveButtons(
                 phone,
@@ -159,6 +183,7 @@ public class MessageRouter {
                 bodyText,
                 new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת"),
                 new WhatsappService.InteractiveButton("driver_end_shift", "🔴 סיים משמרת")
+                
         );
     }
 
