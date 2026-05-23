@@ -1,25 +1,27 @@
 package com.example.yanivbot.Models;
 
 public enum ConversationState {
-/*
-added new state
-* */
-    START,
-    AWAITING_TAXI_CONFIRMATION,
-    TAXI_SERVICE,
-    TAXI_CAR_TYPE,
-    TAXI_PICKUP,
-    TAXI_DESTINATION,
-    AWAITING_TAXI_ORDER_CONFIRMATION,
-    TAXI_NOTES,
-    CONFIRMATION,
-    
-    AWAITING_DRIVER_LOCATION,
-    
-    BUSINESS_MENU,
-    DELIVERY_CUSTOMER_PHONE,
-    DELIVERY_ADDRESS,
-    DELIVERY_READY_TIME,
-    DELIVERY_PRICE,
-    DELIVERY_NOTES,
+    START,                                  // Initial state, waiting for name
+    START_MENU,                             // After name capture, showing service menu (NEW!)
+
+    // Taxi flow
+    TAXI_SERVICE,                           // (deprecated - use START_MENU instead)
+    TAXI_CAR_TYPE,                          // Choosing car type
+    TAXI_PICKUP,                            // Entering pickup location
+    TAXI_DESTINATION,                       // Entering destination
+    TAXI_NOTES,                             // Optional notes
+    AWAITING_TAXI_ORDER_CONFIRMATION,       // Awaiting yes/no confirmation
+
+    // Delivery flow
+    DELIVERY_CUSTOMER_PHONE,                // Business entering customer phone
+    DELIVERY_ADDRESS,                       // Entering delivery address
+    DELIVERY_READY_TIME,                    // When order will be ready
+    DELIVERY_PRICE,                         // Delivery fee
+    DELIVERY_NOTES,                         // Optional notes
+
+    // Business owner
+    BUSINESS_MENU,                          // Business owner main menu
+
+    // Driver location
+    AWAITING_DRIVER_LOCATION                // Driver sharing location on shift start
 }

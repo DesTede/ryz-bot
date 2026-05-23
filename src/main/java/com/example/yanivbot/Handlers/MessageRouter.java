@@ -59,123 +59,126 @@ public class MessageRouter {
     public String route(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
         String phone = message.getPhone();
+        ConversationState state = convo.getState();
 
-        logger.info("Routing message for {}: '{}' | State: {}", phone, txt, convo.getState());
+        logger.info("Routing message for {}: '{}' | State: {}", phone, txt, state);
 
         // Reset conversation if user sends "00"
         if (txt.equals("00")) {
             convoService.updateState(convo, ConversationState.START);
+            convoService.saveTempData(convo, "");
             return "🔄 איפוס משתמש. בואו נתחיל מחדש! 🚀";
         }
 
-        // Try driver handler first (drivers have priority)
-        String driverResponse = driverHandler.handleMessage(convo, message);
-        if (driverResponse != null) {
-            logger.info("DriverHandler processed message");
-            return driverResponse;
-        }
+        // Handle START state - capture customer name or check user type
+        if (state == ConversationState.START) {
+            logger.info("User in START state, determining user type");
 
-        // If in START state and not a driver/business owner, capture name
-        ConversationState state = convo.getState();
-        if (state == ConversationState.START && !txt.isEmpty() && !isStartMenuButton(txt) &&
-                driverService.findByPhone(phone) == null && !businessOwnerService.isBusinessOwner(phone)) {
-            logger.info("Capturing customer name: {}", txt);
-            // Save name (optional: uncomment if using Customer entity)
-            // customerService.saveOrUpdateCustomer(phone, txt);
-            convoService.saveTempData(convo, txt);
-            showServiceMenu(phone, txt);
-            return null;
-        }
-
-        // Check for start menu buttons (Taxi/Delivery selection)
-        if (isStartMenuButton(txt)) {
-            logger.info("Processing START menu button: {}", txt);
-            String buttonResponse = handleStartMenuButton(convo, message);
-            if (buttonResponse != null) {
-                return buttonResponse;
+            // Check if user is a driver
+            if (driverService.findByPhone(phone) != null) {
+                logger.info("User is a driver");
+                String driverResponse = driverHandler.handleMessage(convo, message);
+                if (driverResponse != null) {
+                    return driverResponse;
+                }
+                return null;
             }
-            // If null, we already sent the message via WhatsApp (car type buttons)
-            return null;
-        }
 
-        logger.info("Current state before switch: {}", state);
-
-        switch (state) {
-            case START:
-                logger.info("In START state");
-                return handleStart(convo, phone);
-
-            case BUSINESS_MENU:
-                logger.info("In BUSINESS_MENU state");
+            // Check if user is a business owner
+            if (businessOwnerService.isBusinessOwner(phone)) {
+                logger.info("User is a business owner");
+                convoService.updateState(convo, ConversationState.BUSINESS_MENU);
                 String businessResponse = businessHandler.handleMessage(convo, message);
                 if (businessResponse != null) {
                     return businessResponse;
                 }
                 return null;
+            }
 
-            case TAXI_SERVICE:
-            case TAXI_CAR_TYPE:
-                logger.info("In TAXI state (TAXI_CAR_TYPE)");
-                String taxiResponse = taxiHandler.handleMessage(convo, message);
-                if (taxiResponse != null) {
-                    logger.info("TaxiHandler returned: {}", taxiResponse);
-                    return taxiResponse;
-                }
-                // Handler sent message directly (e.g., buttons)
-                return null;
+            // Regular customer - capture name and show menu
+            logger.info("User is a regular customer, capturing name: {}", txt);
+            String name = txt;
+            convoService.saveTempData(convo, name);
+            convoService.updateState(convo, ConversationState.START_MENU);
 
-            case TAXI_PICKUP:
-            case TAXI_DESTINATION:
-            case TAXI_NOTES:
-                logger.info("In TAXI state: {}", state);
-                String taxiResponse2 = taxiHandler.handleMessage(convo, message);
-                if (taxiResponse2 != null) {
-                    logger.info("TaxiHandler returned: {}", taxiResponse2);
-                    return taxiResponse2;
-                }
-                // Handler sent message directly (e.g., confirmation buttons)
-                logger.info("TaxiHandler returned null - message sent via WhatsApp");
-                return null;
-
-            case AWAITING_TAXI_ORDER_CONFIRMATION:
-                logger.info("In AWAITING_TAXI_ORDER_CONFIRMATION state");
-                String confirmResponse = taxiHandler.handleMessage(convo, message);
-                if (confirmResponse != null) {
-                    logger.info("TaxiHandler returned confirmation: {}", confirmResponse);
-                    return confirmResponse;
-                }
-                // Handler sent message directly
-                logger.info("TaxiHandler returned null");
-                return null;
-
-            case DELIVERY_CUSTOMER_PHONE:
-            case DELIVERY_ADDRESS:
-            case DELIVERY_READY_TIME:
-            case DELIVERY_PRICE:
-            case DELIVERY_NOTES:
-                logger.info("In DELIVERY state: {}", state);
-                String deliveryResponse = deliveryHandler.handleMessage(convo, message);
-                if (deliveryResponse != null) {
-                    return deliveryResponse;
-                }
-                return null;
-
-            default:
-                logger.warn("Unknown state: {}", state);
-                return null;
+            // Show service menu with customer's name
+            showServiceMenu(phone, name);
+            return null; // Menu buttons already sent
         }
-    }
 
-    /**
-     * Handle START state - determine if user is customer, driver, or business owner
-     */
-    private String handleStart(Conversation convo, String phone) {
-        // Customer should already have been handled
+        // Handle START_MENU state - customer selecting service (Taxi)
+        if (state == ConversationState.START_MENU) {
+            logger.info("User in START_MENU state");
+
+            if (txt.equals("start_service_taxi")) {
+                logger.info("Customer selected Taxi service");
+                convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
+
+                String bodyText = "מעולה 👍\nעכשיו בחרו את סוג הרכב:";
+                whatsappService.sendInteractiveButtonsSafe(
+                        phone,
+                        bodyText,
+                        new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "🏍️ אופנוע"),
+                        new WhatsappService.InteractiveButton("taxi_car_type_private_car", "🚗 מכונית פרטית"),
+                        new WhatsappService.InteractiveButton("taxi_car_type_minivan", "🚐 מיניוואן")
+                );
+                return null; // Buttons already sent
+            }
+
+            // Invalid choice - ask them to use the menu
+            logger.warn("Invalid menu choice: {}", txt);
+            return "אנא בחר מהתפריט למעלה 👆";
+        }
+
+        // Handle BUSINESS_MENU state
+        if (state == ConversationState.BUSINESS_MENU) {
+            logger.info("In BUSINESS_MENU state");
+            String businessResponse = businessHandler.handleMessage(convo, message);
+            if (businessResponse != null) {
+                return businessResponse;
+            }
+            return null;
+        }
+
+        // Handle TAXI states
+        if (state == ConversationState.TAXI_CAR_TYPE ||
+                state == ConversationState.TAXI_PICKUP ||
+                state == ConversationState.TAXI_DESTINATION ||
+                state == ConversationState.TAXI_NOTES ||
+                state == ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION) {
+
+            logger.info("In TAXI state: {}", state);
+            String taxiResponse = taxiHandler.handleMessage(convo, message);
+            if (taxiResponse != null) {
+                logger.info("TaxiHandler returned: {}", taxiResponse);
+                return taxiResponse;
+            }
+            // Handler sent message directly (e.g., buttons)
+            logger.info("TaxiHandler returned null - message sent via WhatsApp");
+            return null;
+        }
+
+        // Handle DELIVERY states
+        if (state == ConversationState.DELIVERY_CUSTOMER_PHONE ||
+                state == ConversationState.DELIVERY_ADDRESS ||
+                state == ConversationState.DELIVERY_READY_TIME ||
+                state == ConversationState.DELIVERY_PRICE ||
+                state == ConversationState.DELIVERY_NOTES) {
+
+            logger.info("In DELIVERY state: {}", state);
+            String deliveryResponse = deliveryHandler.handleMessage(convo, message);
+            if (deliveryResponse != null) {
+                return deliveryResponse;
+            }
+            return null;
+        }
+
+        logger.warn("Unknown state: {} - returning null", state);
         return null;
     }
 
     /**
-     * Show service selection menu (Taxi only for customers)
+     * Show service selection menu with customer's name
      */
     private void showServiceMenu(String phone, String name) {
         String message = "מה בא לך " + name + "?";
@@ -190,41 +193,5 @@ public class MessageRouter {
             logger.error("Error sending service menu: {}", e.getMessage());
             whatsappService.sendSafeText(phone, message + "\n🚕 מונית");
         }
-    }
-
-    /**
-     * Handle start menu button clicks
-     */
-    private String handleStartMenuButton(Conversation convo, IncomingMessage message) {
-        String txt = message.getText().trim();
-        String phone = message.getPhone();
-
-        if (txt.equals("start_service_taxi")) {
-            logger.info("Customer selected taxi service");
-            convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
-
-            String bodyText = "מעולה 👍\nעכשיו בחרו את סוג הרכב:";
-            whatsappService.sendInteractiveButtonsSafe(
-                    phone,
-                    bodyText,
-                    new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "🏍️ אופנוע"),
-                    new WhatsappService.InteractiveButton("taxi_car_type_private_car", "🚗 מכונית פרטית"),
-                    new WhatsappService.InteractiveButton("taxi_car_type_minivan", "🚐 מיניוואן")
-            );
-            return null; // Buttons already sent
-        }
-
-        logger.warn("Unknown start menu button: {}", txt);
-        return null;
-    }
-
-    /**
-     * Check if text is a start menu button ID
-     */
-    private boolean isStartMenuButton(String txt) {
-        boolean result = txt.equals("start_service_taxi") ||
-                txt.equals("start_service_delivery");
-        logger.info("isStartMenuButton('{}') = {}", txt, result);
-        return result;
     }
 }
