@@ -36,7 +36,8 @@ public class WhatsappService {
      */
     public IncomingMessage parseIncomingMessage(Map<String, Object> payload) {
         try {
-            JSONObject entry = new JSONObject(payload).getJSONArray("entry").getJSONObject(0);
+            JSONObject json = new JSONObject(payload);
+            JSONObject entry = json.getJSONArray("entry").getJSONObject(0);
             JSONObject change = entry.getJSONArray("changes").getJSONObject(0);
             JSONObject value = change.getJSONObject("value");
             JSONObject message = value.getJSONArray("messages").getJSONObject(0);
@@ -45,8 +46,23 @@ public class WhatsappService {
             String messageId = message.getString("id");
             String text = "";
 
-            if (message.getString("type").equals("text")) {
+            // Check message type
+            String messageType = message.getString("type");
+
+            if (messageType.equals("text")) {
                 text = message.getJSONObject("text").getString("body");
+            } else if (messageType.equals("interactive")) {
+                // Handle interactive messages (buttons, lists, etc.)
+                JSONObject interactive = message.getJSONObject("interactive");
+                String interactiveType = interactive.getString("type");
+
+                if (interactiveType.equals("button_reply")) {
+                    // Button click - extract button ID
+                    text = interactive.getJSONObject("button_reply").getString("id");
+                } else if (interactiveType.equals("list_reply")) {
+                    // List selection - extract selected item ID
+                    text = interactive.getJSONObject("list_reply").getString("id");
+                }
             }
 
             return new IncomingMessage(phone, text, messageId);
