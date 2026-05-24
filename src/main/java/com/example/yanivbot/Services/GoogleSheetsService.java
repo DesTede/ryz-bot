@@ -20,6 +20,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,6 +42,9 @@ public class GoogleSheetsService {
     @Value("${google.sheets.credentials-path}")
     private String credentialsPath;
 
+    @Value("${google.sheets.credentials-content:}")
+    private String credentialsContent;
+    
     private final DriverRepository driverRepo;
     private final BusinessRepository businessRepo;
     private final WhatsappService whatsappService;
@@ -58,13 +62,15 @@ public class GoogleSheetsService {
     /**
      * Initialize Google Sheets API connection
      */
+//    @Value("${google.sheets.credentials-content}")
+//    private String credentialsContent;
+
     private synchronized Sheets getSheetsService() throws Exception {
         if (sheetsService == null) {
-            logger.info("Initializing Google Sheets service with credentials: {}", credentialsPath);
-
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
-            ClassPathResource resource = new ClassPathResource(credentialsPath);
-            InputStream credentialsStream = resource.getInputStream();
+
+            // Convert string to InputStream
+            InputStream credentialsStream = new ByteArrayInputStream(credentialsContent.getBytes());
 
             ServiceAccountCredentials credentials = (ServiceAccountCredentials) ServiceAccountCredentials
                     .fromStream(credentialsStream)
@@ -76,8 +82,6 @@ public class GoogleSheetsService {
                     new HttpCredentialsAdapter(credentials))
                     .setApplicationName("YanivBot")
                     .build();
-
-            logger.info("✅ Google Sheets service initialized successfully");
         }
         return sheetsService;
     }
