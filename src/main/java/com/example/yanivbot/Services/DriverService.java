@@ -79,7 +79,12 @@ public class DriverService {
      * Find driver by phone
      */
     public Driver findByPhone(String phone) {
-        return driverRepo.findDriverByPhone(phone).orElse(null);
+        // Normalize phone - remove 972 prefix if present
+        String normalizedPhone = phone;
+        if (normalizedPhone.startsWith("972")) {
+            normalizedPhone = normalizedPhone.substring(3);
+        }
+        return driverRepo.findDriverByPhone(normalizedPhone).orElse(null);
     }
 
     /**
