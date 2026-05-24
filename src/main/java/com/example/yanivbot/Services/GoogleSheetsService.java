@@ -37,7 +37,7 @@ public class GoogleSheetsService {
     private String sheetsId;
 
     @Value("${google.sheets.credentials-path}")
-    private String credentialsJson;
+    private String credentialsPath;
 
     private final DriverRepository driverRepo;
     private final BusinessRepository businessRepo;
@@ -56,7 +56,7 @@ public class GoogleSheetsService {
     private synchronized Sheets getSheetsService() throws Exception {
         if (sheetsService == null) {
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
-            InputStream credentialsStream = GoogleSheetsService.class.getResourceAsStream(credentialsJson);
+            InputStream credentialsStream = GoogleSheetsService.class.getResourceAsStream(credentialsPath);
 
             ServiceAccountCredentials credentials = (ServiceAccountCredentials) ServiceAccountCredentials
                     .fromStream(credentialsStream)
