@@ -16,20 +16,20 @@ import com.google.auth.oauth2.ServiceAccountCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 
 /**
  * [COMPLETE FILE]
  * Syncs driver and business data from Google Sheets to database
- * Credentials loaded from src/main/resources/credentials.json
+ * Credentials loaded from base64-encoded environment variable
  */
 @Service
 public class GoogleSheetsService {
@@ -39,12 +39,9 @@ public class GoogleSheetsService {
     @Value("${google.sheets.id}")
     private String sheetsId;
 
-    @Value("${google.sheets.credentials-path}")
-    private String credentialsPath;
+    @Value("${google.sheets.credentials-content-base64}")
+    private String credentialsBase64;
 
-    @Value("${google.sheets.credentials-content:}")
-    private String credentialsContent;
-    
     private final DriverRepository driverRepo;
     private final BusinessRepository businessRepo;
     private final WhatsappService whatsappService;
@@ -62,15 +59,15 @@ public class GoogleSheetsService {
     /**
      * Initialize Google Sheets API connection
      */
-//    @Value("${google.sheets.credentials-content}")
-//    private String credentialsContent;
-
     private synchronized Sheets getSheetsService() throws Exception {
         if (sheetsService == null) {
+            logger.info("Initializing Google Sheets service...");
+
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
 
-            // Convert string to InputStream
-            InputStream credentialsStream = new ByteArrayInputStream(credentialsContent.getBytes());
+            // Decode base64 credentials
+            byte[] decodedBytes = Base64.getDecoder().decode(credentialsBase64);
+            InputStream credentialsStream = new ByteArrayInputStream(decodedBytes);
 
             ServiceAccountCredentials credentials = (ServiceAccountCredentials) ServiceAccountCredentials
                     .fromStream(credentialsStream)
@@ -82,6 +79,8 @@ public class GoogleSheetsService {
                     new HttpCredentialsAdapter(credentials))
                     .setApplicationName("YanivBot")
                     .build();
+
+            logger.info("✅ Google Sheets service initialized successfully");
         }
         return sheetsService;
     }
