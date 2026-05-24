@@ -43,8 +43,8 @@ public class GoogleSheetsService {
     @Value("${google.sheets.id}")
     private String sheetsId;
 
-    @Value("${google.sheets.credentials-json}")
-    private String credentialsJson;
+    @Value("${google.sheets.credentials-content-base64}")
+    private String credentialsBase64;
 
     private final DriverRepository driverRepo;
     private final BusinessRepository businessRepo;
@@ -66,7 +66,10 @@ public class GoogleSheetsService {
     private synchronized Sheets getSheetsService() throws Exception {
         if (sheetsService == null) {
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
-            InputStream credentialsStream = GoogleSheetsService.class.getResourceAsStream(credentialsJson);
+
+            // Decode base64 credentials
+            byte[] decodedBytes = java.util.Base64.getDecoder().decode(credentialsBase64);
+            InputStream credentialsStream = new java.io.ByteArrayInputStream(decodedBytes);
 
             ServiceAccountCredentials credentials = (ServiceAccountCredentials) ServiceAccountCredentials
                     .fromStream(credentialsStream)
