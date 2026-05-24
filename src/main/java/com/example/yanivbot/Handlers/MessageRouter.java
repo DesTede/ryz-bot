@@ -4,23 +4,18 @@ import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
+import com.example.yanivbot.Services.BotConfigService;
 import com.example.yanivbot.Services.ConversationService;
-import com.example.yanivbot.Services.BusinessOwnerService;
-import com.example.yanivbot.Services.DriverService;
-import com.example.yanivbot.Services.CustomerService;
 import com.example.yanivbot.Services.WhatsappService;
+import com.example.yanivbot.Services.DriverService;
+import com.example.yanivbot.Services.BusinessOwnerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * [COMPLETE FILE]
- * Routes incoming messages to the appropriate conversation handler based on state.
- *
- * CRITICAL FIXES:
- * 1. When handler returns null, DON'T fall through to error message
- * 2. Only capture name ONCE - use START_MENU state for menu display
- * 3. Send welcome message on START state and return early (don't process message)
+ * Route incoming messages to appropriate handlers
+ * Handles: TaxiConversationHandler, DeliveryConversationHandler, DriverConversationHandler, BusinessConversationHandler
  */
 @Component
 public class MessageRouter {
@@ -29,57 +24,63 @@ public class MessageRouter {
 
     private final TaxiConversationHandler taxiHandler;
     private final DeliveryConversationHandler deliveryHandler;
-    private final BusinessConversationHandler businessHandler;
     private final DriverConversationHandler driverHandler;
+    private final BusinessConversationHandler businessHandler;
+    private final AdminCommandHandler adminCommandHandler;
     private final ConversationService convoService;
-    private final BusinessOwnerService businessOwnerService;
-    private final DriverService driverService;
-    private final CustomerService customerService;
     private final WhatsappService whatsappService;
+    private final BotConfigService botConfigService;
+    private final DriverService driverService;
+    private final BusinessOwnerService businessOwnerService;
 
     private static final String WELCOME_MESSAGE = "ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡\nאז איך קוראים לך?";
-    private static final String DRIVER_WELCOME_MESSAGE = "כדי להתחיל לקבל נסיעות לחץ על\n🟢 התחל משמרת\n\nכדי לצאת מהמערכת לחץ על\n🔴 סיים משמרת\n\nלבחירת פעולה 👇";
 
-    public MessageRouter(TaxiConversationHandler taxiHandler,
-                         DeliveryConversationHandler deliveryHandler,
-                         BusinessConversationHandler businessHandler,
-                         DriverConversationHandler driverHandler,
-                         ConversationService convoService,
-                         BusinessOwnerService businessOwnerService,
-                         DriverService driverService,
-                         CustomerService customerService,
-                         WhatsappService whatsappService) {
+    public MessageRouter(TaxiConversationHandler taxiHandler, DeliveryConversationHandler deliveryHandler,
+                         DriverConversationHandler driverHandler, BusinessConversationHandler businessHandler,
+                         AdminCommandHandler adminCommandHandler, ConversationService convoService,
+                         WhatsappService whatsappService, BotConfigService botConfigService,
+                         DriverService driverService, BusinessOwnerService businessOwnerService) {
         this.taxiHandler = taxiHandler;
         this.deliveryHandler = deliveryHandler;
-        this.businessHandler = businessHandler;
         this.driverHandler = driverHandler;
+        this.businessHandler = businessHandler;
+        this.adminCommandHandler = adminCommandHandler;
         this.convoService = convoService;
-        this.businessOwnerService = businessOwnerService;
-        this.driverService = driverService;
-        this.customerService = customerService;
         this.whatsappService = whatsappService;
+        this.botConfigService = botConfigService;
+        this.driverService = driverService;
+        this.businessOwnerService = businessOwnerService;
     }
 
-    /**
-     * Route incoming message to appropriate handler based on conversation state and user type
-     */
     public String route(Conversation convo, IncomingMessage message) {
-        String txt = message.getText().trim();
         String phone = message.getPhone();
+        String txt = message.getText().trim();
         ConversationState state = convo.getState();
 
-        logger.info("========== ROUTE START ==========");
-        logger.info("Phone: {}", phone);
-        logger.info("Message: '{}'", txt);
-        logger.info("State: {}", state);
-        logger.info("================================");
+        System.out.println("========== ROUTE START ==========");
+        System.out.println("Phone: " + phone);
+        System.out.println("Message: '" + txt + "'");
+        System.out.println("State: " + state);
+        System.out.println("================================");
 
-        // Reset conversation if user sends "00"
+        // ===== ADMIN COMMANDS (works even when bot is off) =====
+        String adminResponse = adminCommandHandler.handleAdminCommand(phone, txt);
+        if (adminResponse != null) {
+            return adminResponse; // "כבה בוט" or "הפעל בוט" response
+        }
+
+        // ===== CHECK BOT STATUS =====
+        // If bot is inactive AND user is not an admin, reject the message
+        if (!botConfigService.isBotActive() && !adminCommandHandler.isAdmin(phone)) {
+            logger.warn("Bot is inactive - rejecting message from {}", phone);
+            return adminCommandHandler.getBotInactiveMessage();
+        }
+
+        // ===== RESET COMMAND (00) =====
         if (txt.equals("00")) {
-            logger.info("Reset signal received");
             convoService.updateState(convo, ConversationState.START);
             convoService.saveTempData(convo, "");
-            return "🔄 איפוס משתמש. בואו נתחיל מחדש! 🚀";
+            return "✅ מחקנו את כל המידע שלך. בואו נתחיל מחדש 👇";
         }
 
         // ===== START STATE =====
@@ -166,113 +167,70 @@ public class MessageRouter {
         }
 
         // ===== START_MENU STATE =====
-        // Customer has entered name and is seeing the menu
         if (state == ConversationState.START_MENU) {
             logger.info("In START_MENU state");
-
             if (txt.equals("start_service_taxi")) {
-                logger.info("Customer selected TAXI service");
                 convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
-
-                String bodyText = "מעולה 👍\nעכשיו בחרו את סוג הרכב:";
-                whatsappService.sendInteractiveButtonsSafe(
-                        phone,
-                        bodyText,
-                        new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "אופנוע 🏍️"),
-                        new WhatsappService.InteractiveButton("taxi_car_type_private_car", "מכונית 🚗"),
-                        new WhatsappService.InteractiveButton("taxi_car_type_minivan", "רכב גדול +6 🚐")
-                );
-                return null; // Buttons already sent
+                return "🚗 איזה סוג רכב אתה צריך?";
+            } else {
+                return "אנא בחר מהתפריט למעלה 👆";
             }
-
-            // Invalid choice - ask them to use the menu
-            logger.warn("Invalid menu choice in START_MENU: '{}'", txt);
-            return "אנא בחר מהתפריט למעלה 👆";
-        }
-
-        // ===== BUSINESS_MENU STATE =====
-        if (state == ConversationState.BUSINESS_MENU) {
-            logger.info("In BUSINESS_MENU state");
-            String businessResponse = businessHandler.handleMessage(convo, message);
-            if (businessResponse != null) {
-                return businessResponse;
-            }
-            return null;
         }
 
         // ===== TAXI STATES =====
-        if (state == ConversationState.TAXI_CAR_TYPE ||
-                state == ConversationState.TAXI_PICKUP ||
-                state == ConversationState.TAXI_DESTINATION ||
-                state == ConversationState.TAXI_NOTES ||
-                state == ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION) {
-
+        if (state.toString().startsWith("TAXI_")) {
             logger.info("In TAXI state: {}", state);
             String taxiResponse = taxiHandler.handleMessage(convo, message);
             if (taxiResponse != null) {
                 logger.info("TaxiHandler returned response");
                 return taxiResponse;
             }
-            // Handler sent message directly (e.g., buttons)
-            logger.info("TaxiHandler returned null - message sent via WhatsApp");
             return null;
         }
 
         // ===== DELIVERY STATES =====
-        if (state == ConversationState.DELIVERY_CUSTOMER_PHONE ||
-                state == ConversationState.DELIVERY_ADDRESS ||
-                state == ConversationState.DELIVERY_READY_TIME ||
-                state == ConversationState.DELIVERY_PRICE ||
-                state == ConversationState.DELIVERY_NOTES) {
-
+        if (state.toString().startsWith("DELIVERY_")) {
             logger.info("In DELIVERY state: {}", state);
             String deliveryResponse = deliveryHandler.handleMessage(convo, message);
             if (deliveryResponse != null) {
+                logger.info("DeliveryHandler returned response");
                 return deliveryResponse;
             }
             return null;
         }
 
-        logger.warn("========== UNKNOWN STATE: {} ==========", state);
+        // ===== BUSINESS STATES =====
+        if (state == ConversationState.BUSINESS_MENU) {
+            logger.info("In BUSINESS_MENU state");
+            String businessResponse = businessHandler.handleMessage(convo, message);
+            if (businessResponse != null) {
+                logger.info("BusinessHandler returned response");
+                return businessResponse;
+            }
+            return null;
+        }
+
+        logger.warn("Unknown state: {}", state);
         return null;
     }
 
-    /**
-     * Show service selection menu with customer's name
-     */
-    private void showServiceMenu(String phone, String name) {
-        String message = "מה בא לך " + name + "?";
-
-        try {
-            logger.info("Sending service menu to {}: {}", phone, message);
-            whatsappService.sendInteractiveButtonsSafe(
-                    phone,
-                    message,
-                    new WhatsappService.InteractiveButton("start_service_taxi", "🚕 מונית")
-            );
-            logger.info("Service menu sent successfully");
-        } catch (Exception e) {
-            logger.error("Error sending service menu: {}", e.getMessage(), e);
-            whatsappService.sendSafeText(phone, message + "\n🚕 מונית");
-        }
+    private void sendDriverWelcomeMenu(String phone) {
+        String bodyText = "כדי להתחיל לקבל נסיעות לחץ על\n🟢 התחל משמרת\n\nכדי לצאת מהמערכת לחץ על\n🔴 סיים משמרת\n\nלבחירת פעולה 👇";
+        whatsappService.sendInteractiveButtonsSafe(
+                phone,
+                bodyText,
+                new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת"),
+                new WhatsappService.InteractiveButton("driver_end_shift", "🔴 סיים משמרת")
+        );
     }
 
-    /**
-     * Show driver welcome menu with start/end shift buttons
-     */
-    private void sendDriverWelcomeMenu(String phone) {
-        try {
-            logger.info("Sending driver welcome menu to {}", phone);
-            whatsappService.sendInteractiveButtonsSafe(
-                    phone,
-                    DRIVER_WELCOME_MESSAGE,
-                    new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת"),
-                    new WhatsappService.InteractiveButton("driver_end_shift", "🔴 סיים משמרת")
-            );
-            logger.info("Driver welcome menu sent successfully");
-        } catch (Exception e) {
-            logger.error("Error sending driver welcome menu: {}", e.getMessage(), e);
-            whatsappService.sendSafeText(phone, DRIVER_WELCOME_MESSAGE);
-        }
+    private void showServiceMenu(String phone, String name) {
+        String bodyText = "בחר שירות, " + name + " 👇";
+        whatsappService.sendInteractiveButtonsSafe(
+                phone,
+                bodyText,
+                new WhatsappService.InteractiveButton("start_service_taxi", "🚖 הזמן מונית"),
+                new WhatsappService.InteractiveButton("start_service_delivery", "📦 שלח משלוח")
+        );
     }
 }
