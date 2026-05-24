@@ -26,8 +26,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * [COMPLETE FILE - WITH DEBUG LOGGING]
+ * [COMPLETE FILE]
  * Syncs driver and business data from Google Sheets to database
+ * Credentials loaded from src/main/resources/credentials.json
  */
 @Service
 public class GoogleSheetsService {
@@ -54,19 +55,16 @@ public class GoogleSheetsService {
         this.whatsappService = whatsappService;
     }
 
+    /**
+     * Initialize Google Sheets API connection
+     */
     private synchronized Sheets getSheetsService() throws Exception {
         if (sheetsService == null) {
+            logger.info("Initializing Google Sheets service with credentials: {}", credentialsPath);
+
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
-
-            // Load credentials from classpath - credentialsPath should be "credentials.json"
-            logger.info("DEBUG: Loading credentials file: {}", credentialsPath);
-
             ClassPathResource resource = new ClassPathResource(credentialsPath);
             InputStream credentialsStream = resource.getInputStream();
-
-            if (credentialsStream == null) {
-                throw new RuntimeException("Credentials file not found: " + credentialsPath);
-            }
 
             ServiceAccountCredentials credentials = (ServiceAccountCredentials) ServiceAccountCredentials
                     .fromStream(credentialsStream)
@@ -79,72 +77,68 @@ public class GoogleSheetsService {
                     .setApplicationName("YanivBot")
                     .build();
 
-            logger.info("DEBUG: Sheets service initialized successfully");
+            logger.info("✅ Google Sheets service initialized successfully");
         }
         return sheetsService;
     }
 
+    /**
+     * Sync drivers from Google Sheets
+     * Called every 30 minutes via @Scheduled
+     */
     @Scheduled(fixedRate = 1800000) // 30 minutes
     public void syncDriversFromSheets() {
-        logger.info("Syncing drivers from Google Sheets (נהגים)...");
+        logger.info("🔄 Syncing drivers from Google Sheets (נהגים)...");
         try {
             syncDrivers();
-            logger.info("✅ Driver sync completed");
+            logger.info("✅ Driver sync completed successfully");
         } catch (Exception e) {
-            logger.error("❌ Error syncing drivers from Google Sheets: {}", e.getMessage(), e);
+            logger.error("❌ Error syncing drivers: {}", e.getMessage(), e);
         }
     }
 
+    /**
+     * Sync businesses from Google Sheets
+     * Called every 30 minutes via @Scheduled
+     */
     @Scheduled(fixedRate = 1800000) // 30 minutes
     public void syncBusinessesFromSheets() {
-        logger.info("Syncing businesses from Google Sheets (עסקים)...");
+        logger.info("🔄 Syncing businesses from Google Sheets (עסקים)...");
         try {
             syncBusinesses();
-            logger.info("✅ Business sync completed");
+            logger.info("✅ Business sync completed successfully");
         } catch (Exception e) {
-            logger.error("❌ Error syncing businesses from Google Sheets: {}", e.getMessage(), e);
+            logger.error("❌ Error syncing businesses: {}", e.getMessage(), e);
         }
     }
 
+    /**
+     * Sync businesses from Google Sheets to database
+     */
     private void syncBusinesses() throws Exception {
-        logger.info("DEBUG: Starting syncBusinesses()");
-        logger.info("DEBUG: sheetsId = {}", sheetsId);
-
         Sheets sheets = getSheetsService();
-        logger.info("DEBUG: Got Sheets service");
 
-        logger.info("DEBUG: Fetching data from עסקים!A2:D");
         ValueRange response = sheets.spreadsheets().values()
                 .get(sheetsId, "עסקים!A2:D")
                 .execute();
 
         List<List<Object>> rows = response.getValues();
-        logger.info("DEBUG: response.getValues() returned: {}", rows);
 
         if (rows == null || rows.isEmpty()) {
-            logger.warn("DEBUG: rows is null or empty");
             businessRepo.deleteAll();
             logger.info("No businesses in sheet - cleared database");
             return;
         }
 
-        logger.info("DEBUG: Found {} rows in sheet", rows.size());
         List<String> sheetPhones = new ArrayList<>();
 
-        for (int i = 0; i < rows.size(); i++) {
-            List<Object> row = rows.get(i);
-            logger.info("DEBUG: Processing row {}: {}", i, row);
-
-            if (row.size() < 3) {
-                logger.warn("DEBUG: Row {} too small (size={}), skipping", i, row.size());
-                continue;
-            }
+        for (List<Object> row : rows) {
+            if (row.size() < 3) continue;
 
             String name = row.get(0).toString();
             String phone = whatsappService.normalizePhone(row.get(1).toString().trim());
             String address = row.size() > 2 ? row.get(2).toString() : "";
 
-            logger.info("DEBUG: Parsed business - name={}, phone={}, address={}", name, phone, address);
             sheetPhones.add(phone);
 
             Business existing = businessRepo.findByPhone(phone).orElse(null);
@@ -152,12 +146,12 @@ public class GoogleSheetsService {
                 existing.setName(name);
                 existing.setAddress(address);
                 businessRepo.save(existing);
-                logger.info("Updated business: {}", phone);
+                logger.info("Updated business: {} - {}", phone, name);
             } else {
                 Business business = new Business(name, phone, true);
                 business.setAddress(address);
                 businessRepo.save(business);
-                logger.info("Added new business: {}", phone);
+                logger.info("Added new business: {} - {}", phone, name);
             }
         }
 
@@ -169,45 +163,33 @@ public class GoogleSheetsService {
         });
     }
 
+    /**
+     * Sync drivers from Google Sheets to database
+     */
     private void syncDrivers() throws Exception {
-        logger.info("DEBUG: Starting syncDrivers()");
-        logger.info("DEBUG: sheetsId = {}", sheetsId);
-
         Sheets sheets = getSheetsService();
-        logger.info("DEBUG: Got Sheets service");
 
-        logger.info("DEBUG: Fetching data from נהגים!A2:C");
         ValueRange response = sheets.spreadsheets().values()
                 .get(sheetsId, "נהגים!A2:C")
                 .execute();
 
         List<List<Object>> rows = response.getValues();
-        logger.info("DEBUG: response.getValues() returned: {}", rows);
 
         if (rows == null || rows.isEmpty()) {
-            logger.warn("DEBUG: rows is null or empty");
             driverRepo.deleteAll();
             logger.info("No drivers in sheet - cleared database");
             return;
         }
 
-        logger.info("DEBUG: Found {} rows in sheet", rows.size());
         List<String> sheetPhones = new ArrayList<>();
 
-        for (int i = 0; i < rows.size(); i++) {
-            List<Object> row = rows.get(i);
-            logger.info("DEBUG: Processing row {}: {}", i, row);
-
-            if (row.size() < 3) {
-                logger.warn("DEBUG: Row {} too small (size={}), skipping", i, row.size());
-                continue;
-            }
+        for (List<Object> row : rows) {
+            if (row.size() < 3) continue;
 
             String name = row.get(0).toString();
             String phone = whatsappService.normalizePhone(row.get(1).toString().trim());
             DriverType type = DriverType.valueOf(row.get(2).toString().toUpperCase());
 
-            logger.info("DEBUG: Parsed driver - name={}, phone={}, type={}", name, phone, type);
             sheetPhones.add(phone);
 
             Driver existing = driverRepo.findDriverByPhone(phone).orElse(null);
@@ -215,10 +197,10 @@ public class GoogleSheetsService {
                 existing.setName(name);
                 existing.setType(type);
                 driverRepo.save(existing);
-                logger.info("Updated driver: {}", phone);
+                logger.info("Updated driver: {} - {}", phone, name);
             } else {
                 driverRepo.save(new Driver(name, phone, false, type));
-                logger.info("Added new driver: {}", phone);
+                logger.info("Added new driver: {} - {}", phone, name);
             }
         }
 
@@ -230,6 +212,9 @@ public class GoogleSheetsService {
         });
     }
 
+    /**
+     * Get all drivers from database
+     */
     public List<Driver> getAllDrivers() {
         return driverRepo.findAll();
     }
