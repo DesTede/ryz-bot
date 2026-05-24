@@ -95,7 +95,15 @@ public class TaxiOrderService {
         notifyTaxiCustomer(order);
         notifyOtherDrivers(orderId, driverPhone);
 
-        return "🔥 קיבלת את הנסיעה!\n🆔 " + orderId + "\n📞 טלפון נוסע: " + order.getPhone() + "\n🚗 סע בזהירות 🙌";
+        // Send confirmation with interactive button for completion
+        String confirmationMsg = "🔥 קיבלת את הנסיעה!\n🆔 " + orderId + "\n📞 טלפון נוסע: " + order.getPhone() + "\n🚗 סע בזהירות 🙌";
+        whatsappService.sendInteractiveButtonsSafe(
+                driverPhone,
+                confirmationMsg,
+                new WhatsappService.InteractiveButton("taxi_complete_" + orderId, "✅ נסיעה הסתיימה")
+        );
+
+        return null; // Message already sent via button
     }
 
     public String completeOrder(long orderId, String driverPhone) {

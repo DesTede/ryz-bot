@@ -50,6 +50,11 @@ public class DriverConversationHandler implements ConversationHandler {
             return handleTaxiOrderClaim(message);
         }
 
+        // Handle taxi order completion button (taxi_complete_123)
+        if (txt.startsWith("taxi_complete_")) {
+            return handleTaxiOrderCompletion(message);
+        }
+
         // Handle location in AWAITING_DRIVER_LOCATION state
         if (state == ConversationState.AWAITING_DRIVER_LOCATION) {
             // Check if message has location data
@@ -78,6 +83,17 @@ public class DriverConversationHandler implements ConversationHandler {
         } catch (Exception e) {
             logger.error("Error claiming taxi order: {}", e.getMessage(), e);
             return "❌ שגיאה בקבלת הנסיעה. אנא נסה שוב.";
+        }
+    }
+
+    private String handleTaxiOrderCompletion(IncomingMessage message) {
+        String txt = message.getText().trim();
+        try {
+            long orderId = Long.parseLong(txt.replace("taxi_complete_", ""));
+            return taxiOrderService.completeOrder(orderId, message.getPhone());
+        } catch (Exception e) {
+            logger.error("Error completing taxi order: {}", e.getMessage(), e);
+            return "❌ שגיאה בסיום הנסיעה. אנא נסה שוב.";
         }
     }
 
