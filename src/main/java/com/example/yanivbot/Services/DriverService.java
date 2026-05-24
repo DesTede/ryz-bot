@@ -43,12 +43,14 @@ public class DriverService {
      * Clock in a driver (start shift)
      */
     public void clockIn(String phone) {
-        Driver driver = driverRepo.findDriverByPhone(phone).orElse(null);
+        Driver driver = findByPhone(phone);  // Use normalized findByPhone()
         if (driver != null) {
             driver.setActive(true);
             driver.setLocationUpdatedAt(LocalDateTime.now());
             driverRepo.save(driver);
             logger.info("Driver {} clocked in", phone);
+        } else {
+            logger.warn("Driver {} not found for clock in", phone);
         }
     }
 
@@ -56,11 +58,13 @@ public class DriverService {
      * Clock out a driver (end shift)
      */
     public void clockOut(String phone) {
-        Driver driver = driverRepo.findDriverByPhone(phone).orElse(null);
+        Driver driver = findByPhone(phone);  // Use normalized findByPhone()
         if (driver != null) {
             driver.setActive(false);
             driverRepo.save(driver);
             logger.info("Driver {} clocked out", phone);
+        } else {
+            logger.warn("Driver {} not found for clock out", phone);
         }
     }
 
@@ -68,13 +72,15 @@ public class DriverService {
      * Update driver location
      */
     public void updateDriverLocation(String phone, double latitude, double longitude) {
-        Driver driver = driverRepo.findDriverByPhone(phone).orElse(null);
+        Driver driver = findByPhone(phone);  // Use normalized findByPhone()
         if (driver != null) {
             driver.setLatitude(latitude);
             driver.setLongitude(longitude);
             driver.setLocationUpdatedAt(LocalDateTime.now());
             driverRepo.save(driver);
             logger.info("Driver {} location updated to {}, {}", phone, latitude, longitude);
+        } else {
+            logger.warn("Driver {} not found for location update", phone);
         }
     }
 
