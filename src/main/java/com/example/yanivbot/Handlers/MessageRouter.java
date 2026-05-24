@@ -1,6 +1,7 @@
 package com.example.yanivbot.Handlers;
 
 import com.example.yanivbot.Entities.Conversation;
+import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.ConversationService;
@@ -85,9 +86,10 @@ public class MessageRouter {
         if (state == ConversationState.START) {
             logger.info("In START state - determining user type");
 
-            // Check if user is a driver
-            if (driverService.findByPhone(phone) != null) {
-                logger.info("User is a DRIVER");
+            // Check if user is a driver AND is currently active (in shift)
+            Driver driver = driverService.findByPhone(phone);
+            if (driver != null && driver.isActive()) {
+                logger.info("User is an ACTIVE DRIVER");
 
                 // Send driver welcome message with buttons
                 if (convo.getTempData() == null || convo.getTempData().isEmpty()) {

@@ -129,12 +129,17 @@ public class DriverConversationHandler implements ConversationHandler {
     private String handleEndShift(Conversation convo, IncomingMessage message) {
         driverService.clockOut(message.getPhone());
         convoService.updateState(convo, ConversationState.START);
+        convoService.saveTempData(convo, ""); // Clear driver welcome flag so they get customer welcome next
+        
+        String bodyText = "✅ המשמרת נסגרה בהצלחה\nנשמח לראות אותך שוב בהמשך 🙌";
 
-        if (isBusinessOwner(message.getPhone())) {
-            return "✅ המשמרת נסגרה בהצלחה\nנשמח לראות אותך שוב בהמשך 🙌\nכדי לחזור לקבל נסיעות לחץ על \"התחל משמרת\" 🚖";
-        } else {
-            return "✅ המשמרת נסגרה בהצלחה\nנשמח לראות אותך שוב בהמשך 🙌\nכדי לחזור לקבל נסיעות לחץ על \"התחל משמרת\" 🚖";
-        }
+        whatsappService.sendInteractiveButtonsSafe(
+                message.getPhone(),
+                bodyText,
+                new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת")
+        );
+
+        return null; // Message already sent via button
     }
 
     private void showShiftStartConfirmation(String phone) {

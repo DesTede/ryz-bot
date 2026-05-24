@@ -4,6 +4,7 @@ import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.DriverType;
+import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.DriverRepository;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import org.slf4j.Logger;
@@ -118,6 +119,7 @@ public class DriverService {
      * Dispatch to drivers within 5km radius of order location
      * Sends order as interactive button for easy claiming
      * Only sends to active drivers with valid location data
+     * Excludes drivers who already have an active order (TAKEN or CONFIRMED)
      */
     public void dispatchToClosestDrivers(DriverType type, String message, double latitude, double longitude,
                                          String orderDetails, long orderId, CarType... carTypes) {
@@ -140,6 +142,29 @@ public class DriverService {
         if (availableDrivers.isEmpty()) {
             logger.warn("No available drivers with car type {} for order #{}",
                     carTypes.length > 0 ? carTypes[0] : "ANY", orderId);
+            alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
+            return;
+        }
+
+        // Filter out drivers who already have an active order
+        availableDrivers = availableDrivers.stream()
+                .filter(driver -> {
+                    List<TaxiOrder> activeOrders = taxiOrderRepo
+                            .findByDriverPhoneAndStatusIn(driver.getPhone(),
+                                    List.of(TaxiOrderStatus.TAKEN, TaxiOrderStatus.CONFIRMED))
+                            .stream()
+                            .limit(1)
+                            .toList();
+                    boolean isBusy = !activeOrders.isEmpty();
+                    if (isBusy) {
+                        logger.debug("Driver {} skipped - already has active order", driver.getPhone());
+                    }
+                    return !isBusy;
+                })
+                .toList();
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No available drivers without active orders for order #{}", orderId);
             alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
             return;
         }
@@ -171,6 +196,7 @@ public class DriverService {
     /**
      * Dispatch to all available drivers (no location filtering)
      * Sends order as interactive button for easy claiming
+     * Excludes drivers who already have an active order (TAKEN or CONFIRMED)
      */
     public void dispatchToDrivers(DriverType type, String message, String orderDetails, long orderId, CarType... carTypes) {
         List<Driver> availableDrivers = getActiveDrivers(type);
@@ -192,6 +218,29 @@ public class DriverService {
         if (availableDrivers.isEmpty()) {
             logger.warn("No available drivers with car type {} for order #{}",
                     carTypes.length > 0 ? carTypes[0] : "ANY", orderId);
+            alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
+            return;
+        }
+
+        // Filter out drivers who already have an active order
+        availableDrivers = availableDrivers.stream()
+                .filter(driver -> {
+                    List<TaxiOrder> activeOrders = taxiOrderRepo
+                            .findByDriverPhoneAndStatusIn(driver.getPhone(),
+                                    List.of(TaxiOrderStatus.TAKEN, TaxiOrderStatus.CONFIRMED))
+                            .stream()
+                            .limit(1)
+                            .toList();
+                    boolean isBusy = !activeOrders.isEmpty();
+                    if (isBusy) {
+                        logger.debug("Driver {} skipped - already has active order", driver.getPhone());
+                    }
+                    return !isBusy;
+                })
+                .toList();
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No available drivers without active orders for order #{}", orderId);
             alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
             return;
         }
