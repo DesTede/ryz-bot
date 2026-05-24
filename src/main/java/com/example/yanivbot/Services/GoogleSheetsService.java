@@ -36,7 +36,7 @@ public class GoogleSheetsService {
     @Value("${google.sheets.id}")
     private String sheetsId;
 
-    @Value("${google.sheets.credentials-json}")
+    @Value("${google.sheets.credentials-path}")
     private String credentialsJson;
 
     private final DriverRepository driverRepo;
