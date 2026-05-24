@@ -83,7 +83,7 @@ public class MessageRouter {
             return "✅ מחקנו את כל המידע שלך. בואו נתחיל מחדש 👇";
         }
 
-        // ===== START STATE =====
+        
         if (state == ConversationState.START) {
             logger.info("In START state - determining user type");
 
