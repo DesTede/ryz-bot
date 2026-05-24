@@ -123,23 +123,25 @@ public class OrderMonitorService {
             whatsappService.sendSafeText(order.getPhone(),
                     "⚠️ טרם נמצא נהג להזמנתך. אנו ממשיכים לחפש...");
 
-            // Re-broadcast to ALL drivers
+            // Re-broadcast to drivers with same format as initial dispatch (button style)
             String msg = """
                     🚕 הזמנת מונית לא נלקחה - שידור מחדש!
                     🆔 %d
                     📍 מאיפה: %s
                     🎯 לאן: %s
-
-                    ללקיחת ההזמנה שלח: מונית %d
-                    לסיום הנסיעה שלח: הסתיים %d
+                    📝 פרטים נוספים: %s
                     """.formatted(
-                    order.getId(), order.getPickUpLocation(),
-                    order.getDestination(), order.getId(), order.getId());
+                    order.getId(),
+                    order.getPickUpLocation(),
+                    order.getDestination(),
+                    order.getNotes().isEmpty() ? "אין" : order.getNotes()
+            );
 
             String orderDetails = "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
                     "🎯 לאן: " + order.getDestination() + "\n" +
                     "📞 לקוח: " + order.getPhone();
 
+            // Re-dispatch using same method as initial dispatch (sends buttons, not text)
             driverService.dispatchToDrivers(DriverType.TAXI, msg, orderDetails, order.getId());
 
             // Mark as alerted to prevent sending this alert again
