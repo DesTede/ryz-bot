@@ -5,6 +5,7 @@ import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.DriverService;
+import com.example.yanivbot.Services.TaxiOrderService;
 import com.example.yanivbot.Services.WhatsappService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,14 +20,16 @@ public class DriverConversationHandler implements ConversationHandler {
     private final DriverService driverService;
     private final ConversationService convoService;
     private final WhatsappService whatsappService;
+    private final TaxiOrderService taxiOrderService;
 
     @Value("${admin.phones}")
     private String adminPhones;
 
-    public DriverConversationHandler(DriverService driverService, ConversationService convoService, WhatsappService whatsappService) {
+    public DriverConversationHandler(DriverService driverService, ConversationService convoService, WhatsappService whatsappService, TaxiOrderService taxiOrderService) {
         this.driverService = driverService;
         this.convoService = convoService;
         this.whatsappService = whatsappService;
+        this.taxiOrderService = taxiOrderService;
     }
 
     @Override
@@ -40,6 +43,11 @@ public class DriverConversationHandler implements ConversationHandler {
 
         if (txt.equals("סיים משמרת") || txt.equals("driver_end_shift")) {
             return handleEndShift(convo, message);
+        }
+
+        // Handle taxi order claim button (taxi_claim_123)
+        if (txt.startsWith("taxi_claim_")) {
+            return handleTaxiOrderClaim(message);
         }
 
         // Handle location in AWAITING_DRIVER_LOCATION state
@@ -60,6 +68,17 @@ public class DriverConversationHandler implements ConversationHandler {
         }
 
         return null;
+    }
+
+    private String handleTaxiOrderClaim(IncomingMessage message) {
+        String txt = message.getText().trim();
+        try {
+            long orderId = Long.parseLong(txt.replace("taxi_claim_", ""));
+            return taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
+        } catch (Exception e) {
+            logger.error("Error claiming taxi order: {}", e.getMessage(), e);
+            return "❌ שגיאה בקבלת הנסיעה. אנא נסה שוב.";
+        }
     }
 
     private String handleStartShift(Conversation convo, IncomingMessage message) {

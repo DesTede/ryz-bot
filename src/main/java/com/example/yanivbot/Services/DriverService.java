@@ -116,6 +116,7 @@ public class DriverService {
 
     /**
      * Dispatch to drivers within 5km radius of order location
+     * Sends order as interactive button for easy claiming
      * Only sends to active drivers with valid location data
      */
     public void dispatchToClosestDrivers(DriverType type, String message, double latitude, double longitude,
@@ -157,14 +158,19 @@ public class DriverService {
 
         logger.info("Dispatching to {} drivers within {}km radius for order #{}", nearbyDrivers.size(), dispatchRadiusKm, orderId);
 
-        // Send to all drivers within radius
+        // Send to all drivers within radius as INTERACTIVE BUTTON
         for (Driver driver : nearbyDrivers) {
-            whatsappService.sendSafeText(driver.getPhone(), message);
+            whatsappService.sendInteractiveButtonsSafe(
+                    driver.getPhone(),
+                    message,
+                    new WhatsappService.InteractiveButton("taxi_claim_" + orderId, "✅ קבל נסיעה #" + orderId)
+            );
         }
     }
 
     /**
      * Dispatch to all available drivers (no location filtering)
+     * Sends order as interactive button for easy claiming
      */
     public void dispatchToDrivers(DriverType type, String message, String orderDetails, long orderId, CarType... carTypes) {
         List<Driver> availableDrivers = getActiveDrivers(type);
@@ -192,9 +198,13 @@ public class DriverService {
 
         logger.info("Dispatching to {} drivers of type {}", availableDrivers.size(), type);
 
-        // Send message to all available drivers
+        // Send message to all available drivers as INTERACTIVE BUTTON
         for (Driver driver : availableDrivers) {
-            whatsappService.sendSafeText(driver.getPhone(), message);
+            whatsappService.sendInteractiveButtonsSafe(
+                    driver.getPhone(),
+                    message,
+                    new WhatsappService.InteractiveButton("taxi_claim_" + orderId, "✅ קבל נסיעה #" + orderId)
+            );
         }
     }
 

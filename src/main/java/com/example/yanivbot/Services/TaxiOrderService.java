@@ -50,15 +50,11 @@ public class TaxiOrderService {
         📍 נקודת איסוף: %s
         🎯 יעד הנסיעה: %s
         📝 פרטים נוספים: %s
-        
-        לקבלת הנסיעה הקלד:
-        מונית %s
         """.formatted(
                 order.getId(),
                 order.getPickUpLocation(),
                 order.getDestination(),
-                order.getNotes().isEmpty() ? "אין" : order.getNotes(),
-                order.getId()
+                order.getNotes().isEmpty() ? "אין" : order.getNotes()
         );
 
         double[] coords = geoCodingService.geocode(order.getPickUpLocation());
