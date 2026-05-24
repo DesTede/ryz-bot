@@ -16,6 +16,7 @@ import com.google.auth.oauth2.ServiceAccountCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -57,22 +58,14 @@ public class GoogleSheetsService {
         if (sheetsService == null) {
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
 
-            // Load credentials from classpath resources
-            // credentialsPath should be like "credentials.json" or "/credentials.json"
-            String resourcePath = credentialsPath.startsWith("/") ? credentialsPath : "/" + credentialsPath;
-            logger.info("DEBUG: Loading credentials from classpath path: {}", resourcePath);
+            // Load credentials from classpath - credentialsPath should be "credentials.json"
+            logger.info("DEBUG: Loading credentials file: {}", credentialsPath);
 
-            InputStream credentialsStream = GoogleSheetsService.class.getResourceAsStream(resourcePath);
+            ClassPathResource resource = new ClassPathResource(credentialsPath);
+            InputStream credentialsStream = resource.getInputStream();
 
             if (credentialsStream == null) {
-                logger.error("DEBUG: Credentials stream is null, trying alternative path");
-                // Try without leading slash
-                String altPath = credentialsPath.startsWith("/") ? credentialsPath.substring(1) : credentialsPath;
-                credentialsStream = GoogleSheetsService.class.getResourceAsStream(altPath);
-
-                if (credentialsStream == null) {
-                    throw new RuntimeException("Credentials file not found. Tried paths: " + resourcePath + " and " + altPath);
-                }
+                throw new RuntimeException("Credentials file not found: " + credentialsPath);
             }
 
             ServiceAccountCredentials credentials = (ServiceAccountCredentials) ServiceAccountCredentials
