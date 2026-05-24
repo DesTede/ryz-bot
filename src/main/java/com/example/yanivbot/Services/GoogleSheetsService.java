@@ -58,11 +58,21 @@ public class GoogleSheetsService {
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
 
             // Load credentials from classpath resources
+            // credentialsPath should be like "credentials.json" or "/credentials.json"
             String resourcePath = credentialsPath.startsWith("/") ? credentialsPath : "/" + credentialsPath;
+            logger.info("DEBUG: Loading credentials from classpath path: {}", resourcePath);
+
             InputStream credentialsStream = GoogleSheetsService.class.getResourceAsStream(resourcePath);
 
             if (credentialsStream == null) {
-                throw new RuntimeException("Credentials file not found at: " + resourcePath);
+                logger.error("DEBUG: Credentials stream is null, trying alternative path");
+                // Try without leading slash
+                String altPath = credentialsPath.startsWith("/") ? credentialsPath.substring(1) : credentialsPath;
+                credentialsStream = GoogleSheetsService.class.getResourceAsStream(altPath);
+
+                if (credentialsStream == null) {
+                    throw new RuntimeException("Credentials file not found. Tried paths: " + resourcePath + " and " + altPath);
+                }
             }
 
             ServiceAccountCredentials credentials = (ServiceAccountCredentials) ServiceAccountCredentials
@@ -75,6 +85,8 @@ public class GoogleSheetsService {
                     new HttpCredentialsAdapter(credentials))
                     .setApplicationName("YanivBot")
                     .build();
+
+            logger.info("DEBUG: Sheets service initialized successfully");
         }
         return sheetsService;
     }
