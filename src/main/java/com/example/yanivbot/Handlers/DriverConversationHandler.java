@@ -131,7 +131,7 @@ public class DriverConversationHandler implements ConversationHandler {
         convoService.updateState(convo, ConversationState.START);
         convoService.saveTempData(convo, ""); // Clear driver welcome flag so they get customer welcome next
         
-        String bodyText = "✅ המשמרת נסגרה בהצלחה\nנשמח לראות אותך שוב בהמשך 🙌";
+        String bodyText = "✅ המשמרת נסגרה בהצלחה\nנשמח לראות אותך שוב בהמשך 🙌\nכדי לחזור ולקבל נסיעות לחץ";
 
         whatsappService.sendInteractiveButtonsSafe(
                 message.getPhone(),
