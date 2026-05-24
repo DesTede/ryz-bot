@@ -108,6 +108,17 @@ public class MessageRouter {
                 return null;
             }
 
+            // Check if this is a driver trying to start shift (even if inactive)
+            if (driver != null && (txt.equals("התחל משמרת") || txt.equals("driver_start_shift"))) {
+                logger.info("Inactive driver attempting to start shift");
+                convoService.updateState(convo, ConversationState.START); // Already in START
+                String driverResponse = driverHandler.handleMessage(convo, message);
+                if (driverResponse != null) {
+                    return driverResponse;
+                }
+                return null;
+            }
+
             // Check if user is a business owner
             if (businessOwnerService.isBusinessOwner(phone)) {
                 logger.info("User is a BUSINESS OWNER");
