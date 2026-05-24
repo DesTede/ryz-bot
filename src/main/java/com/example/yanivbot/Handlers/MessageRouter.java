@@ -37,6 +37,7 @@ public class MessageRouter {
     private final WhatsappService whatsappService;
 
     private static final String WELCOME_MESSAGE = "ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡\nאז איך קוראים לך?";
+    private static final String DRIVER_WELCOME_MESSAGE = "כדי להתחיל לקבל נסיעות לחץ על\n🟢 התחל משמרת\n\nכדי לצאת מהמערכת לחץ על\n🔴 סיים משמרת\n\nלבחירת פעולה 👇";
 
     public MessageRouter(TaxiConversationHandler taxiHandler,
                          DeliveryConversationHandler deliveryHandler,
@@ -87,6 +88,17 @@ public class MessageRouter {
             // Check if user is a driver
             if (driverService.findByPhone(phone) != null) {
                 logger.info("User is a DRIVER");
+
+                // Send driver welcome message with buttons
+                if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
+                    logger.info("Sending driver welcome message with buttons");
+                    sendDriverWelcomeMenu(phone);
+                    convoService.saveTempData(convo, "DRIVER_WELCOME_SENT");
+                    return null;
+                }
+
+                // Welcome was sent, now handle driver commands
+                logger.info("Driver welcome already sent, routing to DriverHandler");
                 String driverResponse = driverHandler.handleMessage(convo, message);
                 if (driverResponse != null) {
                     return driverResponse;
@@ -219,6 +231,25 @@ public class MessageRouter {
         } catch (Exception e) {
             logger.error("Error sending service menu: {}", e.getMessage(), e);
             whatsappService.sendSafeText(phone, message + "\n🚕 מונית");
+        }
+    }
+
+    /**
+     * Show driver welcome menu with start/end shift buttons
+     */
+    private void sendDriverWelcomeMenu(String phone) {
+        try {
+            logger.info("Sending driver welcome menu to {}", phone);
+            whatsappService.sendInteractiveButtonsSafe(
+                    phone,
+                    DRIVER_WELCOME_MESSAGE,
+                    new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת"),
+                    new WhatsappService.InteractiveButton("driver_end_shift", "🔴 סיים משמרת")
+            );
+            logger.info("Driver welcome menu sent successfully");
+        } catch (Exception e) {
+            logger.error("Error sending driver welcome menu: {}", e.getMessage(), e);
+            whatsappService.sendSafeText(phone, DRIVER_WELCOME_MESSAGE);
         }
     }
 }
