@@ -45,12 +45,20 @@ public class WhatsappService {
             String phone = message.getString("from");
             String messageId = message.getString("id");
             String text = "";
+            Double latitude = null;
+            Double longitude = null;
 
             // Check message type
             String messageType = message.getString("type");
 
             if (messageType.equals("text")) {
                 text = message.getJSONObject("text").getString("body");
+            } else if (messageType.equals("location")) {
+                // Handle location message
+                JSONObject locationObj = message.getJSONObject("location");
+                latitude = locationObj.getDouble("latitude");
+                longitude = locationObj.getDouble("longitude");
+                logger.info("Location received from {}: lat={}, lon={}", phone, latitude, longitude);
             } else if (messageType.equals("interactive")) {
                 // Handle interactive messages (buttons, lists, etc.)
                 JSONObject interactive = message.getJSONObject("interactive");
@@ -65,7 +73,11 @@ public class WhatsappService {
                 }
             }
 
-            return new IncomingMessage(phone, text, messageId);
+            IncomingMessage incomingMessage = new IncomingMessage(phone, text, messageId);
+            incomingMessage.setLatitude(latitude);
+            incomingMessage.setLongitude(longitude);
+
+            return incomingMessage;
         } catch (Exception e) {
             logger.error("Error parsing incoming message: {}", e.getMessage());
             return null;

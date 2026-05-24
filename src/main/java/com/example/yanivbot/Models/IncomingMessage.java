@@ -5,6 +5,8 @@ public class IncomingMessage {
     private String phone;
     private String text;
     private String messageId;
+    private Double latitude;
+    private Double longitude;
 
     public IncomingMessage() {
     }
@@ -37,5 +39,25 @@ public class IncomingMessage {
 
     public void setMessageId(String messageId) {
         this.messageId = messageId;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public boolean hasLocation() {
+        return latitude != null && longitude != null;
     }
 }

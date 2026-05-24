@@ -42,12 +42,21 @@ public class DriverConversationHandler implements ConversationHandler {
             return handleEndShift(convo, message);
         }
 
-        if (txt.startsWith("LOCATION:")) {
-            return handleLocationShare(convo, message);
-        }
-
+        // Handle location in AWAITING_DRIVER_LOCATION state
         if (state == ConversationState.AWAITING_DRIVER_LOCATION) {
-            return handleLocationAwait(convo, message);
+            // Check if message has location data
+            if (message.hasLocation()) {
+                return handleLocationShare(convo, message);
+            }
+
+            // Handle button clicks
+            if (txt.equals("driver_cancel_shift_start")) {
+                convoService.updateState(convo, ConversationState.START);
+                return "❌ ביטול התחלת משמרת.";
+            }
+
+            // Waiting for location
+            return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.";
         }
 
         return null;
@@ -65,15 +74,10 @@ public class DriverConversationHandler implements ConversationHandler {
 
     private String handleLocationShare(Conversation convo, IncomingMessage message) {
         try {
-            String txt = message.getText().trim();
-            String[] parts = txt.replace("LOCATION:", "").split(",");
+            double latitude = message.getLatitude();
+            double longitude = message.getLongitude();
 
-            if (parts.length != 2) {
-                return "❌ שגיאה בעיבוד המיקום. אנא נסה שוב.";
-            }
-
-            double latitude = Double.parseDouble(parts[0]);
-            double longitude = Double.parseDouble(parts[1]);
+            logger.info("Driver {} shared location: {}, {}", message.getPhone(), latitude, longitude);
 
             driverService.updateDriverLocation(message.getPhone(), latitude, longitude);
             driverService.clockIn(message.getPhone());
@@ -82,28 +86,9 @@ public class DriverConversationHandler implements ConversationHandler {
 
             return "🟢 הכול מוכן!\n🟢 המשמרת התחילה\n📍 המיקום התקבל בהצלחה\nנסיעות חדשות בדרך אליך 🚖";
         } catch (Exception e) {
-            logger.error("Error processing location: {}", e.getMessage());
+            logger.error("Error processing location: {}", e.getMessage(), e);
             return "❌ שגיאה בעיבוד המיקום. אנא נסה שוב.";
         }
-    }
-
-    private String handleLocationAwait(Conversation convo, IncomingMessage message) {
-        String txt = message.getText().trim();
-
-        if (txt.equals("driver_share_location_start")) {
-            return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.";
-        }
-
-        if (txt.equals("driver_cancel_shift_start")) {
-            convoService.updateState(convo, ConversationState.START);
-            return "❌ ביטול התחלת משמרת.";
-        }
-
-        if (txt.startsWith("LOCATION:")) {
-            return handleLocationShare(convo, message);
-        }
-
-        return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.";
     }
 
     private String handleEndShift(Conversation convo, IncomingMessage message) {
@@ -118,12 +103,11 @@ public class DriverConversationHandler implements ConversationHandler {
     }
 
     private void showShiftStartConfirmation(String phone) {
-        String bodyText = "📍 כדי להתחיל משמרת עליך לשלוח מיקום נוכחי.\nלאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀";
+        String bodyText = "📍 כדי להתחיל משמרת עליך לשלוח מיקום נוכחי.\nלאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀\n\nלשליחת מיקום, לחץ על + בתפריט ובחר 📍 מיקום";
 
-        whatsappService.sendInteractiveButtons(
+        whatsappService.sendInteractiveButtonsSafe(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("driver_share_location_start", "📍 שתף מיקום והתחל"),
                 new WhatsappService.InteractiveButton("driver_cancel_shift_start", "❌ ביטול")
         );
     }
