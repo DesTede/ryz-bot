@@ -8,7 +8,7 @@ import com.example.yanivbot.Models.DriverType;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "driver")
+@Table(name = "drivers")
 @Data
 public class Driver {
 
