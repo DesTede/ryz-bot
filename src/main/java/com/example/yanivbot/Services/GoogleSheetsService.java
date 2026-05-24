@@ -39,7 +39,7 @@ public class GoogleSheetsService {
     @Value("${google.sheets.id}")
     private String sheetsId;
 
-    @Value("${google.sheets.credentials-content-base64}")
+    @Value("${google.sheets.credentials-content-base64:}")
     private String credentialsBase64;
 
     private final DriverRepository driverRepo;
@@ -63,24 +63,33 @@ public class GoogleSheetsService {
         if (sheetsService == null) {
             logger.info("Initializing Google Sheets service...");
 
+            if (credentialsBase64 == null || credentialsBase64.isEmpty()) {
+                throw new RuntimeException("GOOGLE_SHEETS_CREDENTIALS_CONTENT_BASE64 not set in environment variables");
+            }
+
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
 
-            // Decode base64 credentials
-            byte[] decodedBytes = Base64.getDecoder().decode(credentialsBase64);
-            InputStream credentialsStream = new ByteArrayInputStream(decodedBytes);
+            try {
+                // Decode base64 credentials
+                byte[] decodedBytes = Base64.getDecoder().decode(credentialsBase64);
+                InputStream credentialsStream = new ByteArrayInputStream(decodedBytes);
 
-            ServiceAccountCredentials credentials = (ServiceAccountCredentials) ServiceAccountCredentials
-                    .fromStream(credentialsStream)
-                    .createScoped(Collections.singleton(SheetsScopes.SPREADSHEETS));
+                ServiceAccountCredentials credentials = (ServiceAccountCredentials) ServiceAccountCredentials
+                        .fromStream(credentialsStream)
+                        .createScoped(Collections.singleton(SheetsScopes.SPREADSHEETS));
 
-            sheetsService = new Sheets.Builder(
-                    GoogleNetHttpTransport.newTrustedTransport(),
-                    jsonFactory,
-                    new HttpCredentialsAdapter(credentials))
-                    .setApplicationName("YanivBot")
-                    .build();
+                sheetsService = new Sheets.Builder(
+                        GoogleNetHttpTransport.newTrustedTransport(),
+                        jsonFactory,
+                        new HttpCredentialsAdapter(credentials))
+                        .setApplicationName("YanivBot")
+                        .build();
 
-            logger.info("✅ Google Sheets service initialized successfully");
+                logger.info("✅ Google Sheets service initialized successfully");
+            } catch (IllegalArgumentException e) {
+                logger.error("❌ Base64 decoding failed - credentials may be corrupted: {}", e.getMessage());
+                throw new RuntimeException("Invalid base64 format for credentials", e);
+            }
         }
         return sheetsService;
     }
@@ -140,6 +149,10 @@ public class GoogleSheetsService {
 
             String name = row.get(0).toString();
             String phone = whatsappService.normalizePhone(row.get(1).toString().trim());
+            // Remove 972 prefix if present to keep consistent format
+            if (phone.startsWith("972")) {
+                phone = phone.substring(3);
+            }
             String address = row.size() > 2 ? row.get(2).toString() : "";
 
             sheetPhones.add(phone);
@@ -191,6 +204,10 @@ public class GoogleSheetsService {
 
             String name = row.get(0).toString();
             String phone = whatsappService.normalizePhone(row.get(1).toString().trim());
+            // Remove 972 prefix if present to keep consistent format
+            if (phone.startsWith("972")) {
+                phone = phone.substring(3);
+            }
             DriverType type = DriverType.valueOf(row.get(2).toString().toUpperCase());
 
             sheetPhones.add(phone);
