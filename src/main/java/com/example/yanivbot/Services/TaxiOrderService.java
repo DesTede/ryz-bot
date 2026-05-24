@@ -157,9 +157,16 @@ public class TaxiOrderService {
     }
 
     private void notifyOtherDrivers(long orderId, String claimingDriverPhone) {
+        // Normalize the claiming driver's phone
+        String normalizedClaimingPhone = claimingDriverPhone;
+        if (normalizedClaimingPhone.startsWith("972")) {
+            normalizedClaimingPhone = normalizedClaimingPhone.substring(3);
+        }
+        final String finalClaimingPhone = normalizedClaimingPhone;
+
         String message = "🚫 נסיעה #" + orderId + " כבר שויכה לנהג אחר\nהישאר זמין — הזמנה חדשה יכולה להגיע בכל רגע 🚀";
         driverService.getActiveDrivers(DriverType.TAXI).forEach(driver -> {
-            if (!driver.getPhone().equals(claimingDriverPhone)) {
+            if (!driver.getPhone().equals(finalClaimingPhone)) {
                 whatsappService.sendSafeText(driver.getPhone(), message);
             }
         });
