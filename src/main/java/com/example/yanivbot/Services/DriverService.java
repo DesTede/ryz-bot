@@ -135,8 +135,9 @@ public class DriverService {
         if (carTypes.length > 0) {
             CarType requiredCarType = carTypes[0];
             availableDrivers = availableDrivers.stream()
-                    .filter(d -> d.getCarType() == null || d.getCarType() == requiredCarType)
+                    .filter(d -> d.getCarType() != null && d.getCarType() == requiredCarType)
                     .toList();
+            logger.info("Filtered {} drivers by required car type: {}", availableDrivers.size(), requiredCarType);
         }
 
         if (availableDrivers.isEmpty()) {
@@ -211,8 +212,9 @@ public class DriverService {
         if (carTypes.length > 0) {
             CarType requiredCarType = carTypes[0];
             availableDrivers = availableDrivers.stream()
-                    .filter(d -> d.getCarType() == null || d.getCarType() == requiredCarType)
+                    .filter(d -> d.getCarType() != null && d.getCarType() == requiredCarType)
                     .toList();
+            logger.info("Filtered {} drivers by required car type: {}", availableDrivers.size(), requiredCarType);
         }
 
         if (availableDrivers.isEmpty()) {
