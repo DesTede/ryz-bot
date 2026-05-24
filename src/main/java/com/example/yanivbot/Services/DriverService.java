@@ -19,6 +19,7 @@ import java.util.Optional;
 public class DriverService {
 
     private static final Logger logger = LoggerFactory.getLogger(DriverService.class);
+    private static final double DISPATCH_RADIUS_KM = 5.0; // 5 km radius for orders
 
     private final DriverRepository driverRepo;
     private final TaxiOrderRepository taxiOrderRepo;
@@ -106,7 +107,8 @@ public class DriverService {
     }
 
     /**
-     * Dispatch to closest drivers based on location
+     * Dispatch to drivers within 5km radius of order location
+     * Only sends to active drivers with valid location data
      */
     public void dispatchToClosestDrivers(DriverType type, String message, double latitude, double longitude,
                                          String orderDetails, long orderId, CarType... carTypes) {
@@ -114,6 +116,7 @@ public class DriverService {
 
         if (availableDrivers.isEmpty()) {
             logger.warn("No available drivers of type {} for order #{}", type, orderId);
+            alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
             return;
         }
 
@@ -128,16 +131,27 @@ public class DriverService {
         if (availableDrivers.isEmpty()) {
             logger.warn("No available drivers with car type {} for order #{}",
                     carTypes.length > 0 ? carTypes[0] : "ANY", orderId);
+            alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
             return;
         }
 
-        logger.info("Dispatching to {} drivers of type {}", availableDrivers.size(), type);
+        // Filter by distance - only include drivers within 5km radius
+        List<Driver> nearbyDrivers = availableDrivers.stream()
+                .filter(driver -> driver.getLatitude() != 0 && driver.getLongitude() != 0) // Must have location
+                .filter(driver -> calculateDistance(latitude, longitude, driver.getLatitude(), driver.getLongitude()) <= DISPATCH_RADIUS_KM)
+                .toList();
 
-        // Send to closest drivers (simple distance calculation)
-        for (Driver driver : availableDrivers) {
-            if (driver.getLatitude() != 0 && driver.getLongitude() != 0) {
-                whatsappService.sendSafeText(driver.getPhone(), message);
-            }
+        if (nearbyDrivers.isEmpty()) {
+            logger.warn("No drivers within {}km radius for order #{}", DISPATCH_RADIUS_KM, orderId);
+            alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
+            return;
+        }
+
+        logger.info("Dispatching to {} drivers within {}km radius for order #{}", nearbyDrivers.size(), DISPATCH_RADIUS_KM, orderId);
+
+        // Send to all drivers within radius
+        for (Driver driver : nearbyDrivers) {
+            whatsappService.sendSafeText(driver.getPhone(), message);
         }
     }
 
@@ -236,5 +250,28 @@ public class DriverService {
     public void syncDriversFromSheets(List<Driver> drivers) {
         logger.info("Syncing {} drivers from Google Sheets", drivers.size());
         driverRepo.saveAll(drivers);
+    }
+
+    /**
+     * Calculate distance between two coordinates using Haversine formula
+     * Returns distance in kilometers
+     */
+    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+        final int EARTH_RADIUS_KM = 6371;
+
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        double distance = EARTH_RADIUS_KM * c;
+
+        logger.debug("Distance from ({}, {}) to ({}, {}): {:.2f} km",
+                lat1, lon1, lat2, lon2, distance);
+
+        return distance;
     }
 }
