@@ -219,7 +219,7 @@ public class GoogleSheetsService {
                 driverRepo.save(existing);
                 logger.info("Updated driver: {} - {}", phone, name);
             } else {
-                driverRepo.save(new Driver(name, phone, false, type));
+                driverRepo.save(new Driver(phone, name, false, type));
                 logger.info("Added new driver: {} - {}", phone, name);
             }
         }
