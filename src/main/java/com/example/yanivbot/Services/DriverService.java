@@ -19,7 +19,9 @@ import java.util.Optional;
 public class DriverService {
 
     private static final Logger logger = LoggerFactory.getLogger(DriverService.class);
-    private static final double DISPATCH_RADIUS_KM = 5.0; // 5 km radius for orders
+
+    @Value("${dispatch.radius.km:5.0}")
+    private double dispatchRadiusKm;
 
     private final DriverRepository driverRepo;
     private final TaxiOrderRepository taxiOrderRepo;
@@ -135,19 +137,19 @@ public class DriverService {
             return;
         }
 
-        // Filter by distance - only include drivers within 5km radius
+        // Filter by distance - only include drivers within radius
         List<Driver> nearbyDrivers = availableDrivers.stream()
                 .filter(driver -> driver.getLatitude() != 0 && driver.getLongitude() != 0) // Must have location
-                .filter(driver -> calculateDistance(latitude, longitude, driver.getLatitude(), driver.getLongitude()) <= DISPATCH_RADIUS_KM)
+                .filter(driver -> calculateDistance(latitude, longitude, driver.getLatitude(), driver.getLongitude()) <= dispatchRadiusKm)
                 .toList();
 
         if (nearbyDrivers.isEmpty()) {
-            logger.warn("No drivers within {}km radius for order #{}", DISPATCH_RADIUS_KM, orderId);
+            logger.warn("No drivers within {}km radius for order #{}", dispatchRadiusKm, orderId);
             alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
             return;
         }
 
-        logger.info("Dispatching to {} drivers within {}km radius for order #{}", nearbyDrivers.size(), DISPATCH_RADIUS_KM, orderId);
+        logger.info("Dispatching to {} drivers within {}km radius for order #{}", nearbyDrivers.size(), dispatchRadiusKm, orderId);
 
         // Send to all drivers within radius
         for (Driver driver : nearbyDrivers) {
