@@ -48,7 +48,13 @@ public class MessageController {
      * Only send a reply if the handler returns a non-null/non-empty string.
      */
     public void handleMetaMessage(IncomingMessage message) {
-        if (message == null || message.getText() == null || message.getText().isBlank()) {
+        if (message == null) {
+            return;
+        }
+
+        // Allow location messages even if text is empty
+        // Only skip if there's no text AND no location data
+        if ((message.getText() == null || message.getText().isBlank()) && !message.hasLocation()) {
             return;
         }
 
