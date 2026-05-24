@@ -142,6 +142,16 @@ public class MessageRouter {
             return null; // Menu buttons already sent
         }
 
+        // ===== AWAITING_DRIVER_LOCATION STATE =====
+        if (state == ConversationState.AWAITING_DRIVER_LOCATION) {
+            logger.info("In AWAITING_DRIVER_LOCATION state");
+            String driverResponse = driverHandler.handleMessage(convo, message);
+            if (driverResponse != null) {
+                return driverResponse;
+            }
+            return null;
+        }
+
         // ===== START_MENU STATE =====
         // Customer has entered name and is seeing the menu
         if (state == ConversationState.START_MENU) {
