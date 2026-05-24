@@ -56,7 +56,14 @@ public class GoogleSheetsService {
     private synchronized Sheets getSheetsService() throws Exception {
         if (sheetsService == null) {
             JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
-            InputStream credentialsStream = GoogleSheetsService.class.getResourceAsStream(credentialsPath);
+
+            // Load credentials from classpath resources
+            String resourcePath = credentialsPath.startsWith("/") ? credentialsPath : "/" + credentialsPath;
+            InputStream credentialsStream = GoogleSheetsService.class.getResourceAsStream(resourcePath);
+
+            if (credentialsStream == null) {
+                throw new RuntimeException("Credentials file not found at: " + resourcePath);
+            }
 
             ServiceAccountCredentials credentials = (ServiceAccountCredentials) ServiceAccountCredentials
                     .fromStream(credentialsStream)
