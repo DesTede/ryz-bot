@@ -110,10 +110,10 @@ public class MessageRouter {
         if (state == ConversationState.START) {
             logger.info("In START state - determining user type");
 
-            // Check if user is a driver AND is currently active (in shift)
+            // Check if user is a driver (active or not)
             Driver driver = driverService.findByPhone(phone);
-            if (driver != null && driver.isActive()) {
-                logger.info("User is an ACTIVE DRIVER");
+            if (driver != null) {
+                logger.info("User is a DRIVER (active={}, showing driver menu)", driver.isActive());
 
                 // Send driver welcome message with buttons
                 if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
@@ -125,17 +125,6 @@ public class MessageRouter {
 
                 // Welcome was sent, now handle driver commands
                 logger.info("Driver welcome already sent, routing to DriverHandler");
-                String driverResponse = driverHandler.handleMessage(convo, message);
-                if (driverResponse != null) {
-                    return driverResponse;
-                }
-                return null;
-            }
-
-            // Check if this is a driver trying to start shift (even if inactive)
-            if (driver != null && (txt.equals("התחל משמרת") || txt.equals("driver_start_shift"))) {
-                logger.info("Inactive driver attempting to start shift");
-                convoService.updateState(convo, ConversationState.START); // Already in START
                 String driverResponse = driverHandler.handleMessage(convo, message);
                 if (driverResponse != null) {
                     return driverResponse;

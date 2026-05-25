@@ -72,7 +72,10 @@ public class DriverConversationHandler implements ConversationHandler {
             return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.";
         }
 
-        return null;
+        // Driver typed something else - treat as customer
+        // This happens after סיים משמרת or if driver is somehow in START state
+        logger.info("Driver {} typed non-shift message: '{}' - treating as customer", message.getPhone(), txt);
+        return null; // Return null to let MessageRouter treat them as customer
     }
 
     private String handleTaxiOrderClaim(IncomingMessage message) {
@@ -129,9 +132,9 @@ public class DriverConversationHandler implements ConversationHandler {
     private String handleEndShift(Conversation convo, IncomingMessage message) {
         driverService.clockOut(message.getPhone());
         convoService.updateState(convo, ConversationState.START);
-        convoService.saveTempData(convo, ""); // Clear driver welcome flag so they get customer welcome next
-        
-        String bodyText = "✅ המשמרת נסגרה בהצלחה\nנשמח לראות אותך שוב בהמשך 🙌\nכדי לחזור ולקבל נסיעות לחץ";
+        convoService.saveTempData(convo, ""); // Clear so next non-shift message triggers customer welcome
+
+        String bodyText = "✅ המשמרת נסגרה בהצלחה\nנשמח לראות אותך שוב בהמשך 🙌";
 
         whatsappService.sendInteractiveButtonsSafe(
                 message.getPhone(),
