@@ -89,12 +89,9 @@ public class DriverService {
      * Find driver by phone
      */
     public Driver findByPhone(String phone) {
-        // DB stores phone WITHOUT 972 prefix, so remove it if present
-        String normalizedPhone = phone;
-        if (normalizedPhone.startsWith("972")) {
-            normalizedPhone = normalizedPhone.substring(3);
-        }
-        return driverRepo.findDriverByPhone(normalizedPhone).orElse(null);
+        // GoogleSheets adds 972 prefix, so DB stores phone WITH 972
+        // Phone from WhatsApp already has 972, keep it as is
+        return driverRepo.findDriverByPhone(phone).orElse(null);
     }
 
     /**
