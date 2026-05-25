@@ -47,11 +47,9 @@ public class DeliveryOrderService {
         deliveryOrderRepo.save(order);
 
         whatsappService.sendSafeText(businessPhone,
-                "✅ סיכום פרטי המשלוח:\n📞 שם לקוח: " + customerName + "\n📞 טלפון לקוח: " + customerPhone +
+                "✅ ההזמנה נוצרה בהצלחה!\n\n📋 סיכום הזמנה מספר " + order.getId() + ":\n📞 שם לקוח: " + customerName + "\n📞 טלפון לקוח: " + customerPhone +
                         "\n📍 כתובת מסירה: " + address + "\n⏱️ זמן הכנה: " + readyInMinutes + " דקות\n💰 סכום לתשלום: ₪" + price +
-                        "\n📝 הערות: " + (notes.isEmpty() ? "אין" : notes));
-
-        whatsappService.sendSafeText(businessPhone, "🔍 מחפשים שליחים קרובים...");
+                        "\n📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n\n🚚 משודרת לשליחים קרובים...");
 
         broadcastToDrivers(order);
     }

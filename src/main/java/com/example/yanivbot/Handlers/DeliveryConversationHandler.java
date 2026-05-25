@@ -304,8 +304,8 @@ public class DeliveryConversationHandler implements ConversationHandler {
                 convoService.updateState(convo, ConversationState.START);
                 convoService.saveTempData(convo, "");
 
-                logger.info("[DELIVERY] ✅ Order created successfully");
-                return "✅ ההזמנה נוצרה בהצלחה ונשלחה לנהגים פנויים!";
+                logger.info("[DELIVERY] ✅ Order created successfully - DeliveryOrderService will send confirmation");
+                return null;
             }
         } else if (txt.equals("delivery_confirm_no")) {
             // Cancel order
@@ -319,12 +319,12 @@ public class DeliveryConversationHandler implements ConversationHandler {
     }
 
     private void showReadyTimeButton(String phone) {
-        String bodyText = "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו: עכשיו\nאו הקלידו זמן הכנה";
+        String bodyText = "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו: \nאו הקלידו זמן הכנה";
 
         whatsappService.sendInteractiveButtons(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("delivery_ready_now", "⏱️ עכשיו")
+                new WhatsappService.InteractiveButton("delivery_ready_now", "⏱️ מוכן")
         );
     }
 }
