@@ -86,9 +86,14 @@ public class MessageRouter {
         logger.info("================================");
 
         // ===== CHECK ADMIN COMMANDS FIRST (works even when bot is off) =====
-        String adminResponse = adminCommandHandler.handleAdminCommand(phone, txt, whatsappService);
-        if (adminResponse != null) {
-            return adminResponse;
+        // Admin commands are handled and we stop here, whether they return a message or send via WhatsApp
+        boolean isAdminCommand = adminCommandHandler.handleAdminCommand(phone, txt, whatsappService) != null
+                || txt.equals("כבה בוט") || txt.equals("kahah_bot")
+                || txt.equals("הפעל בוט") || txt.equals("hepel_bot");
+
+        if (isAdminCommand) {
+            // Admin command was handled - don't continue to user type determination
+            return null;
         }
 
         // ===== CHECK BOT STATUS FOR NON-ADMINS BEFORE ANYTHING ELSE =====
