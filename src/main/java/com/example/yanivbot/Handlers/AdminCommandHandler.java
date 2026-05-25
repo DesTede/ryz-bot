@@ -76,7 +76,7 @@ public class AdminCommandHandler {
         logger.warn("Admin {} turned OFF the bot", phone);
 
         // Notify all admins
-        String adminMessage = "🔴 הבוט כבוי ולא זמין ללקוחות ומשתמשים\n⚠️ בעל מינהל הפסיק את השירות";
+        String adminMessage = "🔴 הבוט כבוי ולא זמין ללקוחות ומשתמשים\n⚠️ מנהל הפסיק את השירות";
         notifyAllAdmins(adminMessage);
 
         return null; // Message already sent
@@ -97,7 +97,7 @@ public class AdminCommandHandler {
         logger.warn("Admin {} turned ON the bot", phone);
 
         // Notify all admins
-        String adminMessage = "🟢 בוט פעיל וזמין ללקוחות ומשתמשים\n✅ השירות חזר לעבודה";
+        String adminMessage = "🟢 בוט פעיל וזמין ללקוחות ומשתמשים";
         notifyAllAdmins(adminMessage);
 
         return null; // Message already sent
@@ -126,6 +126,6 @@ public class AdminCommandHandler {
      * Get bot status message for users when bot is off
      */
     public String getBotInactiveMessage() {
-        return "🔴 הבוט אינו פעיל כרגע\nאנא נסה שוב מאוחר יותר\n\nתודה על הסבלנות שלך 💙";
+        return "🔴 הבוט אינו פעיל כרגע\nאנא נסה שוב מאוחר יותר\n\nתודה על הסבלנות 💙";
     }
 }

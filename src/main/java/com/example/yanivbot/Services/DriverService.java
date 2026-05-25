@@ -89,7 +89,7 @@ public class DriverService {
      * Find driver by phone
      */
     public Driver findByPhone(String phone) {
-        // Normalize phone - remove 972 prefix if present
+        // DB stores phone WITHOUT 972 prefix, so remove it if present
         String normalizedPhone = phone;
         if (normalizedPhone.startsWith("972")) {
             normalizedPhone = normalizedPhone.substring(3);
