@@ -127,40 +127,40 @@ public class MessageRouter {
                         }
                         return null;
                     }
-                    // Otherwise, treat as customer (fall through to customer logic)
-                    logger.info("Driver typing non-shift message, treating as customer");
-                    // Fall through to treat as customer
-                }
+                    // Otherwise, treat as customer - clear END_SHIFT flag and fall through
+                    logger.info("Driver typing non-shift message after end shift, treating as customer");
+                    convoService.saveTempData(convo, "");
+                    // Fall through to customer logic below
+                } else {
+                    // Driver is active/normal (not in END_SHIFT state)
+                    // Check if trying to start shift - ALWAYS route to handler
+                    if (txt.equals("התחל משמרת") || txt.equals("driver_start_shift")) {
+                        logger.info("Driver attempting to start shift, routing to DriverHandler");
+                        String driverResponse = driverHandler.handleMessage(convo, message);
+                        if (driverResponse != null) {
+                            return driverResponse;
+                        }
+                        return null;
+                    }
 
-                // Check if trying to start shift - ALWAYS route to handler
-                if (txt.equals("התחל משמרת") || txt.equals("driver_start_shift")) {
-                    logger.info("Driver attempting to start shift, routing to DriverHandler");
+                    // Send driver welcome message with buttons ONLY on first message (no tempData)
+                    if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
+                        if (state == ConversationState.START) {
+                            logger.info("Sending driver welcome message with buttons");
+                            sendDriverWelcomeMenu(phone);
+                            convoService.saveTempData(convo, "DRIVER_WELCOME_SENT");
+                            return null;
+                        }
+                    }
+
+                    // Welcome was already sent, now route to DriverHandler to handle commands
+                    logger.info("Driver welcome already sent, routing to DriverHandler");
                     String driverResponse = driverHandler.handleMessage(convo, message);
                     if (driverResponse != null) {
                         return driverResponse;
                     }
                     return null;
                 }
-
-                // Send driver welcome message with buttons ONLY on first message (no tempData)
-                if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
-                    // Don't send welcome if they just typed something random (let DriverHandler decide)
-                    // But DO send if this is truly first message (no state history)
-                    if (state == ConversationState.START) {
-                        logger.info("Sending driver welcome message with buttons");
-                        sendDriverWelcomeMenu(phone);
-                        convoService.saveTempData(convo, "DRIVER_WELCOME_SENT");
-                        return null;
-                    }
-                }
-
-                // Welcome was already sent, now route to DriverHandler to handle commands
-                logger.info("Driver welcome already sent, routing to DriverHandler");
-                String driverResponse = driverHandler.handleMessage(convo, message);
-                if (driverResponse != null) {
-                    return driverResponse;
-                }
-                return null;
             }
 
             // Check if user is a business owner
