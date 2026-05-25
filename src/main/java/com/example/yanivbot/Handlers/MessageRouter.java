@@ -170,12 +170,10 @@ public class MessageRouter {
 
                     // Send driver welcome message with buttons ONLY on first message (no tempData)
                     if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
-                        if (state == ConversationState.START) {
-                            logger.info("Sending driver welcome message with buttons");
-                            sendDriverWelcomeMenu(phone);
-                            convoService.saveTempData(convo, "DRIVER_WELCOME_SENT");
-                            return null;
-                        }
+                        logger.info("Sending driver welcome message with buttons");
+                        sendDriverWelcomeMenu(phone);
+                        convoService.saveTempData(convo, "DRIVER_WELCOME_SENT");
+                        return null;
                     }
 
                     // Welcome was already sent, now route to DriverHandler to handle commands
