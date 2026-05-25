@@ -200,7 +200,8 @@ public class MessageRouter {
                 // Show customer welcome
                 logger.info("Showing customer welcome menu to {}", phone);
                 whatsappService.sendText(phone, WELCOME_MESSAGE);
-                convoService.updateState(convo, ConversationState.START_MENU);
+                convoService.saveTempData(convo, "WELCOME_SENT");  // Mark that welcome was sent
+                // Don't change state yet - keep in START to capture name on next message
                 return null;
             }
 
@@ -265,14 +266,15 @@ public class MessageRouter {
                         bodyText,
                         new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "אופנוע 🏍️"),
                         new WhatsappService.InteractiveButton("taxi_car_type_private_car", "מכונית 🚗"),
-                        new WhatsappService.InteractiveButton("taxi_car_type_minivan", "הסעות +6 🚐")
+                        new WhatsappService.InteractiveButton("taxi_car_type_minivan", "רכב גדול +6 🚐")
                 );
                 return null; // Buttons already sent
             }
 
             // Invalid choice - ask them to use the menu
-            logger.warn("Invalid menu choice in START_MENU: '{}'", txt);
-            return "אנא בחר מהתפריט למעלה 👆";
+            logger.warn("Invalid menu choice in START_MENU: '{}' - showing menu again", txt);
+            showServiceMenu(phone, convo.getTempData() != null ? convo.getTempData() : "");
+            return null;
         }
 
         // ===== BUSINESS_MENU STATE =====
@@ -327,7 +329,8 @@ public class MessageRouter {
      * Show service selection menu with customer's name
      */
     private void showServiceMenu(String phone, String name) {
-        String message = "מה בא לך " + name + "?";
+        String displayName = (name != null && !name.isEmpty()) ? name : "ידידי";
+        String message = "מה בא לך " + displayName + "?";
 
         try {
             logger.info("Sending service menu to {}: {}", phone, message);
