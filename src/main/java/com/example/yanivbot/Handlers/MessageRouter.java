@@ -158,9 +158,10 @@ public class MessageRouter {
                     // Fall through to customer logic below
                 } else {
                     // Driver is active/normal (not in END_SHIFT state)
-                    // Check if trying to start shift - ALWAYS route to handler
-                    if (txt.equals("התחל משמרת") || txt.equals("driver_start_shift")) {
-                        logger.info("Driver attempting to start shift, routing to DriverHandler");
+                    // Check if trying to start or end shift - ALWAYS route to handler
+                    if (txt.equals("התחל משמרת") || txt.equals("driver_start_shift") ||
+                            txt.equals("סיים משמרת") || txt.equals("driver_end_shift")) {
+                        logger.info("Driver attempting to start/end shift, routing to DriverHandler");
                         String driverResponse = driverHandler.handleMessage(convo, message);
                         if (driverResponse != null) {
                             return driverResponse;
