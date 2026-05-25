@@ -40,24 +40,26 @@ public class DeliveryConversationHandler implements ConversationHandler {
             return deliveryOrderService.markDelivered(orderId, message.getPhone());
         }
 
+        // Handle confirmation buttons
+        if (txt.equals("delivery_confirm_yes") || txt.equals("delivery_confirm_no")) {
+            return handleConfirmationButton(convo, message);
+        }
+
         switch (state) {
             case DELIVERY_CUSTOMER_PHONE:
-                // This state is misnamed - it's actually for CUSTOMER NAME (first question)
                 return handleCustomerName(convo, message);
             case DELIVERY_ADDRESS:
-                // This state is for CUSTOMER PHONE (second question)
                 return handleCustomerPhone(convo, message);
             case DELIVERY_READY_TIME:
-                // Actually for delivery ADDRESS (third question)
                 return handleAddress(convo, message);
             case DELIVERY_PRICE:
                 return handleReadyTime(convo, message);
             case DELIVERY_NOTES:
                 return handlePrice(convo, message);
             default:
-                // Handle confirmation if in START state after capturing notes
-                if (state == ConversationState.START && convo.getTempData() != null && convo.getTempData().contains("|")) {
-                    return handleConfirmation(convo, message);
+                // Handle notes input - when state goes back to DELIVERY_NOTES after price
+                if (state == ConversationState.DELIVERY_NOTES && convo.getTempData() != null && convo.getTempData().contains("|")) {
+                    return handleNotes(convo, message);
                 }
                 return null;
         }
@@ -81,7 +83,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
 
         // Validate: must be 10 digits
         if (!phone.matches("\\d{10}")) {
-            return "❌ מספר הטלפון לא תקין. אנא הקלידו מספר טלפון בן 10 ספרות (ללא קידומת 0).\nדוגמה: 0527123456 -> הקלידו: 527123456";
+            return "❌ מספר הטלפון לא תקין. אנא הקלידו מספר טלפון בן 10 ספרות.";
         }
 
         String tempData = convo.getTempData() + "|" + phone;
@@ -135,15 +137,14 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String price = message.getText().trim();
         String tempData = convo.getTempData() + "|" + price;
         convoService.saveTempData(convo, tempData);
-        convoService.updateState(convo, ConversationState.START);
 
-        return "📝 יש הערות נוספות לשליח?\n(קומה, קוד כניסה, הערה להזמנה וכו׳)\nאם אין הערות רשמו: לא";
+        return "📝 יש הערות נוספות לשליח?\n(קוד כניסה, הערה להזמנה וכו׳)\nאם אין הערות רשמו: לא";
     }
 
     /**
-     * Handle confirmation (after notes)
+     * Sixth step: Notes - then show confirmation
      */
-    private String handleConfirmation(Conversation convo, IncomingMessage message) {
+    private String handleNotes(Conversation convo, IncomingMessage message) {
         String notes = message.getText().trim();
         if (notes.equals("לא")) {
             notes = "";
@@ -152,8 +153,8 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String tempData = convo.getTempData() + "|" + notes;
         String[] parts = tempData.split("\\|");
 
+        // We need at least 6 parts: name, phone, address, readyTime, price, notes
         if (parts.length >= 6) {
-            String businessPhone = message.getPhone();
             String customerName = parts[0];
             String customerPhone = parts[1];
             String address = parts[2];
@@ -170,6 +171,9 @@ public class DeliveryConversationHandler implements ConversationHandler {
                     "💰 סכום לתשלום: " + price + "₪\n" +
                     "📝 הערות: " + (notesStr.isEmpty() ? "אין" : notesStr);
 
+            // Save complete tempData for confirmation
+            convoService.saveTempData(convo, tempData);
+
             // Send confirmation with yes/no buttons
             whatsappService.sendInteractiveButtons(
                     message.getPhone(),
@@ -178,12 +182,53 @@ public class DeliveryConversationHandler implements ConversationHandler {
                     new WhatsappService.InteractiveButton("delivery_confirm_no", "לא ❌")
             );
 
-            // Store order details for confirmation
-            convoService.saveTempData(convo, tempData);
             return null;
         }
 
         return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
+    }
+
+    /**
+     * Handle confirmation buttons (yes/no)
+     */
+    private String handleConfirmationButton(Conversation convo, IncomingMessage message) {
+        String txt = message.getText().trim();
+        String tempData = convo.getTempData();
+
+        if (txt.equals("delivery_confirm_yes")) {
+            // Create the order
+            String[] parts = tempData.split("\\|");
+            if (parts.length >= 6) {
+                String businessPhone = message.getPhone();
+                String customerName = parts[0];
+                String customerPhone = parts[1];
+                String address = parts[2];
+                int readyInMinutes = Integer.parseInt(parts[3]);
+                double price = Double.parseDouble(parts[4]);
+                String notesStr = parts.length > 5 ? parts[5] : "";
+
+                deliveryOrderService.createDeliveryOrder(
+                        businessPhone,
+                        customerName,
+                        customerPhone,
+                        address,
+                        readyInMinutes,
+                        price,
+                        notesStr
+                );
+
+                convoService.updateState(convo, ConversationState.START);
+                convoService.saveTempData(convo, "");
+                return "✅ ההזמנה נוצרה בהצלחה והתפזרה לנהגים!";
+            }
+        } else if (txt.equals("delivery_confirm_no")) {
+            // Cancel order
+            convoService.updateState(convo, ConversationState.START);
+            convoService.saveTempData(convo, "");
+            return "❌ ההזמנה בוטלה. בואו נתחיל מחדש!";
+        }
+
+        return null;
     }
 
     private void showReadyTimeButton(String phone) {
