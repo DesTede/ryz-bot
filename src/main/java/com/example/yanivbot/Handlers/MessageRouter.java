@@ -115,15 +115,29 @@ public class MessageRouter {
             if (driver != null) {
                 logger.info("User is a DRIVER (active={}, showing driver menu)", driver.isActive());
 
-                // Send driver welcome message with buttons
-                if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
-                    logger.info("Sending driver welcome message with buttons");
-                    sendDriverWelcomeMenu(phone);
-                    convoService.saveTempData(convo, "DRIVER_WELCOME_SENT");
+                // Check if trying to start shift - ALWAYS route to handler
+                if (txt.equals("התחל משמרת") || txt.equals("driver_start_shift")) {
+                    logger.info("Driver attempting to start shift, routing to DriverHandler");
+                    String driverResponse = driverHandler.handleMessage(convo, message);
+                    if (driverResponse != null) {
+                        return driverResponse;
+                    }
                     return null;
                 }
 
-                // Welcome was sent, now handle driver commands
+                // Send driver welcome message with buttons ONLY on first message (no tempData)
+                if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
+                    // Don't send welcome if they just typed something random (let DriverHandler decide)
+                    // But DO send if this is truly first message (no state history)
+                    if (state == ConversationState.START) {
+                        logger.info("Sending driver welcome message with buttons");
+                        sendDriverWelcomeMenu(phone);
+                        convoService.saveTempData(convo, "DRIVER_WELCOME_SENT");
+                        return null;
+                    }
+                }
+
+                // Welcome was already sent, now route to DriverHandler to handle commands
                 logger.info("Driver welcome already sent, routing to DriverHandler");
                 String driverResponse = driverHandler.handleMessage(convo, message);
                 if (driverResponse != null) {

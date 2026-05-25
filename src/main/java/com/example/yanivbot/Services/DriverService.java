@@ -93,6 +93,15 @@ public class DriverService {
         // Phone from WhatsApp already has 972, keep it as is
         return driverRepo.findDriverByPhone(phone).orElse(null);
     }
+    
+//    public Driver findByPhone(String phone) {
+//        // DB stores phone WITHOUT 972 prefix, so remove it if present
+//        String normalizedPhone = phone;
+//        if (normalizedPhone.startsWith("972")) {
+//            normalizedPhone = normalizedPhone.substring(3);
+//        }
+//        return driverRepo.findDriverByPhone(normalizedPhone).orElse(null);
+//    }
 
     /**
      * Get all active drivers of a specific type

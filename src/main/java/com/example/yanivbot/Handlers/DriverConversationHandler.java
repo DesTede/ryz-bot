@@ -62,10 +62,9 @@ public class DriverConversationHandler implements ConversationHandler {
                 return handleLocationShare(convo, message);
             }
 
-            // Handle button clicks
+            // Handle cancel button
             if (txt.equals("driver_cancel_shift_start")) {
-                convoService.updateState(convo, ConversationState.START);
-                return "❌ ביטול התחלת משמרת.";
+                return handleCancelShiftStart(convo, message);
             }
 
             // Waiting for location
@@ -135,6 +134,22 @@ public class DriverConversationHandler implements ConversationHandler {
         convoService.saveTempData(convo, ""); // Clear so next non-shift message triggers customer welcome
 
         String bodyText = "✅ המשמרת נסגרה בהצלחה\nנשמח לראות אותך שוב בהמשך 🙌";
+
+        whatsappService.sendInteractiveButtonsSafe(
+                message.getPhone(),
+                bodyText,
+                new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת")
+        );
+
+        return null; // Message already sent via button
+    }
+
+    private String handleCancelShiftStart(Conversation convo, IncomingMessage message) {
+        // Same as end shift - return to driver menu
+        convoService.updateState(convo, ConversationState.START);
+        convoService.saveTempData(convo, ""); // Clear welcome flag
+
+        String bodyText = "✅ ביטול התחלת משמרת\nנשמח לראות אותך שוב בהמשך 🙌";
 
         whatsappService.sendInteractiveButtonsSafe(
                 message.getPhone(),
