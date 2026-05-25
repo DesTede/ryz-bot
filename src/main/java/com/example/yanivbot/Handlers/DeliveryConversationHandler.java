@@ -212,7 +212,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         logger.info("[DELIVERY] Stage 6: Saving notes: '{}' (empty={})", notes, notes.isEmpty());
 
         String tempData = convo.getTempData() + "|" + notes;
-        String[] parts = tempData.split("\\|");
+        String[] parts = tempData.split("\\|", -1);  // Use -1 to NOT discard trailing empty strings
 
         logger.info("[DELIVERY] Complete tempData: '{}' | Parts count: {}", tempData, parts.length);
 

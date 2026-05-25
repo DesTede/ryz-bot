@@ -3,8 +3,11 @@ package com.example.yanivbot.Services;
 import com.example.yanivbot.Entities.Customer;
 import com.example.yanivbot.Entities.DeliveryOrder;
 import com.example.yanivbot.Entities.Driver;
+import com.example.yanivbot.Handlers.DeliveryConversationHandler;
 import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.DriverType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +15,8 @@ import java.util.List;
 
 @Service
 public class DeliveryOrderService {
+
+    private static final Logger logger = LoggerFactory.getLogger(DeliveryConversationHandler.class);
 
     private final ConversationService convoService;
     private final DeliveryOrderRepository deliveryOrderRepo;
@@ -44,13 +49,17 @@ public class DeliveryOrderService {
         order.setNotes(notes);
         order.setDeliveryStatus(DeliveryStatus.CREATED);
 
+        // IMPORTANT: Save order FIRST and flush to DB before broadcasting
         deliveryOrderRepo.save(order);
+        logger.info("Delivery order saved with ID: {}", order.getId());
 
+        // Send confirmation to business owner with order details
         whatsappService.sendSafeText(businessPhone,
                 "✅ ההזמנה נוצרה בהצלחה!\n\n📋 סיכום הזמנה מספר " + order.getId() + ":\n📞 שם לקוח: " + customerName + "\n📞 טלפון לקוח: " + customerPhone +
                         "\n📍 כתובת מסירה: " + address + "\n⏱️ זמן הכנה: " + readyInMinutes + " דקות\n💰 סכום לתשלום: ₪" + price +
                         "\n📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n\n🚚 הודעה נשלחה לשליחים קרובים...");
 
+        logger.info("Broadcasting order #{} to drivers...", order.getId());
         broadcastToDrivers(order);
     }
 
