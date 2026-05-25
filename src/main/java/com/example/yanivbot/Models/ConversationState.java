@@ -13,7 +13,7 @@ public enum ConversationState {
     AWAITING_TAXI_ORDER_CONFIRMATION,       // Awaiting yes/no confirmation
 
     // Delivery flow
-    DELIVERY_cUSTOMER_NAME,
+    DELIVERY_CUSTOMER_NAME,
     DELIVERY_CUSTOMER_PHONE,                // Business entering customer phone
     DELIVERY_ADDRESS,                       // Entering delivery address
     DELIVERY_READY_TIME,                    // When order will be ready

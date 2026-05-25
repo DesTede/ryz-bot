@@ -49,7 +49,7 @@ public class BusinessConversationHandler implements ConversationHandler {
 
         if (txt.equals("business_delivery_option") || txt.equals("2")) {
             // Business owner creating delivery - start with customer name
-            convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_PHONE);
+            convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_NAME);
             return "מה שם הלקוח?";
         }
 
@@ -59,13 +59,7 @@ public class BusinessConversationHandler implements ConversationHandler {
     }
 
     public void showBusinessMenuButtons(String phone) {
-        String bodyText = """
-                🚀 שלום וברוכים הבאים
-                 ל־Movez Business\
-
-                ניהול משלוחים ונסיעות בקלות ובמהירות ⚡\
-
-                מה תרצו לעשות? 👇""";
+        String bodyText = "🚀 שלום וברוכים הבאים ל־Moovez Business\nניהול משלוחים ונסיעות בקלות ובמהירות ⚡\nמה תרצו לעשות? 👇";
 
         whatsappService.sendInteractiveButtons(
                 phone,
