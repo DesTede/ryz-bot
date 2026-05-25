@@ -125,6 +125,7 @@ public class MessageRouter {
 
             // Check if user is a driver (active or not)
             Driver driver = driverService.findByPhone(phone);
+            logger.info("Driver lookup for {}: {}", phone, (driver != null ? "FOUND" : "NOT FOUND"));
             if (driver != null) {
                 logger.info("User is a DRIVER (active={}, showing driver menu)", driver.isActive());
 
@@ -132,7 +133,13 @@ public class MessageRouter {
                 if (txt.startsWith("taxi_claim_") || txt.startsWith("delivery_claim_") ||
                         txt.startsWith("taxi_complete_") || txt.startsWith("איסוף ") || txt.startsWith("נמסר ") ||
                         txt.startsWith("בדרך ")) {
-                    logger.info("Driver sending order command, routing to DriverHandler regardless of shift state");
+                    logger.info(">>> DRIVER ORDER COMMAND DETECTED <<<");
+                    logger.info(">>> Message: '{}' starts with order prefix? checking:", txt);
+                    logger.info(">>> taxi_claim_? {}", txt.startsWith("taxi_claim_"));
+                    logger.info(">>> delivery_claim_? {}", txt.startsWith("delivery_claim_"));
+                    logger.info(">>> taxi_complete_? {}", txt.startsWith("taxi_complete_"));
+                    logger.info(">>> אישור? {}", txt.startsWith("אישור"));
+                    logger.info(">>> Routing to DriverHandler regardless of shift state");
                     String driverResponse = driverHandler.handleMessage(convo, message);
                     if (driverResponse != null) {
                         return driverResponse;
