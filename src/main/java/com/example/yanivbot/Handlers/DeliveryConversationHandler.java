@@ -28,7 +28,6 @@ public class DeliveryConversationHandler implements ConversationHandler {
     @Override
     public String handleMessage(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
-        ConversationState state = convo.getState();
 
         // Handle pickup/delivery commands
         if (txt.matches("^איסוף\\s+\\d+$")) {
@@ -46,41 +45,36 @@ public class DeliveryConversationHandler implements ConversationHandler {
             return handleConfirmationButton(convo, message);
         }
 
-        // Route based on CURRENT STATE, not pipe count
-        // This way we know exactly which question we're on
-        logger.info("Delivery flow - state: {}, tempData: {}", state, convo.getTempData());
+        // Route based on tempData pipe count
+        String tempData = convo.getTempData();
+        int pipeCount = tempData == null || tempData.isEmpty() ? 0 : tempData.split("\\|", -1).length - 1;
 
-        switch (state) {
-            case DELIVERY_CUSTOMER_PHONE:
-                // State: DELIVERY_CUSTOMER_PHONE -> asking for CUSTOMER NAME (first question)
-                return handleCustomerName(convo, message);
-            case DELIVERY_ADDRESS:
-                // State: DELIVERY_ADDRESS -> asking for CUSTOMER PHONE (second question)
-                return handleCustomerPhone(convo, message);
-            case DELIVERY_READY_TIME:
-                // State: DELIVERY_READY_TIME -> asking for ADDRESS (third question)
-                return handleAddress(convo, message);
-            case DELIVERY_PRICE:
-                // State: DELIVERY_PRICE -> asking for READY TIME (fourth question)
-                return handleReadyTime(convo, message);
-            case DELIVERY_NOTES:
-                // State: DELIVERY_NOTES -> check if asking for PRICE or NOTES
-                String tempData = convo.getTempData();
-                int pipeCount = tempData == null || tempData.isEmpty() ? 0 : tempData.split("\\|", -1).length - 1;
+        logger.info("Delivery flow - pipeCount: {}, tempData: {}", pipeCount, tempData);
 
-                if (pipeCount == 3) {
-                    // Have 3 pipes (name|phone|address|readyTime) -> asking for PRICE
-                    return handlePrice(convo, message);
-                } else if (pipeCount == 4) {
-                    // Have 4 pipes (name|phone|address|readyTime|price) -> asking for NOTES
-                    return handleNotes(convo, message);
-                }
-                break;
-            default:
-                break;
-        }
-
-        return null;
+        return switch (pipeCount) {
+            case 0 ->
+                // No pipes yet -> ask for customer name
+                    handleCustomerName(convo, message);
+            case 1 ->
+                // 1 pipe (name|phone) -> ask for phone
+                    handleCustomerPhone(convo, message);
+            case 2 ->
+                // 2 pipes (name|phone|address) -> ask for address
+                    handleAddress(convo, message);
+            case 3 ->
+                // 3 pipes (name|phone|address|readyTime) -> ask for ready time
+                    handleReadyTime(convo, message);
+            case 4 ->
+                // 4 pipes (name|phone|address|readyTime|price) -> ask for price
+                    handlePrice(convo, message);
+            case 5 ->
+                // 5 pipes (all data entered) -> ask for notes, then show confirmation
+                    handleNotes(convo, message);
+            default -> {
+                logger.warn("Unexpected pipe count: {}", pipeCount);
+                yield null;
+            }
+        };
     }
 
     /**
@@ -89,7 +83,8 @@ public class DeliveryConversationHandler implements ConversationHandler {
     private String handleCustomerName(Conversation convo, IncomingMessage message) {
         String customerName = message.getText().trim();
         convoService.saveTempData(convo, customerName);
-        convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_PHONE);
+        // Change state IMMEDIATELY after saving name
+        convoService.updateState(convo, ConversationState.DELIVERY_ADDRESS);
         return "📞 מה מספר הטלפון של הלקוח?";
     }
 
@@ -109,7 +104,8 @@ public class DeliveryConversationHandler implements ConversationHandler {
         // Valid phone - now update and proceed
         String tempData = convo.getTempData() + "|" + phone;
         convoService.saveTempData(convo, tempData);
-        convoService.updateState(convo, ConversationState.DELIVERY_ADDRESS);
+        // Change state IMMEDIATELY after saving phone
+        convoService.updateState(convo, ConversationState.DELIVERY_READY_TIME);
         return "📍 מה כתובת המסירה?";
     }
 
@@ -120,7 +116,8 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String address = message.getText().trim();
         String tempData = convo.getTempData() + "|" + address;
         convoService.saveTempData(convo, tempData);
-        convoService.updateState(convo, ConversationState.DELIVERY_READY_TIME);
+        // Change state IMMEDIATELY after saving address
+        convoService.updateState(convo, ConversationState.DELIVERY_PRICE);
 
         showReadyTimeButton(message.getPhone());
         return null;
@@ -131,7 +128,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
      */
     private String handleReadyTime(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
-        int minutes = 0;
+        int minutes;
 
         if (txt.equals("delivery_ready_now") || txt.equals("עכשיו")) {
             minutes = 0;
@@ -145,7 +142,9 @@ public class DeliveryConversationHandler implements ConversationHandler {
 
         String tempData = convo.getTempData() + "|" + minutes;
         convoService.saveTempData(convo, tempData);
-        convoService.updateState(convo, ConversationState.DELIVERY_PRICE);
+        // Change state IMMEDIATELY after saving ready time
+        convoService.updateState(convo, ConversationState.DELIVERY_NOTES);
+
         return "מה סכום המשלוח לתשלום?\nאם ההזמנה כבר שולמה רשמו: 0";
     }
 
@@ -156,7 +155,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String price = message.getText().trim();
         String tempData = convo.getTempData() + "|" + price;
         convoService.saveTempData(convo, tempData);
-        convoService.updateState(convo, ConversationState.DELIVERY_NOTES);
+        // State stays at DELIVERY_NOTES for next question (notes)
 
         return "📝 יש הערות נוספות לשליח?\n(קוד כניסה, הערה להזמנה וכו׳)\nאם אין הערות רשמו: לא";
     }
@@ -175,21 +174,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
 
         // We need exactly 6 parts: name, phone, address, readyTime, price, notes
         if (parts.length >= 6) {
-            String customerName = parts[0];
-            String customerPhone = parts[1];
-            String address = parts[2];
-            int readyInMinutes = Integer.parseInt(parts[3]);
-            double price = Double.parseDouble(parts[4]);
-            String notesStr = parts.length > 5 ? parts[5] : "";
-
-            // Show confirmation with actual values
-            String confirmationMessage = "✅ אנא אשרו את פרטי המשלוח:\n" +
-                    "📞 שם לקוח: " + customerName + "\n" +
-                    "📞 טלפון לקוח: " + customerPhone + "\n" +
-                    "📍 כתובת מסירה: " + address + "\n" +
-                    "⏱️ זמן הכנה: " + (readyInMinutes == 0 ? "עכשיו" : readyInMinutes + " דקות") + "\n" +
-                    "💰 סכום לתשלום: " + price + "₪\n" +
-                    "📝 הערות: " + (notesStr.isEmpty() ? "אין" : notesStr);
+            String confirmationMessage = getConfirmationMessage(parts);
 
             // Save complete tempData for confirmation
             convoService.saveTempData(convo, tempData);
@@ -206,6 +191,24 @@ public class DeliveryConversationHandler implements ConversationHandler {
         }
 
         return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
+    }
+
+    private static String getConfirmationMessage(String[] parts) {
+        String customerName = parts[0];
+        String customerPhone = parts[1];
+        String address = parts[2];
+        int readyInMinutes = Integer.parseInt(parts[3]);
+        double price = Double.parseDouble(parts[4]);
+        String notesStr = parts.length > 5 ? parts[5] : "";
+
+        // Show confirmation with actual values
+        return "✅ אנא אשרו את פרטי המשלוח:\n" +
+                "📞 שם לקוח: " + customerName + "\n" +
+                "📞 טלפון לקוח: " + customerPhone + "\n" +
+                "📍 כתובת מסירה: " + address + "\n" +
+                "⏱️ זמן הכנה: " + (readyInMinutes == 0 ? "עכשיו" : readyInMinutes + " דקות") + "\n" +
+                "💰 סכום לתשלום: " + price + "₪\n" +
+                "📝 הערות: " + (notesStr.isEmpty() ? "אין" : notesStr);
     }
 
     /**
