@@ -58,8 +58,7 @@ public class BusinessConversationHandler implements ConversationHandler {
                 phone,
                 bodyText,
                 new WhatsappService.InteractiveButton("business_taxi_option", "🛵 1️⃣ יצירת משלוח"),
-                new WhatsappService.InteractiveButton("business_delivery_option", "🚗 2️⃣ נסיעה"),
-                new WhatsappService.InteractiveButton("business_end_shift_option", "3️⃣ חזרה לתפריט הראשי")
+                new WhatsappService.InteractiveButton("business_delivery_option", "🚗 2️⃣ מונית")
         );
     }
 }
