@@ -42,7 +42,7 @@ public class BusinessConversationHandler implements ConversationHandler {
                     "מעולה 👍\nעכשיו בחרו את סוג הרכב:",
                     new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "אופנוע 🏍️"),
                     new WhatsappService.InteractiveButton("taxi_car_type_private_car", "מכונית 🚗"),
-                    new WhatsappService.InteractiveButton("taxi_car_type_minivan", "הסעות +6 🚐")
+                    new WhatsappService.InteractiveButton("taxi_car_type_minivan", "רכב גדול +6 🚐")
             );
             return null;
         }
