@@ -115,6 +115,14 @@ public class MessageRouter {
         if (state == ConversationState.START) {
             logger.info("In START state - determining user type");
 
+            // Check if user is a business owner FIRST (before checking driver)
+            if (businessOwnerService.isBusinessOwner(phone)) {
+                logger.info("User is a BUSINESS OWNER - showing business menu");
+                businessHandler.showBusinessMenuButtons(phone);
+                convoService.updateState(convo, ConversationState.BUSINESS_MENU);
+                return null;
+            }
+
             // Check if user is a driver (active or not)
             Driver driver = driverService.findByPhone(phone);
             if (driver != null) {
@@ -166,6 +174,23 @@ public class MessageRouter {
                     }
                     return null;
                 }
+            }
+
+            // After driver ends shift, show customer welcome menu
+            if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
+                // Check if user is a business owner
+                if (businessOwnerService.isBusinessOwner(phone)) {
+                    logger.info("User is a BUSINESS OWNER - showing business menu");
+                    businessHandler.showBusinessMenuButtons(phone);
+                    convoService.updateState(convo, ConversationState.BUSINESS_MENU);
+                    return null;
+                }
+
+                // Show customer welcome
+                logger.info("Showing customer welcome menu to {}", phone);
+                whatsappService.sendText(phone, WELCOME_MESSAGE);
+                convoService.updateState(convo, ConversationState.START_MENU);
+                return null;
             }
 
             // Check if user is a business owner
