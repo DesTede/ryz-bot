@@ -125,7 +125,7 @@ public class DriverService {
      * Dispatch to drivers within 5km radius of order location
      * Sends order as interactive button for easy claiming
      * Only sends to active drivers with valid location data
-     * Excludes drivers who already have an active order (TAKEN or CONFIRMED)
+     * Excludes drivers who already have an active order (ASSIGNED or CONFIRMED)
      */
     public void dispatchToClosestDrivers(DriverType type, String message, double latitude, double longitude,
                                          String orderDetails, long orderId, CarType... carTypes) {
@@ -158,7 +158,7 @@ public class DriverService {
                 .filter(driver -> {
                     List<TaxiOrder> activeOrders = taxiOrderRepo
                             .findByDriverPhoneAndStatusIn(driver.getPhone(),
-                                    List.of(TaxiOrderStatus.CLAIMED, TaxiOrderStatus.CONFIRMED))
+                                    List.of(TaxiOrderStatus.ASSIGNED, TaxiOrderStatus.CONFIRMED))
                             .stream()
                             .limit(1)
                             .toList();
@@ -203,7 +203,7 @@ public class DriverService {
     /**
      * Dispatch to all available drivers (no location filtering)
      * Sends order as interactive button for easy claiming
-     * Excludes drivers who already have an active order (TAKEN or CONFIRMED)
+     * Excludes drivers who already have an active order (ASSIGNED or CONFIRMED)
      */
     public void dispatchToDrivers(DriverType type, String message, String orderDetails, long orderId, CarType... carTypes) {
         List<Driver> availableDrivers = getActiveDrivers(type);
@@ -235,7 +235,7 @@ public class DriverService {
                 .filter(driver -> {
                     List<TaxiOrder> activeOrders = taxiOrderRepo
                             .findByDriverPhoneAndStatusIn(driver.getPhone(),
-                                    List.of(TaxiOrderStatus.CLAIMED, TaxiOrderStatus.CONFIRMED))
+                                    List.of(TaxiOrderStatus.ASSIGNED, TaxiOrderStatus.CONFIRMED))
                             .stream()
                             .limit(1)
                             .toList();
@@ -284,7 +284,7 @@ public class DriverService {
                 .filter(driver -> {
                     List<TaxiOrder> activeOrders = taxiOrderRepo
                             .findByDriverPhoneAndStatusIn(driver.getPhone(),
-                                    List.of(TaxiOrderStatus.CLAIMED, TaxiOrderStatus.CONFIRMED))
+                                    List.of(TaxiOrderStatus.ASSIGNED, TaxiOrderStatus.CONFIRMED))
                             .stream()
                             .limit(1)
                             .toList();
@@ -343,7 +343,7 @@ public class DriverService {
                 .filter(driver -> {
                     List<TaxiOrder> activeOrders = taxiOrderRepo
                             .findByDriverPhoneAndStatusIn(driver.getPhone(),
-                                    List.of(TaxiOrderStatus.CLAIMED, TaxiOrderStatus.CONFIRMED))
+                                    List.of(TaxiOrderStatus.ASSIGNED, TaxiOrderStatus.CONFIRMED))
                             .stream()
                             .limit(1)
                             .toList();

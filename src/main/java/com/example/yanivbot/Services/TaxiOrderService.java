@@ -73,7 +73,7 @@ public class TaxiOrderService {
 
     public String claimTaxiOrder(long orderId, String driverPhone) {
         TaxiOrder activeOrder = taxiOrderRepo
-                .findByDriverPhoneAndStatusIn(driverPhone, List.of(TaxiOrderStatus.CLAIMED, TaxiOrderStatus.CONFIRMED))
+                .findByDriverPhoneAndStatusIn(driverPhone, List.of(TaxiOrderStatus.ASSIGNED, TaxiOrderStatus.CONFIRMED))
                 .orElse(null);
 
         if (activeOrder != null)
@@ -87,7 +87,7 @@ public class TaxiOrderService {
         if (order.getStatus() != TaxiOrderStatus.CREATED)
             return "❌ הזמנה #" + orderId + " כבר תפוסה על ידי מישהו אחר!";
 
-        order.setStatus(TaxiOrderStatus.CLAIMED);
+        order.setStatus(TaxiOrderStatus.ASSIGNED);
         order.setDriverPhone(driverPhone);
         taxiOrderRepo.save(order);
 
@@ -111,7 +111,7 @@ public class TaxiOrderService {
         if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
         if (!order.getDriverPhone().equals(driverPhone))
             return "❌ הזמנה זו לא שויכה אליך.";
-        if (order.getStatus() != TaxiOrderStatus.CLAIMED && order.getStatus() != TaxiOrderStatus.CONFIRMED)
+        if (order.getStatus() != TaxiOrderStatus.ASSIGNED && order.getStatus() != TaxiOrderStatus.CONFIRMED)
             return "❌ הזמנה #" + orderId + " לא פעילה.";
 
         order.setStatus(TaxiOrderStatus.COMPLETED);
@@ -181,7 +181,7 @@ public class TaxiOrderService {
 
     public String getDriverLocation(String customerPhone) {
         TaxiOrder activeOrder = taxiOrderRepo
-                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.CLAIMED)
+                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.ASSIGNED)
                 .stream()
                 .findFirst()
                 .orElse(null);
