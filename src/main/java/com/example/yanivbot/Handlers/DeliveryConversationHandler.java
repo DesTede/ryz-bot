@@ -245,8 +245,8 @@ public class DeliveryConversationHandler implements ConversationHandler {
             whatsappService.sendInteractiveButtons(
                     message.getPhone(),
                     confirmationMessage,
-                    new WhatsappService.InteractiveButton("delivery_confirm_yes", "כן ✅"),
-                    new WhatsappService.InteractiveButton("delivery_confirm_no", "לא ❌")
+                    new WhatsappService.InteractiveButton("delivery_confirm_yes", "אישור משלוח ✅"),
+                    new WhatsappService.InteractiveButton("delivery_confirm_no", "ביטול משלוח ❌")
             );
 
             return null;

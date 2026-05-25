@@ -49,7 +49,7 @@ public class DeliveryOrderService {
         whatsappService.sendSafeText(businessPhone,
                 "✅ ההזמנה נוצרה בהצלחה!\n\n📋 סיכום הזמנה מספר " + order.getId() + ":\n📞 שם לקוח: " + customerName + "\n📞 טלפון לקוח: " + customerPhone +
                         "\n📍 כתובת מסירה: " + address + "\n⏱️ זמן הכנה: " + readyInMinutes + " דקות\n💰 סכום לתשלום: ₪" + price +
-                        "\n📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n\n🚚 משודרת לשליחים קרובים...");
+                        "\n📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n\n🚚 הודעה נשלחה לשליחים קרובים...");
 
         broadcastToDrivers(order);
     }
@@ -57,29 +57,27 @@ public class DeliveryOrderService {
     public void broadcastToDrivers(DeliveryOrder order) {
         String msg = """
         🚚 הזמנת משלוח חדשה
-        בית עסק: משלוחים
+        בית עסק: Movez
         📍 יעד משלוח: %s
         💰 סכום: ₪%s
         📝 הערות: %s
         🆔 מספר הזמנה: %s
-        ✅ לקבלת המשלוח שלח:
-        משלוח %s
+        ✅ לקבלת המשלוח לחץ על הכפתור למטה
         """.formatted(
                 order.getDeliveryAddress(),
                 order.getDeliveryFee(),
                 order.getNotes().isEmpty() ? "אין" : order.getNotes(),
-                order.getId(),
                 order.getId()
         );
 
         double[] coords = geoCodingService.geocode(order.getDeliveryAddress());
 
         if (coords != null) {
-            driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, coords[0], coords[1],
+            driverService.dispatchDeliveryToClosestDrivers(msg, coords[0], coords[1],
                     "📍 כתובת: " + order.getDeliveryAddress() + "\n📞 לקוח: " + order.getCustomerPhone(),
                     order.getId());
         } else {
-            driverService.dispatchToDrivers(DriverType.DELIVERY, msg,
+            driverService.dispatchDeliveryToDrivers(msg,
                     "📍 כתובת: " + order.getDeliveryAddress() + "\n📞 לקוח: " + order.getCustomerPhone(),
                     order.getId());
         }

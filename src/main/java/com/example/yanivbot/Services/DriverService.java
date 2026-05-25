@@ -93,7 +93,7 @@ public class DriverService {
         // Phone from WhatsApp already has 972, keep it as is
         return driverRepo.findDriverByPhone(phone).orElse(null);
     }
-    
+
 //    public Driver findByPhone(String phone) {
 //        // DB stores phone WITHOUT 972 prefix, so remove it if present
 //        String normalizedPhone = phone;
@@ -266,11 +266,114 @@ public class DriverService {
     }
 
     /**
-     * Alert admins if no drivers are available for an order
-     *
-     * Uses adminAlertedNoDrivers flag to ensure alert is sent ONLY ONCE
-     * when the order is created, not repeatedly by OrderMonitorService
+     * Dispatch delivery order to closest drivers within radius
+     * Sends as interactive button for easy claiming
      */
+    public void dispatchDeliveryToClosestDrivers(String message, double latitude, double longitude,
+                                                 String orderDetails, long orderId) {
+        List<Driver> availableDrivers = getActiveDrivers(DriverType.DELIVERY);
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No available delivery drivers for order #{}", orderId);
+            alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
+            return;
+        }
+
+        // Filter out drivers who already have an active order
+        availableDrivers = availableDrivers.stream()
+                .filter(driver -> {
+                    List<TaxiOrder> activeOrders = taxiOrderRepo
+                            .findByDriverPhoneAndStatusIn(driver.getPhone(),
+                                    List.of(TaxiOrderStatus.TAKEN, TaxiOrderStatus.CONFIRMED))
+                            .stream()
+                            .limit(1)
+                            .toList();
+                    boolean isBusy = !activeOrders.isEmpty();
+                    if (isBusy) {
+                        logger.debug("Driver {} skipped - already has active order", driver.getPhone());
+                    }
+                    return !isBusy;
+                })
+                .toList();
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No available delivery drivers without active orders for order #{}", orderId);
+            alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
+            return;
+        }
+
+        // Filter by distance - only include drivers within radius
+        List<Driver> nearbyDrivers = availableDrivers.stream()
+                .filter(driver -> driver.getLatitude() != 0 && driver.getLongitude() != 0)
+                .filter(driver -> calculateDistance(latitude, longitude, driver.getLatitude(), driver.getLongitude()) <= dispatchRadiusKm)
+                .toList();
+
+        if (nearbyDrivers.isEmpty()) {
+            logger.warn("No delivery drivers within {}km radius for order #{}", dispatchRadiusKm, orderId);
+            alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
+            return;
+        }
+
+        logger.info("Dispatching delivery to {} drivers within {}km radius for order #{}", nearbyDrivers.size(), dispatchRadiusKm, orderId);
+
+        // Send to all drivers within radius as INTERACTIVE BUTTON
+        for (Driver driver : nearbyDrivers) {
+            whatsappService.sendInteractiveButtonsSafe(
+                    driver.getPhone(),
+                    message,
+                    new WhatsappService.InteractiveButton("delivery_claim_" + orderId, "✅ קבל משלוח #" + orderId)
+            );
+        }
+    }
+
+    /**
+     * Dispatch delivery order to all available drivers (no location filtering)
+     */
+    public void dispatchDeliveryToDrivers(String message, String orderDetails, long orderId) {
+        List<Driver> availableDrivers = getActiveDrivers(DriverType.DELIVERY);
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No available delivery drivers for order #{}", orderId);
+            alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
+            return;
+        }
+
+        // Filter out drivers who already have an active order
+        availableDrivers = availableDrivers.stream()
+                .filter(driver -> {
+                    List<TaxiOrder> activeOrders = taxiOrderRepo
+                            .findByDriverPhoneAndStatusIn(driver.getPhone(),
+                                    List.of(TaxiOrderStatus.TAKEN, TaxiOrderStatus.CONFIRMED))
+                            .stream()
+                            .limit(1)
+                            .toList();
+                    boolean isBusy = !activeOrders.isEmpty();
+                    if (isBusy) {
+                        logger.debug("Driver {} skipped - already has active order", driver.getPhone());
+                    }
+                    return !isBusy;
+                })
+                .toList();
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No available delivery drivers without active orders for order #{}", orderId);
+            alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
+            return;
+        }
+
+        logger.info("Dispatching delivery to {} available drivers for order #{}", availableDrivers.size(), orderId);
+
+        // Send to all drivers as INTERACTIVE BUTTON
+        for (Driver driver : availableDrivers) {
+            whatsappService.sendInteractiveButtonsSafe(
+                    driver.getPhone(),
+                    message,
+                    new WhatsappService.InteractiveButton("delivery_claim_" + orderId, "✅ קבל משלוח #" + orderId)
+            );
+        }
+    }
+
+
     public void alertAdminIfNoDriversAvailable(long orderId, DriverType type, String orderDetails) {
         // Get the order
         Optional<TaxiOrder> orderOpt = taxiOrderRepo.findById(orderId);
