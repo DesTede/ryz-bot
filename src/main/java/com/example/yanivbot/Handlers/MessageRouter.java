@@ -187,32 +187,12 @@ public class MessageRouter {
                 }
             }
 
-            // After driver ends shift, show customer welcome menu
-            if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
-                // Check if user is a business owner
-                if (businessOwnerService.isBusinessOwner(phone)) {
-                    logger.info("User is a BUSINESS OWNER - showing business menu");
-                    businessHandler.showBusinessMenuButtons(phone);
-                    convoService.updateState(convo, ConversationState.BUSINESS_MENU);
-                    return null;
-                }
-
-                // Show customer welcome
-                logger.info("Showing customer welcome menu to {}", phone);
-                whatsappService.sendText(phone, WELCOME_MESSAGE);
-                convoService.saveTempData(convo, "WELCOME_SENT");  // Mark that welcome was sent
-                // Don't change state yet - keep in START to capture name on next message
-                return null;
-            }
-
-            // Check if user is a business owner
+            // Check if user is a business owner AFTER checking driver
+            // (Don't capture customer name if they're actually a business owner)
             if (businessOwnerService.isBusinessOwner(phone)) {
-                logger.info("User is a BUSINESS OWNER");
+                logger.info("User is a BUSINESS OWNER - showing business menu");
+                businessHandler.showBusinessMenuButtons(phone);
                 convoService.updateState(convo, ConversationState.BUSINESS_MENU);
-                String businessResponse = businessHandler.handleMessage(convo, message);
-                if (businessResponse != null) {
-                    return businessResponse;
-                }
                 return null;
             }
 
