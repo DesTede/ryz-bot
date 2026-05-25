@@ -80,10 +80,18 @@ public class DriverConversationHandler implements ConversationHandler {
     private String handleTaxiOrderClaim(IncomingMessage message) {
         String txt = message.getText().trim();
         try {
+            logger.info("Driver {} attempting to claim taxi order from message: {}", message.getPhone(), txt);
             long orderId = Long.parseLong(txt.replace("taxi_claim_", ""));
-            return taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
+            logger.info("Extracted order ID: {}", orderId);
+            String result = taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
+            logger.info("Claim result: {}", result);
+            return result;
+        } catch (NumberFormatException e) {
+            logger.error("Error parsing order ID from message: {}", txt, e);
+            return "❌ שגיאה בפורמט הזמנה. אנא נסה שוב.";
         } catch (Exception e) {
-            logger.error("Error claiming taxi order: {}", e.getMessage(), e);
+            logger.error("Error claiming taxi order for driver {} from message {}: {}",
+                    message.getPhone(), txt, e.getMessage(), e);
             return "❌ שגיאה בקבלת הנסיעה. אנא נסה שוב.";
         }
     }

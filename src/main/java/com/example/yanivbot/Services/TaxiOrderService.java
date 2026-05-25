@@ -2,16 +2,22 @@ package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.TaxiOrder;
+import com.example.yanivbot.Handlers.MessageRouter;
 import com.example.yanivbot.Models.CarType;
+import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 public class TaxiOrderService {
+
+    private static final Logger logger = LoggerFactory.getLogger(MessageRouter.class);
 
     private final ConversationService convoService;
     private final TaxiOrderRepository taxiOrderRepo;
@@ -91,8 +97,18 @@ public class TaxiOrderService {
         order.setDriverPhone(driverPhone);
         taxiOrderRepo.save(order);
 
-        notifyTaxiCustomer(order);
-        notifyOtherDrivers(orderId, driverPhone);
+        // Attempt to notify customer and other drivers, but don't let exceptions break the claim
+        try {
+            notifyTaxiCustomer(order);
+        } catch (Exception e) {
+            logger.warn("Error notifying taxi customer for order #{}: {}", orderId, e.getMessage(), e);
+        }
+
+        try {
+            notifyOtherDrivers(orderId, driverPhone);
+        } catch (Exception e) {
+            logger.warn("Error notifying other drivers for order #{}: {}", orderId, e.getMessage(), e);
+        }
 
         // Send confirmation with interactive button for completion
         String confirmationMsg = "🔥 קיבלת את הנסיעה!\n🆔 " + orderId + "\n📞 טלפון נוסע: " + order.getPhone() + "\n🚗 סע בזהירות 🙌";
@@ -124,43 +140,54 @@ public class TaxiOrderService {
     }
 
     private void notifyTaxiCustomer(TaxiOrder order) {
-        Driver driver = driverService.findByPhone(order.getDriverPhone());
-        String driverName = driver != null ? driver.getName() : order.getDriverPhone();
-        String driverPhone = order.getDriverPhone();
+        try {
+            logger.info("Notifying taxi customer for order #{} (phone: {})", order.getId(), order.getPhone());
 
-        double[] driverLocation = driverService.getDriverLocation(driverPhone);
-        String locationLink = "";
-        if (driverLocation != null && driverLocation.length == 2) {
-            locationLink = whatsappService.generateGoogleMapsLink(driverLocation[0], driverLocation[1]);
+            Driver driver = driverService.findByPhone(order.getDriverPhone());
+            String driverName = driver != null ? driver.getName() : order.getDriverPhone();
+            String driverPhone = order.getDriverPhone();
+
+            double[] driverLocation = driverService.getDriverLocation(driverPhone);
+            String locationLink = "";
+            if (driverLocation != null && driverLocation.length == 2) {
+                locationLink = whatsappService.generateGoogleMapsLink(driverLocation[0], driverLocation[1]);
+            }
+
+            String vehicleInfo = "";
+            if (driver != null && driver.getCarType() != null && driver.getCarModel() != null && driver.getCarColor() != null) {
+                String carTypeName = driver.getCarType() != null && driver.getCarType().getHebrewName() != null
+                        ? driver.getCarType().getHebrewName()
+                        : "כלי רכב";
+                vehicleInfo = String.format("\n🚘 פרטי הרכב:\n%s • %s • %s",
+                        driver.getCarModel(),
+                        carTypeName,
+                        driver.getCarColor());
+            }
+
+            String msg = """
+            ✅ הנהג בדרכו אליך 
+            👤 שם הנהג: %s
+            📞 טלפון: %s%s
+            📍 איסוף: %s
+            🎯 יעד: %s
+            """.formatted(
+                    driverName,
+                    driverPhone,
+                    vehicleInfo,
+                    order.getPickUpLocation(),
+                    order.getDestination()
+            );
+
+            if (!locationLink.isEmpty()) {
+                msg += "🗺️ צפייה במיקום הנהג:\n" + locationLink;
+            }
+
+            whatsappService.sendSafeText(order.getPhone(), msg);
+            logger.info("Customer notification sent for order #{}", order.getId());
+        } catch (Exception e) {
+            logger.error("Error notifying taxi customer for order #{}: {}", order.getId(), e.getMessage(), e);
+            throw e; // Re-throw so calling method can handle it
         }
-
-        String vehicleInfo = "";
-        if (driver != null && driver.getCarType() != null && driver.getCarModel() != null && driver.getCarColor() != null) {
-            vehicleInfo = String.format("\n🚘 פרטי הרכב:\n%s • %s • %s",
-                    driver.getCarModel(),
-                    driver.getCarType().getHebrewName(),
-                    driver.getCarColor());
-        }
-
-        String msg = """
-        ✅ הנהג בדרכו אליך 
-        👤 שם הנהג: %s
-        📞 טלפון: %s%s
-        📍 איסוף: %s
-        🎯 יעד: %s
-        """.formatted(
-                driverName,
-                driverPhone,
-                vehicleInfo,
-                order.getPickUpLocation(),
-                order.getDestination()
-        );
-
-        if (!locationLink.isEmpty()) {
-            msg += "🗺️ צפייה במיקום הנהג:\n" + locationLink;
-        }
-
-        whatsappService.sendSafeText(order.getPhone(), msg);
     }
 
     private void notifyOtherDrivers(long orderId, String claimingDriverPhone) {
