@@ -1,5 +1,7 @@
 package com.example.yanivbot.Handlers;
 
+import com.example.yanivbot.Entities.Conversation;
+import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.BotConfigService;
 import com.example.yanivbot.Services.WhatsappService;
 import org.slf4j.Logger;
@@ -43,7 +45,7 @@ public class AdminCommandHandler {
      * Handle admin commands (כבה בוט, הפעל בוט)
      * Returns response message, or null if not an admin command
      */
-    public String handleAdminCommand(String phone, String message) {
+    public String handleAdminCommand(String phone, String message, WhatsappService whatsappService) {
         if (!isAdmin(phone)) {
             return null; // Not an admin
         }
@@ -51,11 +53,11 @@ public class AdminCommandHandler {
         String txt = message.trim();
 
         if (txt.equals("כבה בוט")) {
-            return handleBotOff(phone);
+            return handleBotOff(phone, whatsappService);
         }
 
         if (txt.equals("הפעל בוט")) {
-            return handleBotOn(phone);
+            return handleBotOn(phone, whatsappService);
         }
 
         return null; // Not an admin command
@@ -64,11 +66,17 @@ public class AdminCommandHandler {
     /**
      * Handle "כבה בוט" - turn bot off
      */
-    private String handleBotOff(String phone) {
+    private String handleBotOff(String phone, WhatsappService whatsappService) {
         if (!botConfigService.isBotActive()) {
             // Bot already off
             logger.info("Admin {} tried to turn off bot, but it's already off", phone);
-            return "הבוט כבר כבוי כעת 🔴";
+            // Send button to turn back on
+            whatsappService.sendInteractiveButtonsSafe(
+                    phone,
+                    "שכחת שהבוט לא פעיל חבר? להפעלה לחץ 👇",
+                    new WhatsappService.InteractiveButton("hepel_bot", "הפעל בוט")
+            );
+            return null;
         }
 
         // Turn off bot
@@ -76,8 +84,8 @@ public class AdminCommandHandler {
         logger.warn("Admin {} turned OFF the bot", phone);
 
         // Notify all admins
-        String adminMessage = "🔴 הבוט כבוי ולא זמין ללקוחות ומשתמשים\n⚠️ מנהל הפסיק את השירות";
-        notifyAllAdmins(adminMessage);
+        String adminMessage = "🔴 הבוט כבוי ולא זמין ללקוחות ומשתמשים\n⚠️ בעל מינהל הפסיק את השירות";
+        notifyAllAdmins(adminMessage, whatsappService);
 
         return null; // Message already sent
     }
@@ -85,7 +93,7 @@ public class AdminCommandHandler {
     /**
      * Handle "הפעל בוט" - turn bot on
      */
-    private String handleBotOn(String phone) {
+    private String handleBotOn(String phone, WhatsappService whatsappService) {
         if (botConfigService.isBotActive()) {
             // Bot already on
             logger.info("Admin {} tried to turn on bot, but it's already on", phone);
@@ -97,8 +105,8 @@ public class AdminCommandHandler {
         logger.warn("Admin {} turned ON the bot", phone);
 
         // Notify all admins
-        String adminMessage = "🟢 בוט פעיל וזמין ללקוחות ומשתמשים";
-        notifyAllAdmins(adminMessage);
+        String adminMessage = "🟢 בוט פעיל וזמין ללקוחות ומשתמשים\n✅ השירות חזר לעבודה";
+        notifyAllAdmins(adminMessage, whatsappService);
 
         return null; // Message already sent
     }
@@ -106,18 +114,18 @@ public class AdminCommandHandler {
     /**
      * Notify all admins with a message
      */
-    private void notifyAllAdmins(String message) {
+    private void notifyAllAdmins(String message, WhatsappService whatsappService) {
         if (adminPhones == null || adminPhones.isEmpty()) {
             logger.warn("No admin phones configured");
             return;
         }
 
         String[] phones = adminPhones.split(",");
-        for (String phone : phones) {
-            phone = phone.trim();
-            if (!phone.isEmpty()) {
-                logger.info("Notifying admin: {}", phone);
-                whatsappService.sendSafeText(phone, message);
+        for (String p : phones) {
+            p = p.trim();
+            if (!p.isEmpty()) {
+                logger.info("Notifying admin: {}", p);
+                whatsappService.sendSafeText(p, message);
             }
         }
     }
@@ -126,6 +134,6 @@ public class AdminCommandHandler {
      * Get bot status message for users when bot is off
      */
     public String getBotInactiveMessage() {
-        return "🔴 הבוט אינו פעיל כרגע\nאנא נסה שוב מאוחר יותר\n\nתודה על הסבלנות 💙";
+        return "🔴 הבוט אינו פעיל כרגע\nאנא נסה שוב מאוחר יותר\n\nתודה על הסבלנות שלך 💙";
     }
 }
