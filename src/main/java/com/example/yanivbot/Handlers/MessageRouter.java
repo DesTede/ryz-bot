@@ -85,13 +85,13 @@ public class MessageRouter {
         logger.info("State: {}", state);
         logger.info("================================");
 
-        // ===== ADMIN COMMANDS (works even when bot is off) =====
-        String adminResponse = adminCommandHandler.handleAdminCommand(phone, txt);
+        // ===== CHECK ADMIN COMMANDS FIRST (works even when bot is off) =====
+        String adminResponse = adminCommandHandler.handleAdminCommand(phone, txt, whatsappService);
         if (adminResponse != null) {
-            return adminResponse; // "כבה בוט" or "הפעל בוט" response
+            return adminResponse;
         }
 
-        // ===== CHECK BOT STATUS =====
+        // ===== CHECK BOT STATUS FOR NON-ADMINS =====
         // If bot is inactive AND user is not an admin, reject the message
         if (!botConfigService.isBotActive() && !adminCommandHandler.isAdmin(phone)) {
             logger.warn("Bot is inactive - rejecting message from {}", phone);
