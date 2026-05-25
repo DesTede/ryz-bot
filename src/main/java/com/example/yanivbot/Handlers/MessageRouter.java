@@ -17,11 +17,11 @@ import org.springframework.stereotype.Component;
 /**
  * [COMPLETE FILE]
  * Routes incoming messages to the appropriate conversation handler based on state.
- *
+ * <p>
  * ADDITIONS:
  * - Admin command handling (כבה בוט, הפעל בוט)
  * - Bot status checking (rejects non-admin messages when bot is off)
- *
+ * <p>
  * CRITICAL FIXES:
  * 1. When handler returns null, DON'T fall through to error message
  * 2. Only capture name ONCE - use START_MENU state for menu display
@@ -45,7 +45,7 @@ public class MessageRouter {
     private final BotConfigService botConfigService;
 
     private static final String WELCOME_MESSAGE = "ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡\nאז איך קוראים לך?";
-    private static final String DRIVER_WELCOME_MESSAGE = "ברוך הבא למערכת הנהגים של Movez\nכדי להתחיל לקבל נסיעות לחץ על\n🟢 התחל משמרת\nכדי לצאת מהמערכת לחץ על\n🔴 סיים משמרת\nלבחירת פעולה 👇";
+    private static final String DRIVER_WELCOME_MESSAGE = "כדי להתחיל לקבל נסיעות לחץ על\n🟢 התחל משמרת\n\nכדי לצאת מהמערכת לחץ על\n🔴 סיים משמרת\n\nלבחירת פעולה 👇";
 
     public MessageRouter(TaxiConversationHandler taxiHandler,
                          DeliveryConversationHandler deliveryHandler,
@@ -293,7 +293,8 @@ public class MessageRouter {
         }
 
         // ===== DELIVERY STATES =====
-        if (state == ConversationState.DELIVERY_CUSTOMER_PHONE ||
+        if (state == ConversationState.DELIVERY_CUSTOMER_NAME ||
+                state == ConversationState.DELIVERY_CUSTOMER_PHONE ||
                 state == ConversationState.DELIVERY_ADDRESS ||
                 state == ConversationState.DELIVERY_READY_TIME ||
                 state == ConversationState.DELIVERY_PRICE ||
