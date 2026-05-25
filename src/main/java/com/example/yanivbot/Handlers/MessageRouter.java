@@ -14,8 +14,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Route incoming messages to appropriate handlers
- * Handles: TaxiConversationHandler, DeliveryConversationHandler, DriverConversationHandler, BusinessConversationHandler
+ * [COMPLETE FILE]
+ * Routes incoming messages to the appropriate conversation handler based on state.
+ *
+ * ADDITIONS:
+ * - Admin command handling (כבה בוט, הפעל בוט)
+ * - Bot status checking (rejects non-admin messages when bot is off)
+ *
+ * CRITICAL FIXES:
+ * 1. When handler returns null, DON'T fall through to error message
+ * 2. Only capture name ONCE - use START_MENU state for menu display
+ * 3. Send welcome message on START state and return early (don't process message)
  */
 @Component
 public class MessageRouter {
@@ -24,44 +33,53 @@ public class MessageRouter {
 
     private final TaxiConversationHandler taxiHandler;
     private final DeliveryConversationHandler deliveryHandler;
-    private final DriverConversationHandler driverHandler;
     private final BusinessConversationHandler businessHandler;
+    private final DriverConversationHandler driverHandler;
     private final AdminCommandHandler adminCommandHandler;
     private final ConversationService convoService;
+    private final BusinessOwnerService businessOwnerService;
+    private final DriverService driverService;
     private final WhatsappService whatsappService;
     private final BotConfigService botConfigService;
-    private final DriverService driverService;
-    private final BusinessOwnerService businessOwnerService;
 
     private static final String WELCOME_MESSAGE = "ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡\nאז איך קוראים לך?";
+    private static final String DRIVER_WELCOME_MESSAGE = "כדי להתחיל לקבל נסיעות לחץ על\n🟢 התחל משמרת\n\nכדי לצאת מהמערכת לחץ על\n🔴 סיים משמרת\n\nלבחירת פעולה 👇";
 
-    public MessageRouter(TaxiConversationHandler taxiHandler, DeliveryConversationHandler deliveryHandler,
-                         DriverConversationHandler driverHandler, BusinessConversationHandler businessHandler,
-                         AdminCommandHandler adminCommandHandler, ConversationService convoService,
-                         WhatsappService whatsappService, BotConfigService botConfigService,
-                         DriverService driverService, BusinessOwnerService businessOwnerService) {
+    public MessageRouter(TaxiConversationHandler taxiHandler,
+                         DeliveryConversationHandler deliveryHandler,
+                         BusinessConversationHandler businessHandler,
+                         DriverConversationHandler driverHandler,
+                         AdminCommandHandler adminCommandHandler,
+                         ConversationService convoService,
+                         BusinessOwnerService businessOwnerService,
+                         DriverService driverService,
+                         WhatsappService whatsappService,
+                         BotConfigService botConfigService) {
         this.taxiHandler = taxiHandler;
         this.deliveryHandler = deliveryHandler;
-        this.driverHandler = driverHandler;
         this.businessHandler = businessHandler;
+        this.driverHandler = driverHandler;
         this.adminCommandHandler = adminCommandHandler;
         this.convoService = convoService;
+        this.businessOwnerService = businessOwnerService;
+        this.driverService = driverService;
         this.whatsappService = whatsappService;
         this.botConfigService = botConfigService;
-        this.driverService = driverService;
-        this.businessOwnerService = businessOwnerService;
     }
 
+    /**
+     * Route incoming message to appropriate handler based on conversation state and user type
+     */
     public String route(Conversation convo, IncomingMessage message) {
-        String phone = message.getPhone();
         String txt = message.getText().trim();
+        String phone = message.getPhone();
         ConversationState state = convo.getState();
 
-        System.out.println("========== ROUTE START ==========");
-        System.out.println("Phone: " + phone);
-        System.out.println("Message: '" + txt + "'");
-        System.out.println("State: " + state);
-        System.out.println("================================");
+        logger.info("========== ROUTE START ==========");
+        logger.info("Phone: {}", phone);
+        logger.info("Message: '{}'", txt);
+        logger.info("State: {}", state);
+        logger.info("================================");
 
         // ===== ADMIN COMMANDS (works even when bot is off) =====
         String adminResponse = adminCommandHandler.handleAdminCommand(phone, txt);
@@ -76,14 +94,15 @@ public class MessageRouter {
             return adminCommandHandler.getBotInactiveMessage();
         }
 
-        // ===== RESET COMMAND (00) =====
+        // Reset conversation if user sends "00"
         if (txt.equals("00")) {
+            logger.info("Reset signal received");
             convoService.updateState(convo, ConversationState.START);
             convoService.saveTempData(convo, "");
-            return "✅ מחקנו את כל המידע שלך. בואו נתחיל מחדש 👇";
+            return "🔄 איפוס משתמש. בואו נתחיל מחדש! 🚀";
         }
 
-        
+        // ===== START STATE =====
         if (state == ConversationState.START) {
             logger.info("In START state - determining user type");
 
@@ -215,20 +234,18 @@ public class MessageRouter {
     }
 
     private void sendDriverWelcomeMenu(String phone) {
-        String bodyText = "כדי להתחיל לקבל נסיעות לחץ על\n🟢 התחל משמרת\n\nכדי לצאת מהמערכת לחץ על\n🔴 סיים משמרת\n\nלבחירת פעולה 👇";
         whatsappService.sendInteractiveButtonsSafe(
                 phone,
-                bodyText,
+                DRIVER_WELCOME_MESSAGE,
                 new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת"),
                 new WhatsappService.InteractiveButton("driver_end_shift", "🔴 סיים משמרת")
         );
     }
 
     private void showServiceMenu(String phone, String name) {
-        String bodyText = "בחר שירות, " + name + " 👇";
         whatsappService.sendInteractiveButtonsSafe(
                 phone,
-                bodyText,
+                "בחר שירות, " + name + " 👇",
                 new WhatsappService.InteractiveButton("start_service_taxi", "🚖 הזמן מונית"),
                 new WhatsappService.InteractiveButton("start_service_delivery", "📦 שלח משלוח")
         );
