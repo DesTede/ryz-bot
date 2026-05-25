@@ -3,7 +3,6 @@ package com.example.yanivbot.Services;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.CarType;
-import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
@@ -74,7 +73,7 @@ public class TaxiOrderService {
 
     public String claimTaxiOrder(long orderId, String driverPhone) {
         TaxiOrder activeOrder = taxiOrderRepo
-                .findByDriverPhoneAndStatusIn(driverPhone, List.of(TaxiOrderStatus.TAKEN, TaxiOrderStatus.CONFIRMED))
+                .findByDriverPhoneAndStatusIn(driverPhone, List.of(TaxiOrderStatus.CLAIMED, TaxiOrderStatus.CONFIRMED))
                 .orElse(null);
 
         if (activeOrder != null)
@@ -88,7 +87,7 @@ public class TaxiOrderService {
         if (order.getStatus() != TaxiOrderStatus.CREATED)
             return "❌ הזמנה #" + orderId + " כבר תפוסה על ידי מישהו אחר!";
 
-        order.setStatus(TaxiOrderStatus.TAKEN);
+        order.setStatus(TaxiOrderStatus.CLAIMED);
         order.setDriverPhone(driverPhone);
         taxiOrderRepo.save(order);
 
@@ -112,7 +111,7 @@ public class TaxiOrderService {
         if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
         if (!order.getDriverPhone().equals(driverPhone))
             return "❌ הזמנה זו לא שויכה אליך.";
-        if (order.getStatus() != TaxiOrderStatus.TAKEN && order.getStatus() != TaxiOrderStatus.CONFIRMED)
+        if (order.getStatus() != TaxiOrderStatus.CLAIMED && order.getStatus() != TaxiOrderStatus.CONFIRMED)
             return "❌ הזמנה #" + orderId + " לא פעילה.";
 
         order.setStatus(TaxiOrderStatus.COMPLETED);
@@ -182,7 +181,7 @@ public class TaxiOrderService {
 
     public String getDriverLocation(String customerPhone) {
         TaxiOrder activeOrder = taxiOrderRepo
-                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.TAKEN)
+                .findByPhoneAndStatus(customerPhone, TaxiOrderStatus.CLAIMED)
                 .stream()
                 .findFirst()
                 .orElse(null);

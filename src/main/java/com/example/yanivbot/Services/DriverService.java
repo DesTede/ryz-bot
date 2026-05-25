@@ -158,7 +158,7 @@ public class DriverService {
                 .filter(driver -> {
                     List<TaxiOrder> activeOrders = taxiOrderRepo
                             .findByDriverPhoneAndStatusIn(driver.getPhone(),
-                                    List.of(TaxiOrderStatus.TAKEN, TaxiOrderStatus.CONFIRMED))
+                                    List.of(TaxiOrderStatus.CLAIMED, TaxiOrderStatus.CONFIRMED))
                             .stream()
                             .limit(1)
                             .toList();
@@ -235,7 +235,7 @@ public class DriverService {
                 .filter(driver -> {
                     List<TaxiOrder> activeOrders = taxiOrderRepo
                             .findByDriverPhoneAndStatusIn(driver.getPhone(),
-                                    List.of(TaxiOrderStatus.TAKEN, TaxiOrderStatus.CONFIRMED))
+                                    List.of(TaxiOrderStatus.CLAIMED, TaxiOrderStatus.CONFIRMED))
                             .stream()
                             .limit(1)
                             .toList();
@@ -284,7 +284,7 @@ public class DriverService {
                 .filter(driver -> {
                     List<TaxiOrder> activeOrders = taxiOrderRepo
                             .findByDriverPhoneAndStatusIn(driver.getPhone(),
-                                    List.of(TaxiOrderStatus.TAKEN, TaxiOrderStatus.CONFIRMED))
+                                    List.of(TaxiOrderStatus.CLAIMED, TaxiOrderStatus.CONFIRMED))
                             .stream()
                             .limit(1)
                             .toList();
@@ -343,7 +343,7 @@ public class DriverService {
                 .filter(driver -> {
                     List<TaxiOrder> activeOrders = taxiOrderRepo
                             .findByDriverPhoneAndStatusIn(driver.getPhone(),
-                                    List.of(TaxiOrderStatus.TAKEN, TaxiOrderStatus.CONFIRMED))
+                                    List.of(TaxiOrderStatus.CLAIMED, TaxiOrderStatus.CONFIRMED))
                             .stream()
                             .limit(1)
                             .toList();
