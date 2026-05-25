@@ -84,7 +84,7 @@ public class AdminCommandHandler {
         logger.warn("Admin {} turned OFF the bot", phone);
 
         // Notify all admins
-        String adminMessage = "🔴 הבוט כבוי ולא זמין ללקוחות ומשתמשים\n⚠️ בעל מינהל הפסיק את השירות";
+        String adminMessage = "🔴 הבוט כבוי ולא זמין ללקוחות ומשתמשים\n⚠️ מנהל הפסיק את השירות";
         notifyAllAdmins(adminMessage, whatsappService);
 
         return null; // Message already sent

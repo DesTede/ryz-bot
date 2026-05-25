@@ -91,8 +91,8 @@ public class MessageRouter {
             return adminResponse;
         }
 
-        // ===== CHECK BOT STATUS FOR NON-ADMINS =====
-        // If bot is inactive AND user is not an admin, reject the message
+        // ===== CHECK BOT STATUS FOR NON-ADMINS BEFORE ANYTHING ELSE =====
+        // If bot is inactive AND user is not an admin, reject the message immediately
         if (!botConfigService.isBotActive() && !adminCommandHandler.isAdmin(phone)) {
             logger.warn("Bot is inactive - rejecting message from {}", phone);
             return adminCommandHandler.getBotInactiveMessage();
