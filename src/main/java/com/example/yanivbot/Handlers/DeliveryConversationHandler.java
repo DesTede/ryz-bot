@@ -172,7 +172,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
                 logger.info("[DELIVERY] Ready time: {} minutes", minutes);
             } catch (NumberFormatException e) {
                 logger.warn("[DELIVERY] Invalid ready time input: '{}'", txt);
-                return "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו: עכשיו\nאו הקלידו זמן הכנה";
+                return "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו: מוכן עכשיו\nאו הקלידו זמן הכנה";
             }
         }
 
@@ -305,7 +305,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
                 convoService.saveTempData(convo, "");
 
                 logger.info("[DELIVERY] ✅ Order created successfully");
-                return "✅ ההזמנה נוצרה בהצלחה והתפזרה לנהגים!";
+                return "✅ ההזמנה נוצרה בהצלחה ונשלחה לנהגים פנויים!";
             }
         } else if (txt.equals("delivery_confirm_no")) {
             // Cancel order

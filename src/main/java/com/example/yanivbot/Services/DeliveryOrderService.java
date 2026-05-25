@@ -47,11 +47,11 @@ public class DeliveryOrderService {
         deliveryOrderRepo.save(order);
 
         whatsappService.sendSafeText(businessPhone,
-                "✅ אנא אשרו את פרטי המשלוח:\n📞 שם לקוח: " + customerName + "\n📞 טלפון לקוח: " + customerPhone +
+                "✅ סיכום פרטי המשלוח:\n📞 שם לקוח: " + customerName + "\n📞 טלפון לקוח: " + customerPhone +
                         "\n📍 כתובת מסירה: " + address + "\n⏱️ זמן הכנה: " + readyInMinutes + " דקות\n💰 סכום לתשלום: ₪" + price +
                         "\n📝 הערות: " + (notes.isEmpty() ? "אין" : notes));
 
-        whatsappService.sendSafeText(businessPhone, "🔍 מחפשים שליח קרוב...");
+        whatsappService.sendSafeText(businessPhone, "🔍 מחפשים שליחים קרובים...");
 
         broadcastToDrivers(order);
     }
