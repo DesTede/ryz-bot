@@ -109,10 +109,7 @@ public class AdminCommandHandler {
         String adminMessage = "🟢 בוט פעיל וזמין ללקוחות ומשתמשים\n✅ השירות חזר לעבודה";
         notifyAllAdmins(adminMessage, whatsappService);
 
-        // Send confirmation to admin who pressed button
-        whatsappService.sendSafeText(phone, "🟢 הבוט פעיל וזמין ללקוחות ומשתמשים\n✅ השירות חזר לעבודה");
-
-        return null; // Message already sent
+        return null; // Message already sent via notifyAllAdmins
     }
 
     /**
