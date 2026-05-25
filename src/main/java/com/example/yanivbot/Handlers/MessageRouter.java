@@ -17,11 +17,11 @@ import org.springframework.stereotype.Component;
 /**
  * [COMPLETE FILE]
  * Routes incoming messages to the appropriate conversation handler based on state.
- * <p>
+ *
  * ADDITIONS:
  * - Admin command handling (כבה בוט, הפעל בוט)
  * - Bot status checking (rejects non-admin messages when bot is off)
- * <p>
+ *
  * CRITICAL FIXES:
  * 1. When handler returns null, DON'T fall through to error message
  * 2. Only capture name ONCE - use START_MENU state for menu display
@@ -103,9 +103,9 @@ public class MessageRouter {
             return adminCommandHandler.getBotInactiveMessage();
         }
 
-        // Reset conversation if user sends "00"
-        if (txt.equals("00")) {
-            logger.info("Reset signal received");
+        // Reset conversation if user sends "00" or "התחל מחדש"
+        if (txt.equals("00") || txt.equals("התחל מחדש")) {
+            logger.info("Reset signal received: '{}'", txt);
             convoService.updateState(convo, ConversationState.START);
             convoService.saveTempData(convo, "");
             return "🔄 איפוס משתמש. בואו נתחיל מחדש! 🚀";
@@ -128,7 +128,19 @@ public class MessageRouter {
             if (driver != null) {
                 logger.info("User is a DRIVER (active={}, showing driver menu)", driver.isActive());
 
-                // Check if driver just ended shift - treat as customer for non-shift commands
+                // Check if this is an order-related command - route to DriverHandler regardless of shift state
+                if (txt.startsWith("taxi_claim_") || txt.startsWith("delivery_claim_") ||
+                        txt.startsWith("taxi_complete_") || txt.startsWith("איסוף ") || txt.startsWith("נמסר ") ||
+                        txt.startsWith("בדרך ")) {
+                    logger.info("Driver sending order command, routing to DriverHandler regardless of shift state");
+                    String driverResponse = driverHandler.handleMessage(convo, message);
+                    if (driverResponse != null) {
+                        return driverResponse;
+                    }
+                    return null;
+                }
+
+                // Check if driver just ended shift - treat as customer for non-shift, non-order commands
                 if (convo.getTempData() != null && convo.getTempData().equals("END_SHIFT")) {
                     logger.info("Driver has ended shift, checking if restarting or being customer");
                     // If trying to restart shift, route to handler
@@ -254,7 +266,7 @@ public class MessageRouter {
                         bodyText,
                         new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "אופנוע 🏍️"),
                         new WhatsappService.InteractiveButton("taxi_car_type_private_car", "מכונית 🚗"),
-                        new WhatsappService.InteractiveButton("taxi_car_type_minivan", "רכב גדול +6 🚐")
+                        new WhatsappService.InteractiveButton("taxi_car_type_minivan", "הסעות +6 🚐")
                 );
                 return null; // Buttons already sent
             }
