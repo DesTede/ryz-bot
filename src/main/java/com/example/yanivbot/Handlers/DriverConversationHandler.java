@@ -131,7 +131,7 @@ public class DriverConversationHandler implements ConversationHandler {
     private String handleEndShift(Conversation convo, IncomingMessage message) {
         driverService.clockOut(message.getPhone());
         convoService.updateState(convo, ConversationState.START);
-        convoService.saveTempData(convo, ""); // Clear so next non-shift message triggers customer welcome
+        convoService.saveTempData(convo, "END_SHIFT"); // Flag that driver ended shift
 
         String bodyText = "✅ המשמרת נסגרה בהצלחה\nנשמח לראות אותך שוב בהמשך 🙌";
 
@@ -145,9 +145,9 @@ public class DriverConversationHandler implements ConversationHandler {
     }
 
     private String handleCancelShiftStart(Conversation convo, IncomingMessage message) {
-        // Same as end shift - return to driver menu
+        // Same as end shift - flag as ended
         convoService.updateState(convo, ConversationState.START);
-        convoService.saveTempData(convo, ""); // Clear welcome flag
+        convoService.saveTempData(convo, "END_SHIFT"); // Flag that shift was cancelled
 
         String bodyText = "✅ ביטול התחלת משמרת\nנשמח לראות אותך שוב בהמשך 🙌";
 

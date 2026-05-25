@@ -115,6 +115,23 @@ public class MessageRouter {
             if (driver != null) {
                 logger.info("User is a DRIVER (active={}, showing driver menu)", driver.isActive());
 
+                // Check if driver just ended shift - treat as customer for non-shift commands
+                if (convo.getTempData() != null && convo.getTempData().equals("END_SHIFT")) {
+                    logger.info("Driver has ended shift, checking if restarting or being customer");
+                    // If trying to restart shift, route to handler
+                    if (txt.equals("התחל משמרת") || txt.equals("driver_start_shift")) {
+                        logger.info("Driver restarting shift, routing to DriverHandler");
+                        String driverResponse = driverHandler.handleMessage(convo, message);
+                        if (driverResponse != null) {
+                            return driverResponse;
+                        }
+                        return null;
+                    }
+                    // Otherwise, treat as customer (fall through to customer logic)
+                    logger.info("Driver typing non-shift message, treating as customer");
+                    // Fall through to treat as customer
+                }
+
                 // Check if trying to start shift - ALWAYS route to handler
                 if (txt.equals("התחל משמרת") || txt.equals("driver_start_shift")) {
                     logger.info("Driver attempting to start shift, routing to DriverHandler");
