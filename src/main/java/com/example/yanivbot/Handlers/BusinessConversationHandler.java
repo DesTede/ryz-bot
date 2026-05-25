@@ -34,19 +34,18 @@ public class BusinessConversationHandler implements ConversationHandler {
         String txt = message.getText().trim();
 
         if (txt.equals("business_taxi_option") || txt.equals("1")) {
-            convoService.updateState(convo, ConversationState.TAXI_SERVICE);
-            return null;
+            // Business owner ordering taxi - treat as customer
+            convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
+            return "מעולה 👍\nעכשיו בחרו את סוג הרכב:";
         }
 
         if (txt.equals("business_delivery_option") || txt.equals("2")) {
+            // Business owner creating delivery - start with customer name
             convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_PHONE);
             return "מה שם הלקוח?";
         }
 
-        if (txt.equals("business_end_shift_option")) {
-            return null;
-        }
-
+        // Invalid option - show menu again
         showBusinessMenuButtons(message.getPhone());
         return null;
     }
@@ -57,8 +56,8 @@ public class BusinessConversationHandler implements ConversationHandler {
         whatsappService.sendInteractiveButtons(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("business_taxi_option", "🛵 1️⃣ יצירת משלוח"),
-                new WhatsappService.InteractiveButton("business_delivery_option", "🚗 2️⃣ מונית")
+                new WhatsappService.InteractiveButton("business_delivery_option", "🛵 1️⃣ יצירת משלוח"),
+                new WhatsappService.InteractiveButton("business_taxi_option", "🚗 2️⃣ מונית")
         );
     }
 }
