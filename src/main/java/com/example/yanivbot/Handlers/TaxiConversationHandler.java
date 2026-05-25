@@ -120,7 +120,7 @@ public class TaxiConversationHandler implements ConversationHandler {
         convoService.saveTempData(convo, orderData);
         convoService.updateState(convo, ConversationState.TAXI_NOTES);
 
-        return "💬 רוצים להוסיף משהו לנהג?\nכתבו את ההערה כאן 👇\nאם אין הערות, השיבו אין";
+        return "💬 רוצים להוסיף משהו לנהג?\nכתבו את ההערה כאן 👇\nאם אין הערות, השיבו 'אין'";
     }
 
     private String handleTaxiNotes(Conversation convo, IncomingMessage message) {
