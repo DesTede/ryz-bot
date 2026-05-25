@@ -36,7 +36,15 @@ public class BusinessConversationHandler implements ConversationHandler {
         if (txt.equals("business_taxi_option") || txt.equals("1")) {
             // Business owner ordering taxi - treat as customer
             convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
-            return "מעולה 👍\nעכשיו בחרו את סוג הרכב:";
+            // Send car type selection buttons
+            whatsappService.sendInteractiveButtons(
+                    message.getPhone(),
+                    "מעולה 👍\nעכשיו בחרו את סוג הרכב:",
+                    new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "אופנוע 🏍️"),
+                    new WhatsappService.InteractiveButton("taxi_car_type_private_car", "מכונית 🚗"),
+                    new WhatsappService.InteractiveButton("taxi_car_type_minivan", "הסעות +6 🚐")
+            );
+            return null;
         }
 
         if (txt.equals("business_delivery_option") || txt.equals("2")) {
