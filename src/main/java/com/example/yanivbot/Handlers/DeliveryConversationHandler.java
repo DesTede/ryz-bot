@@ -28,6 +28,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
     @Override
     public String handleMessage(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
+        ConversationState state = convo.getState();
 
         // Handle pickup/delivery commands
         if (txt.matches("^איסוף\\s+\\d+$")) {
@@ -45,62 +46,77 @@ public class DeliveryConversationHandler implements ConversationHandler {
             return handleConfirmationButton(convo, message);
         }
 
-        // Route based on tempData pipe count
-        String tempData = convo.getTempData();
-        int pipeCount = tempData == null || tempData.isEmpty() ? 0 : tempData.split("\\|", -1).length - 1;
-
         // ===== DELIVERY FLOW LOG =====
-        logger.info("[DELIVERY] Phone: {} | Input: '{}' | PipeCount: {} | TempData: '{}'",
-                message.getPhone(), txt, pipeCount, tempData);
+        logger.info("[DELIVERY] Phone: {} | Input: '{}' | State: {} | TempData: '{}'",
+                message.getPhone(), txt, state, convo.getTempData());
 
-        String stage = getDeliveryStage(pipeCount);
-        logger.info("[DELIVERY] Stage: {} (expecting next input)", stage);
+        // Route based on CURRENT STATE (which changes immediately after each answer)
+        String stageInfo = getDeliveryStageFromState(state);
+        logger.info("[DELIVERY] State: {} -> {}", state, stageInfo);
 
-        return switch (pipeCount) {
-            case 0 -> {
+        return switch (state) {
+            case DELIVERY_CUSTOMER_PHONE -> {
                 logger.info("[DELIVERY] -> handleCustomerName");
                 yield handleCustomerName(convo, message);
             }
-            case 1 -> {
+            case DELIVERY_ADDRESS -> {
                 logger.info("[DELIVERY] -> handleCustomerPhone");
                 yield handleCustomerPhone(convo, message);
             }
-            case 2 -> {
+            case DELIVERY_READY_TIME -> {
                 logger.info("[DELIVERY] -> handleAddress");
                 yield handleAddress(convo, message);
             }
-            case 3 -> {
+            case DELIVERY_PRICE -> {
                 logger.info("[DELIVERY] -> handleReadyTime");
                 yield handleReadyTime(convo, message);
             }
-            case 4 -> {
-                logger.info("[DELIVERY] -> handlePrice");
-                yield handlePrice(convo, message);
-            }
-            case 5 -> {
-                logger.info("[DELIVERY] -> handleNotes");
-                yield handleNotes(convo, message);
+            case DELIVERY_NOTES -> {
+                logger.info("[DELIVERY] -> handlePriceOrNotes");
+                yield handlePriceOrNotes(convo, message);
             }
             default -> {
-                logger.warn("[DELIVERY] Unexpected pipeCount: {}", pipeCount);
+                logger.warn("[DELIVERY] Unexpected state: {}", state);
                 yield null;
             }
         };
     }
 
     /**
-     * Helper to show human-readable stage name
+     * Helper to show human-readable stage name from state
      */
-    private String getDeliveryStage(int pipeCount) {
-        return switch (pipeCount) {
-            case 0 -> "1/6 - Asking for CUSTOMER NAME";
-            case 1 -> "2/6 - Asking for CUSTOMER PHONE";
-            case 2 -> "3/6 - Asking for ADDRESS";
-            case 3 -> "4/6 - Asking for READY TIME";
-            case 4 -> "5/6 - Asking for PRICE";
-            case 5 -> "6/6 - Asking for NOTES, then CONFIRMATION";
+    private String getDeliveryStageFromState(ConversationState state) {
+        return switch (state) {
+            case DELIVERY_CUSTOMER_PHONE -> "1/6 - Asking for CUSTOMER NAME";
+            case DELIVERY_ADDRESS -> "2/6 - Asking for CUSTOMER PHONE";
+            case DELIVERY_READY_TIME -> "3/6 - Asking for ADDRESS";
+            case DELIVERY_PRICE -> "4/6 - Asking for READY TIME";
+            case DELIVERY_NOTES -> "5/6 - Asking for PRICE or NOTES";
             default -> "UNKNOWN";
         };
+    }
+
+    /**
+     * Helper: In DELIVERY_NOTES state, check pipe count to see if asking for price or notes
+     */
+    private String handlePriceOrNotes(Conversation convo, IncomingMessage message) {
+        String tempData = convo.getTempData();
+        int pipeCount = tempData == null || tempData.isEmpty() ? 0 : tempData.split("\\|", -1).length - 1;
+
+        logger.info("[DELIVERY] In DELIVERY_NOTES state - pipeCount: {}", pipeCount);
+
+        if (pipeCount == 4) {
+            // 4 pipes = we have name|phone|address|readyTime|price, asking for notes
+            logger.info("[DELIVERY] -> handleNotes");
+            return handleNotes(convo, message);
+        } else if (pipeCount == 3) {
+            // 3 pipes = we have name|phone|address|readyTime, asking for price
+            logger.info("[DELIVERY] -> handlePrice");
+            return handlePrice(convo, message);
+        } else {
+            logger.error("[DELIVERY] Unexpected pipeCount in DELIVERY_NOTES: {}", pipeCount);
+            return null;
+        }
     }
 
     /**

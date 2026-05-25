@@ -59,7 +59,13 @@ public class BusinessConversationHandler implements ConversationHandler {
     }
 
     public void showBusinessMenuButtons(String phone) {
-        String bodyText = "🚀 שלום וברוכים הבאים ל־Movez Business\nניהול משלוחים ונסיעות בקלות ובמהירות ⚡\nמה תרצו לעשות? 👇";
+        String bodyText = """
+                🚀 שלום וברוכים הבאים
+                 ל־Movez Business\
+
+                ניהול משלוחים ונסיעות בקלות ובמהירות ⚡\
+
+                מה תרצו לעשות? 👇""";
 
         whatsappService.sendInteractiveButtons(
                 phone,
