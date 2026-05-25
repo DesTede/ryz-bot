@@ -109,7 +109,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         logger.info("[DELIVERY] Stage 1: Saving customer name: '{}'", customerName);
 
         convoService.saveTempData(convo, customerName);
-        convoService.updateState(convo, ConversationState.DELIVERY_ADDRESS);
+        convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_PHONE);
 
         logger.info("[DELIVERY] ✅ Name saved | Moving to Stage 2 (Phone)");
         return "📞 מה מספר הטלפון של הלקוח?";
@@ -133,7 +133,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         logger.info("[DELIVERY] ✅ Phone validated | TempData: '{}'", tempData);
 
         convoService.saveTempData(convo, tempData);
-        convoService.updateState(convo, ConversationState.DELIVERY_READY_TIME);
+        convoService.updateState(convo, ConversationState.DELIVERY_ADDRESS);
 
         logger.info("[DELIVERY] Moving to Stage 3 (Address)");
         return "📍 מה כתובת המסירה?";
@@ -148,7 +148,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         logger.info("[DELIVERY] Stage 3: Saving address: '{}' | TempData: '{}'", address, tempData);
 
         convoService.saveTempData(convo, tempData);
-        convoService.updateState(convo, ConversationState.DELIVERY_PRICE);
+        convoService.updateState(convo, ConversationState.DELIVERY_READY_TIME);
 
         logger.info("[DELIVERY] ✅ Address saved | Moving to Stage 4 (Ready Time)");
         showReadyTimeButton(message.getPhone());
@@ -180,7 +180,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         logger.info("[DELIVERY] ✅ Ready time saved | TempData: '{}'", tempData);
 
         convoService.saveTempData(convo, tempData);
-        convoService.updateState(convo, ConversationState.DELIVERY_NOTES);
+        convoService.updateState(convo, ConversationState.DELIVERY_PRICE);
 
         logger.info("[DELIVERY] Moving to Stage 5 (Price)");
         return "מה סכום המשלוח לתשלום?\nאם ההזמנה כבר שולמה רשמו: 0";
@@ -195,6 +195,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         logger.info("[DELIVERY] Stage 5: Saving price: '{}' | TempData: '{}'", price, tempData);
 
         convoService.saveTempData(convo, tempData);
+        convoService.updateState(convo, ConversationState.DELIVERY_NOTES);
 
         logger.info("[DELIVERY] ✅ Price saved | Moving to Stage 6 (Notes)");
         return "📝 יש הערות נוספות לשליח?\n(קוד כניסה, הערה להזמנה וכו׳)\nאם אין הערות רשמו: לא";
