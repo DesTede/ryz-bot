@@ -63,7 +63,8 @@ public class BusinessConversationHandler implements ConversationHandler {
                 🚀 שלום וברוכים הבאים
                 ל־Movez Business
                 ניהול משלוחים ונסיעות בקלות ובמהירות ⚡
-                מה תרצו לעשות? 👇""";
+                מה תרצו לעשות? 👇
+                (לחץ 00 לאתחול מחדש)""";
 
         whatsappService.sendInteractiveButtons(
                 phone,

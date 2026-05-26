@@ -44,7 +44,7 @@ public class MessageRouter {
     private final WhatsappService whatsappService;
     private final BotConfigService botConfigService;
 
-    private static final String WELCOME_MESSAGE = "ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡\nאז איך קוראים לך?";
+    private static final String WELCOME_MESSAGE = "ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ(לחץ 00 לאתחול) ⚡\nאז איך קוראים לך?";
     private static final String DRIVER_WELCOME_MESSAGE = "כדי להתחיל לקבל נסיעות לחץ על\n🟢 התחל משמרת\n\nכדי לצאת מהמערכת לחץ על\n🔴 סיים משמרת\n\nלבחירת פעולה 👇";
 
     public MessageRouter(TaxiConversationHandler taxiHandler,
