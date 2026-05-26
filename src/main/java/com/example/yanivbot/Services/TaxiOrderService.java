@@ -193,12 +193,17 @@ public class TaxiOrderService {
 
     private void notifyOtherDrivers(long orderId, String claimingDriverPhone) {
         // Normalize the claiming driver's phone
-        String normalizedClaimingPhone = claimingDriverPhone;
-        if (normalizedClaimingPhone.startsWith("972")) {
-            normalizedClaimingPhone = normalizedClaimingPhone.substring(3);
+//        String normalizedClaimingPhone = claimingDriverPhone;
+//        if (normalizedClaimingPhone.startsWith("972")) {
+//            normalizedClaimingPhone = normalizedClaimingPhone.substring(3);
+//        }
+        Driver claimingDriver = driverService.findByPhone(claimingDriverPhone);
+        if (claimingDriver == null) {
+            logger.warn("Claiming driver {} not found for order #{}", claimingDriverPhone, orderId);
+            return;
         }
-        final String finalClaimingPhone = normalizedClaimingPhone;
-
+        final String finalClaimingPhone = claimingDriverPhone;
+        
         String message = "🚫 נסיעה #" + orderId + " כבר שויכה לנהג אחר\nהישאר זמין — הזמנה חדשה יכולה להגיע בכל רגע 🚀";
         driverService.getActiveDrivers(DriverType.TAXI).forEach(driver -> {
             if (!driver.getPhone().equals(finalClaimingPhone)) {

@@ -165,9 +165,10 @@ public class DriverConversationHandler implements ConversationHandler {
             double longitude = message.getLongitude();
 
             logger.info("Driver {} shared location: {}, {}", message.getPhone(), latitude, longitude);
-
-            driverService.updateDriverLocation(message.getPhone(), latitude, longitude);
+            
             driverService.clockIn(message.getPhone());
+            driverService.updateDriverLocation(message.getPhone(), latitude, longitude);
+            
 
             convoService.updateState(convo, ConversationState.START);
 
