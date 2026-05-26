@@ -85,6 +85,13 @@ public class DriverConversationHandler implements ConversationHandler {
             logger.info("Extracted order ID: {}", orderId);
             String result = taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
             logger.info("Claim result: {}", result);
+
+            // תיקון: אם הסרביס החזיר null, זה אומר שההודעה כבר נשלחה ידנית בתוך הסרביס.
+            // נחזיר מחרוזת ריקה כדי למנוע מהראוטר לשלוח הודעת כפל/שגיאה.
+            if (result == null) {
+                return "";
+            }
+
             return result;
         } catch (NumberFormatException e) {
             logger.error("Error parsing order ID from message: {}", txt, e);
@@ -95,17 +102,52 @@ public class DriverConversationHandler implements ConversationHandler {
             return "❌ שגיאה בקבלת הנסיעה. אנא נסה שוב.";
         }
     }
+//    private String handleTaxiOrderClaim(IncomingMessage message) {
+//        String txt = message.getText().trim();
+//        try {
+//            logger.info("Driver {} attempting to claim taxi order from message: {}", message.getPhone(), txt);
+//            long orderId = Long.parseLong(txt.replace("taxi_claim_", ""));
+//            logger.info("Extracted order ID: {}", orderId);
+//            String result = taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
+//            logger.info("Claim result: {}", result);
+//            return result;
+//        } catch (NumberFormatException e) {
+//            logger.error("Error parsing order ID from message: {}", txt, e);
+//            return "❌ שגיאה בפורמט הזמנה. אנא נסה שוב.";
+//        } catch (Exception e) {
+//            logger.error("Error claiming taxi order for driver {} from message {}: {}",
+//                    message.getPhone(), txt, e.getMessage(), e);
+//            return "❌ שגיאה בקבלת הנסיעה. אנא נסה שוב.";
+//        }
+//    }
 
     private String handleTaxiOrderCompletion(IncomingMessage message) {
         String txt = message.getText().trim();
         try {
             long orderId = Long.parseLong(txt.replace("taxi_complete_", ""));
-            return taxiOrderService.completeOrder(orderId, message.getPhone());
+            String result = taxiOrderService.completeOrder(orderId, message.getPhone());
+
+            // avoid dual messages even if service is null
+            if (result == null) {
+                return "";
+            }
+
+            return result;
         } catch (Exception e) {
             logger.error("Error completing taxi order: {}", e.getMessage(), e);
             return "❌ שגיאה בסיום הנסיעה. אנא נסה שוב.";
         }
     }
+//    private String handleTaxiOrderCompletion(IncomingMessage message) {
+//        String txt = message.getText().trim();
+//        try {
+//            long orderId = Long.parseLong(txt.replace("taxi_complete_", ""));
+//            return taxiOrderService.completeOrder(orderId, message.getPhone());
+//        } catch (Exception e) {
+//            logger.error("Error completing taxi order: {}", e.getMessage(), e);
+//            return "❌ שגיאה בסיום הנסיעה. אנא נסה שוב.";
+//        }
+//    }
 
     private String handleStartShift(Conversation convo, IncomingMessage message) {
         if (!isDriver(message.getPhone())) {
