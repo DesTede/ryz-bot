@@ -90,6 +90,12 @@ public class TaxiOrderService {
         if (order == null)
             return null;
 
+        if (order.getStatus() != TaxiOrderStatus.CREATED) {
+            String alreadyTakenMsg = "🚫 נסיעה #" + orderId + " כבר שויכה לנהג אחר\nהישאר זמין — הזמנה חדשה יכולה להגיע בכל רגע 🚀";
+            whatsappService.sendSafeText(driverPhone, alreadyTakenMsg);
+            return null; // Message sent directly
+        }
+        
         if (order.getStatus() != TaxiOrderStatus.CREATED)
             return "❌ הזמנה #" + orderId + " כבר תפוסה על ידי מישהו אחר!";
 
@@ -103,13 +109,7 @@ public class TaxiOrderService {
         } catch (Exception e) {
             logger.warn("Error notifying taxi customer for order #{}: {}", orderId, e.getMessage(), e);
         }
-
-        try {
-            notifyOtherDrivers(orderId, driverPhone);
-        } catch (Exception e) {
-            logger.warn("Error notifying other drivers for order #{}: {}", orderId, e.getMessage(), e);
-        }
-
+        
         // Send confirmation with interactive button for completion
         String confirmationMsg = "🔥 קיבלת את הנסיעה!\n🆔 " + orderId + "\n📞 טלפון נוסע: " + order.getPhone() + "\n🚗 סע בזהירות 🙌";
         whatsappService.sendInteractiveButtonsSafe(
@@ -191,26 +191,26 @@ public class TaxiOrderService {
         }
     }
 
-    private void notifyOtherDrivers(long orderId, String claimingDriverPhone) {
+//    private void notifyOtherDrivers(long orderId, String claimingDriverPhone) {
         // Normalize the claiming driver's phone
 //        String normalizedClaimingPhone = claimingDriverPhone;
 //        if (normalizedClaimingPhone.startsWith("972")) {
 //            normalizedClaimingPhone = normalizedClaimingPhone.substring(3);
 //        }
-        Driver claimingDriver = driverService.findByPhone(claimingDriverPhone);
-        if (claimingDriver == null) {
-            logger.warn("Claiming driver {} not found for order #{}", claimingDriverPhone, orderId);
-            return;
-        }
-        final String finalClaimingPhone = claimingDriverPhone;
-        
-        String message = "🚫 נסיעה #" + orderId + " כבר שויכה לנהג אחר\nהישאר זמין — הזמנה חדשה יכולה להגיע בכל רגע 🚀";
-        driverService.getActiveDrivers(DriverType.TAXI).forEach(driver -> {
-            if (!driver.getPhone().equals(finalClaimingPhone)) {
-                whatsappService.sendSafeText(driver.getPhone(), message);
-            }
-        });
-    }
+//        Driver claimingDriver = driverService.findByPhone(claimingDriverPhone);
+//        if (claimingDriver == null) {
+//            logger.warn("Claiming driver {} not found for order #{}", claimingDriverPhone, orderId);
+//            return;
+//        }
+//        final String finalClaimingPhone = claimingDriverPhone;
+//        
+//        String message = "🚫 נסיעה #" + orderId + " כבר שויכה לנהג אחר\nהישאר זמין — הזמנה חדשה יכולה להגיע בכל רגע 🚀";
+//        driverService.getActiveDrivers(DriverType.TAXI).forEach(driver -> {
+//            if (!driver.getPhone().equals(finalClaimingPhone)) {
+//                whatsappService.sendSafeText(driver.getPhone(), message);
+//            }
+//        });
+//    }
 
     public String getDriverLocation(String customerPhone) {
         TaxiOrder activeOrder = taxiOrderRepo
