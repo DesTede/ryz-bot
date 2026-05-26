@@ -133,6 +133,7 @@ public class TaxiOrderService {
         order.setStatus(TaxiOrderStatus.COMPLETED);
         taxiOrderRepo.save(order);
 
+        
         whatsappService.sendSafeText(order.getPhone(),
                 "✅ הנסיעה הסתיימה בהצלחה\nתודה שבחרת לנסוע ב־Movez 🙌 🚙");
 

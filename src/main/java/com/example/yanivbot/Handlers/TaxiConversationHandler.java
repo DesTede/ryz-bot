@@ -158,7 +158,7 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         if (txt.equals("order_confirm_no")) {
             convoService.updateState(convo, ConversationState.START);
-            whatsappService.sendSafeText(message.getPhone(), "❗ שימו לב\nביטול ההזמנה ימחק את כל פרטי הנסיעה.\nלהמשך ביטול הקלידו: כן\nכדי לחזור להזמנה הקלידו: לא\n❌ ההזמנה בוטלה בהצלחה.\nנשמח לעמוד לשירותכם שוב ב־Movez💙\nלהתחלת הזמנה חדשה שלחו הודעה 🚀");
+            whatsappService.sendSafeText(message.getPhone(), "\n❌ ההזמנה בוטלה בהצלחה.\nנשמח לעמוד לשירותכם שוב ב־Movez💙\nלהתחלת הזמנה חדשה שלחו הודעה 🚀");
             convoService.saveTempData(convo,"");
             return null;
         }
@@ -180,6 +180,7 @@ public class TaxiConversationHandler implements ConversationHandler {
             taxiOrderService.createTaxiOrder(message.getPhone(), pickupLocation, destination, notes, CarType.valueOf(carType));
             convoService.updateState(convo, ConversationState.START);
             logger.info("Taxi order created successfully");
+            convoService.saveTempData(convo,"");
             return "✅ ההזמנה אושרה! מחפשים נהג קרוב אליך";
         } catch (Exception e) {
             logger.error("Failed to create taxi order for {}: {}", message.getPhone(), e.getMessage(), e);
