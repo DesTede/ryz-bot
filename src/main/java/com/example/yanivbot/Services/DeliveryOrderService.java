@@ -16,7 +16,7 @@ import java.util.List;
 @Service
 public class DeliveryOrderService {
 
-    private static final Logger logger = LoggerFactory.getLogger(DeliveryConversationHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(DeliveryOrderService.class);
 
     private final ConversationService convoService;
     private final DeliveryOrderRepository deliveryOrderRepo;

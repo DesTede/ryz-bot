@@ -1,5 +1,6 @@
 package com.example.yanivbot.Services;
 
+import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Handlers.MessageRouter;
@@ -17,7 +18,7 @@ import java.util.List;
 @Service
 public class TaxiOrderService {
 
-    private static final Logger logger = LoggerFactory.getLogger(MessageRouter.class);
+    private static final Logger logger = LoggerFactory.getLogger(TaxiOrderService.class);
 
     private final ConversationService convoService;
     private final TaxiOrderRepository taxiOrderRepo;
@@ -137,6 +138,15 @@ public class TaxiOrderService {
         whatsappService.sendSafeText(order.getPhone(),
                 "✅ הנסיעה הסתיימה בהצלחה\nתודה שבחרת לנסוע ב־Movez 🙌 🚙");
 
+        try {
+            Conversation convo = convoService.getOrCreate(driverPhone);
+            if (convo != null && (convo.getTempData() == null || convo.getTempData().isEmpty())) {
+                convoService.saveTempData(convo, "DRIVER_ACTIVE");
+            }
+        } catch (Exception e) {
+            logger.warn("Could not update conversation state after order completion: {}", e.getMessage());
+        }
+        
         return "🏁 נסיעה #" + orderId + " הסתיימה\nהמערכת סימנה אותך כפנוי לנסיעה הבאה 👍";
     }
 
