@@ -34,12 +34,26 @@ public class WhatsappService {
     /**
      * Parse incoming message from Meta WhatsApp webhook
      */
+    /**
+     * Parse incoming message from Meta WhatsApp webhook
+     */
     public IncomingMessage parseIncomingMessage(Map<String, Object> payload) {
         try {
             JSONObject json = new JSONObject(payload);
             JSONObject entry = json.getJSONArray("entry").getJSONObject(0);
             JSONObject change = entry.getJSONArray("changes").getJSONObject(0);
             JSONObject value = change.getJSONObject("value");
+
+            // Check if this payload is a status update (sent, delivered, read) instead of a message
+            if (!value.has("messages")) {
+                if (value.has("statuses")) {
+                    logger.debug("Received a WhatsApp status update (sent/delivered/read). Skipping parsing.");
+                } else {
+                    logger.warn("Received unknown webhook event type. Missing 'messages' field.");
+                }
+                return null;
+            }
+
             JSONObject message = value.getJSONArray("messages").getJSONObject(0);
 
             String phone = message.getString("from");
@@ -83,6 +97,57 @@ public class WhatsappService {
             return null;
         }
     }
+    
+    
+//    public IncomingMessage parseIncomingMessage(Map<String, Object> payload) {
+//        try {
+//            JSONObject json = new JSONObject(payload);
+//            JSONObject entry = json.getJSONArray("entry").getJSONObject(0);
+//            JSONObject change = entry.getJSONArray("changes").getJSONObject(0);
+//            JSONObject value = change.getJSONObject("value");
+//            JSONObject message = value.getJSONArray("messages").getJSONObject(0);
+//
+//            String phone = message.getString("from");
+//            String messageId = message.getString("id");
+//            String text = "";
+//            Double latitude = null;
+//            Double longitude = null;
+//
+//            // Check message type
+//            String messageType = message.getString("type");
+//
+//            if (messageType.equals("text")) {
+//                text = message.getJSONObject("text").getString("body");
+//            } else if (messageType.equals("location")) {
+//                // Handle location message
+//                JSONObject locationObj = message.getJSONObject("location");
+//                latitude = locationObj.getDouble("latitude");
+//                longitude = locationObj.getDouble("longitude");
+//                logger.info("Location received from {}: lat={}, lon={}", phone, latitude, longitude);
+//            } else if (messageType.equals("interactive")) {
+//                // Handle interactive messages (buttons, lists, etc.)
+//                JSONObject interactive = message.getJSONObject("interactive");
+//                String interactiveType = interactive.getString("type");
+//
+//                if (interactiveType.equals("button_reply")) {
+//                    // Button click - extract button ID
+//                    text = interactive.getJSONObject("button_reply").getString("id");
+//                } else if (interactiveType.equals("list_reply")) {
+//                    // List selection - extract selected item ID
+//                    text = interactive.getJSONObject("list_reply").getString("id");
+//                }
+//            }
+//
+//            IncomingMessage incomingMessage = new IncomingMessage(phone, text, messageId);
+//            incomingMessage.setLatitude(latitude);
+//            incomingMessage.setLongitude(longitude);
+//
+//            return incomingMessage;
+//        } catch (Exception e) {
+//            logger.error("Error parsing incoming message: {}", e.getMessage());
+//            return null;
+//        }
+//    }
 
     /**
      * Normalize phone number to international format
