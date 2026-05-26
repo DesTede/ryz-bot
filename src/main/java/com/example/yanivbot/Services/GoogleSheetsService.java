@@ -282,12 +282,13 @@ public class GoogleSheetsService {
             // Try Hebrew names
             return switch (input.trim()) {
                 case "אופנוע" -> com.example.yanivbot.Models.CarType.MOTORCYCLE;
-                case "מכונית פרטית" -> com.example.yanivbot.Models.CarType.PRIVATE_CAR;
+                case "רכב פרטי" ,"מכונית פרטית" -> com.example.yanivbot.Models.CarType.PRIVATE_CAR;
                 case "רכב גדול" -> com.example.yanivbot.Models.CarType.MINIVAN;
                 default -> {
                     logger.warn("Unknown car type: {}, skipping", input);
                     yield null;
                 }
+                //case " -> com.example.yanivbot.Models.CarType.PRIVATE_CAR;
             };
         }
     }
