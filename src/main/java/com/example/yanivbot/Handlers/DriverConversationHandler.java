@@ -55,13 +55,18 @@ public class DriverConversationHandler implements ConversationHandler {
             return handleTaxiOrderCompletion(message);
         }
 
+        // Handle location sharing - can happen in any state while driver is active
+        if (message.hasLocation()) {
+            if (state == ConversationState.AWAITING_DRIVER_LOCATION) {
+                return handleLocationShare(convo, message);
+            } else if (state == ConversationState.START) {
+                // Driver updating location during shift
+                return handleLocationUpdateDuringShift(convo, message);
+            }
+        }
+
         // Handle location in AWAITING_DRIVER_LOCATION state
         if (state == ConversationState.AWAITING_DRIVER_LOCATION) {
-            // Check if message has location data
-            if (message.hasLocation()) {
-                return handleLocationShare(convo, message);
-            }
-
             // Handle cancel button
             if (txt.equals("driver_cancel_shift_start")) {
                 return handleCancelShiftStart(convo, message);
@@ -70,6 +75,21 @@ public class DriverConversationHandler implements ConversationHandler {
             // Waiting for location
             return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.";
         }
+//        // Handle location in AWAITING_DRIVER_LOCATION state
+//        if (state == ConversationState.AWAITING_DRIVER_LOCATION) {
+//            // Check if message has location data
+//            if (message.hasLocation()) {
+//                return handleLocationShare(convo, message);
+//            }
+//
+//            // Handle cancel button
+//            if (txt.equals("driver_cancel_shift_start")) {
+//                return handleCancelShiftStart(convo, message);
+//            }
+//
+//            // Waiting for location
+//            return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.";
+//        }
 
         // Driver typed something else - treat as customer
         // This happens after סיים משמרת or if driver is somehow in START state
@@ -159,15 +179,32 @@ public class DriverConversationHandler implements ConversationHandler {
         return null;
     }
 
+    private String handleLocationUpdateDuringShift(Conversation convo, IncomingMessage message) {
+        try {
+            double latitude = message.getLatitude();
+            double longitude = message.getLongitude();
+
+            logger.info("Driver {} updated location during shift: {}, {}", message.getPhone(), latitude, longitude);
+
+            driverService.updateDriverLocation(message.getPhone(), latitude, longitude);
+
+            return "✅ המיקום עודכן בהצלחה\n📍 אנחנו עדכנו את המיקום שלך בממערכת";
+        } catch (Exception e) {
+            logger.error("Error updating location during shift: {}", e.getMessage(), e);
+            return "❌ שגיאה בעדכון המיקום. אנא נסה שוב.";
+        }
+    }
+    
     private String handleLocationShare(Conversation convo, IncomingMessage message) {
         try {
             double latitude = message.getLatitude();
             double longitude = message.getLongitude();
 
             logger.info("Driver {} shared location: {}, {}", message.getPhone(), latitude, longitude);
-            
+
             driverService.clockIn(message.getPhone());
             driverService.updateDriverLocation(message.getPhone(), latitude, longitude);
+            
             
 
             convoService.updateState(convo, ConversationState.START);
@@ -178,6 +215,8 @@ public class DriverConversationHandler implements ConversationHandler {
             return "❌ שגיאה בעיבוד המיקום. אנא נסה שוב.";
         }
     }
+    
+    
 
     private String handleEndShift(Conversation convo, IncomingMessage message) {
         driverService.clockOut(message.getPhone());
