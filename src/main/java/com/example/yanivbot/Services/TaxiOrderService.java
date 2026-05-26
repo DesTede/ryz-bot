@@ -97,9 +97,6 @@ public class TaxiOrderService {
             return null; // Message sent directly
         }
         
-        if (order.getStatus() != TaxiOrderStatus.CREATED)
-            return "❌ הזמנה #" + orderId + " כבר תפוסה על ידי מישהו אחר!";
-
         order.setStatus(TaxiOrderStatus.ASSIGNED);
         order.setDriverPhone(driverPhone);
         taxiOrderRepo.save(order);

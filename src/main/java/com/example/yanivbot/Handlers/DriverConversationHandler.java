@@ -94,7 +94,7 @@ public class DriverConversationHandler implements ConversationHandler {
         // Driver typed something else - treat as customer
         // This happens after סיים משמרת or if driver is somehow in START state
         logger.info("Driver {} typed non-shift message: '{}' - treating as customer", message.getPhone(), txt);
-        return null; // Return null to let MessageRouter treat them as customer
+        return ""; // Return empty string - don't pass to customer flow
     }
 
     private String handleTaxiOrderClaim(IncomingMessage message) {
