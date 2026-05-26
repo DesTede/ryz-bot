@@ -45,8 +45,8 @@ public class MessageRouter {
     private final BotConfigService botConfigService;
 
     private static final String WELCOME_MESSAGE = """
-            ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ
-            (לחץ 00 לאתחול) ⚡
+             ⚡ ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ
+            (לחץ 00 לאתחול)
             אז איך קוראים לך?""";
     private static final String DRIVER_WELCOME_MESSAGE = """
             כדי להתחיל לקבל נסיעות לחץ על
