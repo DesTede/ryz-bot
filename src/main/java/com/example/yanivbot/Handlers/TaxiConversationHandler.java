@@ -126,7 +126,7 @@ public class TaxiConversationHandler implements ConversationHandler {
     private String handleTaxiNotes(Conversation convo, IncomingMessage message) {
         String notes = message.getText().trim();
 
-        if (notes.equals("לא")) {
+        if (notes.equals("אין")) {
             notes = "";
         }
 
@@ -156,9 +156,10 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         logger.info("TaxiConfirmation | Message: '{}'", txt);
 
-        if (txt.equals("order_confirm_no") || txt.equals("לא")) {
+        if (txt.equals("order_confirm_no")) {
             convoService.updateState(convo, ConversationState.START);
             whatsappService.sendSafeText(message.getPhone(), "❗ שימו לב\nביטול ההזמנה ימחק את כל פרטי הנסיעה.\nלהמשך ביטול הקלידו: כן\nכדי לחזור להזמנה הקלידו: לא\n❌ ההזמנה בוטלה בהצלחה.\nנשמח לעמוד לשירותכם שוב ב־Movez💙\nלהתחלת הזמנה חדשה שלחו הודעה 🚀");
+            convoService.saveTempData(convo,"");
             return null;
         }
 
@@ -183,6 +184,7 @@ public class TaxiConversationHandler implements ConversationHandler {
         } catch (Exception e) {
             logger.error("Failed to create taxi order for {}: {}", message.getPhone(), e.getMessage(), e);
             convoService.updateState(convo, ConversationState.START);
+            convoService.saveTempData(convo,""); // ← ADDED: Clear tempData on error 
             return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
         }
     }

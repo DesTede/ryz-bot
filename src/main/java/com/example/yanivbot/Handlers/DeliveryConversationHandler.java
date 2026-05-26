@@ -206,7 +206,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
      */
     private String handleNotes(Conversation convo, IncomingMessage message) {
         String notes = message.getText().trim();
-        if (notes.equals("לא")) {
+        if (notes.equals("אין")) {
             notes = "";
         }
         logger.info("[DELIVERY] Stage 6: Saving notes: '{}' (empty={})", notes, notes.isEmpty());

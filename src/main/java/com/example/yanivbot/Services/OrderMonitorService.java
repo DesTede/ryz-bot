@@ -125,7 +125,6 @@ public class OrderMonitorService {
 
             // Re-broadcast to drivers with same format as initial dispatch (button style)
             String msg = """
-                    🚕 הזמנת מונית לא נלקחה - שידור מחדש!
                     🆔 %d
                     📍 מאיפה: %s
                     🎯 לאן: %s
