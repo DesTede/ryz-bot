@@ -172,7 +172,7 @@ public class DriverConversationHandler implements ConversationHandler {
 
             convoService.updateState(convo, ConversationState.START);
 
-            return "🟢 הכול מוכן!\n🟢 המשמרת התחילה\n📍 המיקום התקבל בהצלחה\nנסיעות חדשות בדרך אליך 🚖";
+            return "🟢 הכל מוכן!\n🟢 המשמרת התחילה\n📍 המיקום התקבל בהצלחה\nנסיעות חדשות בדרך אליך 🚖";
         } catch (Exception e) {
             logger.error("Error processing location: {}", e.getMessage(), e);
             return "❌ שגיאה בעיבוד המיקום. אנא נסה שוב.";

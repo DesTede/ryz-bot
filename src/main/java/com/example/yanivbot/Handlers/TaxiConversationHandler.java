@@ -222,6 +222,6 @@ public class TaxiConversationHandler implements ConversationHandler {
                 "📍 איסוף: " + pickupLocation + "\n" +
                 "🎯 יעד: " + destination + "\n" +
                 "📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n\n" +
-                "אם הכול נראה טוב — בחרו כן";
+                "אם הכל נראה טוב — בחרו כן ✅";
     }
 }
