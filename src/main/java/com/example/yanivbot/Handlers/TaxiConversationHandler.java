@@ -94,7 +94,7 @@ public class TaxiConversationHandler implements ConversationHandler {
         convoService.saveTempData(convo, selectedCarType.name());
         convoService.updateState(convo, ConversationState.TAXI_PICKUP);
 
-        return "🚗 מעולה!\nעכשיו שלחו את נקודת האיסוף שלכם 📍";
+        return "🚗 מעולה!\nעכשיו שלחו את נקודת האיסוף שלכם(לא לשכוח עיר) 📍";
     }
 
     private String handleTaxiPickup(Conversation convo, IncomingMessage message) {
@@ -105,7 +105,7 @@ public class TaxiConversationHandler implements ConversationHandler {
         convoService.saveTempData(convo, orderData);
         convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
 
-        return "📍 נקודת האיסוף נקלטה בהצלחה ✅\nעכשיו שלחו יעד נסיעה 👇";
+        return "📍 נקודת האיסוף נקלטה בהצלחה ✅\nעכשיו שלחו יעד נסיעה(לא לשכוח עיר) 👇";
     }
 
     private String handleTaxiDestination(Conversation convo, IncomingMessage message) {
