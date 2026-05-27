@@ -4,6 +4,7 @@ import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.*;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -186,7 +187,7 @@ public class DriverConversationHandler implements ConversationHandler {
             double latitude = message.getLatitude();
             double longitude = message.getLongitude();
 
-            logger.info("Driver {} updated location during shift: {}, {}", message.getPhone(), latitude, longitude);
+            logger.info("Driver {} updated location during shift: {}, {}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(message.getPhone()), latitude, longitude);
 
             driverService.updateDriverLocation(message.getPhone(), latitude, longitude);
 
@@ -202,7 +203,7 @@ public class DriverConversationHandler implements ConversationHandler {
             double latitude = message.getLatitude();
             double longitude = message.getLongitude();
 
-            logger.info("Driver {} shared location: {}, {}", message.getPhone(), latitude, longitude);
+            logger.info("Driver {} shared location: {}, {}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(message.getPhone()), latitude, longitude);
 
             driverService.clockIn(message.getPhone());
             driverService.updateDriverLocation(message.getPhone(), latitude, longitude);

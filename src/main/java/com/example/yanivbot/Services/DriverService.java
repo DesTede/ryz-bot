@@ -10,6 +10,7 @@ import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import com.example.yanivbot.Repositories.DriverRepository;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,7 +59,7 @@ public class DriverService {
             driver.setActive(true);
             driver.setLocationUpdatedAt(LocalDateTime.now());
             driverRepo.save(driver);
-            logger.info("Driver {} clocked in", phone);
+            logger.info("Driver {} clocked in", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone));
         } else {
             logger.warn("Driver {} not found for clock in", phone);
         }
@@ -72,7 +73,7 @@ public class DriverService {
         if (driver != null) {
             driver.setActive(false);
             driverRepo.save(driver);
-            logger.info("Driver {} clocked out", phone);
+            logger.info("Driver {} clocked out", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone));
         } else {
             logger.warn("Driver {} not found for clock out", phone);
         }
@@ -88,7 +89,7 @@ public class DriverService {
             driver.setLongitude(longitude);
             driver.setLocationUpdatedAt(LocalDateTime.now());
             driverRepo.save(driver);
-            logger.info("Driver {} location updated to {}, {}", phone, latitude, longitude);
+            logger.info("Driver {} location updated to {}, {}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone), latitude, longitude);
         } else {
             logger.warn("Driver {} not found for location update", phone);
         }
@@ -288,7 +289,7 @@ public class DriverService {
                     // For BOTH drivers: check if they have an active taxi order
                     if (driver.getType() == DriverType.BOTH) {                          // ← NEW
                         if (hasActiveTaxiOrder(driver.getPhone())) {                    // ← NEW
-                            logger.debug("Driver {} skipped - has active taxi order", driver.getPhone());
+                            logger.debug("Driver {} skipped - has active taxi order", PhoneNumberUtil.maskPhoneNumberWithCountryCode(driver.getPhone()));
                             return false;                                               // ← NEW
                         }                                                               // ← NEW
                     }                                                                   // ← NEW
@@ -432,7 +433,7 @@ public class DriverService {
         for (String phone : phones) {
             phone = phone.trim();
             if (!phone.isEmpty()) {
-                logger.info("Sending admin alert to: {}", phone);
+                logger.info("Sending admin alert to: {}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone));
                 whatsappService.sendSafeText(phone, message);
             }
         }

@@ -3,6 +3,7 @@ package com.example.yanivbot.Services;
 import com.example.yanivbot.Entities.DeliveryOrder;
 import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Repositories.BusinessRepository;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
@@ -108,12 +109,12 @@ public class DeliveryOrderService {
      * - TAXI drivers: N/A
      */
     public String claimDeliveryOrder(long orderId, String driverPhone) {
-        logger.info("[DELIVERY] Driver {} attempting to claim delivery order #{}", driverPhone, orderId);
+        logger.info("[DELIVERY] Driver {} attempting to claim delivery order #{}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone), orderId);
 
         // Get the driver to check their type
         com.example.yanivbot.Entities.Driver driver = driverService.findByPhone(driverPhone);
         if (driver == null) {
-            logger.warn("[DELIVERY] Driver {} not found", driverPhone);
+            logger.warn("[DELIVERY] Driver {} not found", PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone));
             return "❌ הנהג לא רשום במערכת.";
         }
 
@@ -123,7 +124,7 @@ public class DeliveryOrderService {
 
             if (driverService.hasActiveTaxiOrder(driverPhone)) {
                 com.example.yanivbot.Entities.TaxiOrder activeTaxi = driverService.getActiveTaxiOrder(driverPhone);
-                logger.warn("[DELIVERY] BOTH driver {} blocked - has active taxi order #{}", driverPhone, activeTaxi.getId());
+                logger.warn("[DELIVERY] BOTH driver {} blocked - has active taxi order #{}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone), activeTaxi.getId());
 
                 String msg = "⚠️ שים לב\nיש לך נסיעה פעילה #" + activeTaxi.getId() + " בדרך\nסיים אותה קודם לאחר מכן תוכל לקבל משלוחים";
                 whatsappService.sendSafeText(driverPhone, msg);
@@ -137,7 +138,7 @@ public class DeliveryOrderService {
 
             if (!driverService.canClaimMoreDeliveries(driverPhone)) {
                 int activeCount = driverService.getActiveDeliveryCount(driverPhone);
-                logger.warn("[DELIVERY] Driver {} reached delivery limit - has {} active orders", driverPhone, activeCount);
+                logger.warn("[DELIVERY] Driver {} reached delivery limit - has {} active orders", PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone), activeCount);
 
                 String msg = "⚠️ שים לב\nכבר יש לך " + activeCount + " משלוחים פעילים בדרך\nסיים אחד מהם קודם לפני שתוכל לקבל משלוח נוסף";
                 whatsappService.sendSafeText(driverPhone, msg);
@@ -164,7 +165,7 @@ public class DeliveryOrderService {
         order.setPickedUpBy(driverPhone);
         order.setDeliveryStatus(DeliveryStatus.ASSIGNED);
         deliveryOrderRepo.save(order);
-        logger.info("[DELIVERY] ✅ Order #{} claimed by driver {}", orderId, driverPhone);
+        logger.info("[DELIVERY] ✅ Order #{} claimed by driver {}", orderId, PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone));
 
         // Send confirmation to driver with order details
         String driverConfirmation = """
