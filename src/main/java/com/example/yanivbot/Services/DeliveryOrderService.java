@@ -1,18 +1,13 @@
 package com.example.yanivbot.Services;
 
-import com.example.yanivbot.Entities.Customer;
 import com.example.yanivbot.Entities.DeliveryOrder;
-import com.example.yanivbot.Entities.Driver;
-import com.example.yanivbot.Handlers.DeliveryConversationHandler;
 import com.example.yanivbot.Models.DeliveryStatus;
-import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Repositories.BusinessRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 
 @Service
 public class DeliveryOrderService {

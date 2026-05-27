@@ -238,7 +238,7 @@ public class DriverConversationHandler implements ConversationHandler {
     private String handleCancelShiftStart(Conversation convo, IncomingMessage message) {
         // Same as end shift - flag as ended
         convoService.updateState(convo, ConversationState.START);
-        convoService.saveTempData(convo, "END_SHIFT"); // Flag that shift was cancelled
+        convoService.saveTempData(convo, "END_SHIFT"); // Flag that shift was canceled
 
         String bodyText = "✅ ביטול התחלת משמרת\nנשמח לראות אותך שוב בהמשך 🙌";
 
