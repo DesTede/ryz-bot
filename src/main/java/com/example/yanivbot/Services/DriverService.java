@@ -433,7 +433,7 @@ public class DriverService {
         for (String phone : phones) {
             phone = phone.trim();
             if (!phone.isEmpty()) {
-                logger.info("Sending admin alert to: {}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone));
+                logger.info("Sending admin alert to: {}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone)); //phone masked
                 whatsappService.sendSafeText(phone, message);
             }
         }
