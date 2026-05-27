@@ -6,6 +6,7 @@ import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Handlers.DeliveryConversationHandler;
 import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.DriverType;
+import com.example.yanivbot.Repositories.BusinessRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
@@ -20,16 +21,18 @@ public class DeliveryOrderService {
 
     private final ConversationService convoService;
     private final DeliveryOrderRepository deliveryOrderRepo;
+    private final BusinessRepository businessRepo;
     private final WhatsappService whatsappService;
     private final DriverService driverService;
     private final GeoCodingService geoCodingService;
     private final CustomerService customerService;
 
-    public DeliveryOrderService(ConversationService convoService, DeliveryOrderRepository deliveryOrderRepo,
+    public DeliveryOrderService(ConversationService convoService, DeliveryOrderRepository deliveryOrderRepo, BusinessRepository businessRepo,
                                 WhatsappService whatsappService, DriverService driverService,
                                 GeoCodingService geoCodingService, CustomerService customerService) {
         this.convoService = convoService;
         this.deliveryOrderRepo = deliveryOrderRepo;
+        this.businessRepo = businessRepo;
         this.whatsappService = whatsappService;
         this.driverService = driverService;
         this.geoCodingService = geoCodingService;
@@ -64,15 +67,25 @@ public class DeliveryOrderService {
     }
 
     public void broadcastToDrivers(DeliveryOrder order) {
+        String businessName = "Movez";
+        try {
+            var business = businessRepo.findByPhone(order.getBusinessPhone());
+            if (business.isPresent()) {
+                businessName = business.get().getName();  // ✅ Get actual name
+            }
+        } catch (Exception e) {
+            logger.warn("Could not fetch business name...", e);
+        }
         String msg = """
         🚚 הזמנת משלוח חדשה
-        בית עסק: Movez
+        בית עסק: %s
         📍 יעד משלוח: %s
         💰 סכום: ₪%s
         📝 הערות: %s
         🆔 מספר הזמנה: %s
         ✅ לקבלת המשלוח לחץ על הכפתור למטה
         """.formatted(
+                businessName,
                 order.getDeliveryAddress(),
                 order.getDeliveryFee(),
                 order.getNotes().isEmpty() ? "אין" : order.getNotes(),
@@ -92,6 +105,106 @@ public class DeliveryOrderService {
         }
     }
 
+    /**
+     * Driver claims a delivery order
+     * Rules:
+     * - BOTH drivers with active taxi orders: BLOCKED
+     * - DELIVERY drivers: Can claim up to maxActiveDeliveries orders
+     * - TAXI drivers: N/A
+     */
+    public String claimDeliveryOrder(long orderId, String driverPhone) {
+        logger.info("[DELIVERY] Driver {} attempting to claim delivery order #{}", driverPhone, orderId);
+
+        // Get the driver to check their type
+        com.example.yanivbot.Entities.Driver driver = driverService.findByPhone(driverPhone);
+        if (driver == null) {
+            logger.warn("[DELIVERY] Driver {} not found", driverPhone);
+            return "❌ הנהג לא רשום במערכת.";
+        }
+
+        // Check if BOTH/TAXI driver has active taxi order - blocks everything
+        if (driver.getType() == com.example.yanivbot.Models.DriverType.BOTH ||
+                driver.getType() == com.example.yanivbot.Models.DriverType.TAXI) {
+
+            if (driverService.hasActiveTaxiOrder(driverPhone)) {
+                com.example.yanivbot.Entities.TaxiOrder activeTaxi = driverService.getActiveTaxiOrder(driverPhone);
+                logger.warn("[DELIVERY] BOTH driver {} blocked - has active taxi order #{}", driverPhone, activeTaxi.getId());
+
+                String msg = "⚠️ שים לב\nיש לך נסיעה פעילה #" + activeTaxi.getId() + " בדרך\nסיים אותה קודם לאחר מכן תוכל לקבל משלוחים";
+                whatsappService.sendSafeText(driverPhone, msg);
+                return null; // Message sent directly
+            }
+        }
+
+        // Check if DELIVERY or BOTH driver has reached delivery order limit
+        if (driver.getType() == com.example.yanivbot.Models.DriverType.DELIVERY ||
+                driver.getType() == com.example.yanivbot.Models.DriverType.BOTH) {
+
+            if (!driverService.canClaimMoreDeliveries(driverPhone)) {
+                int activeCount = driverService.getActiveDeliveryCount(driverPhone);
+                logger.warn("[DELIVERY] Driver {} reached delivery limit - has {} active orders", driverPhone, activeCount);
+
+                String msg = "⚠️ שים לב\nכבר יש לך " + activeCount + " משלוחים פעילים בדרך\nסיים אחד מהם קודם לפני שתוכל לקבל משלוח נוסף";
+                whatsappService.sendSafeText(driverPhone, msg);
+                return null; // Message sent directly
+            }
+        }
+
+        // Check the delivery order
+        DeliveryOrder order = deliveryOrderRepo.findById(orderId).orElse(null);
+
+        if (order == null) {
+            logger.warn("[DELIVERY] Order #{} not found", orderId);
+            return null; // Order doesn't exist
+        }
+
+        if (order.getDeliveryStatus() != DeliveryStatus.CREATED) {
+            logger.warn("[DELIVERY] Order #{} already claimed or not in CREATED status: {}", orderId, order.getDeliveryStatus());
+            String alreadyTakenMsg = "🚫 משלוח #" + orderId + " כבר שויך לנהג אחר\nהישאר זמין — הזמנה חדשה יכולה להגיע בכל רגע 🚀";
+            whatsappService.sendSafeText(driverPhone, alreadyTakenMsg);
+            return null; // Message sent directly
+        }
+
+        // OK to claim - mark driver and update status
+        order.setPickedUpBy(driverPhone);
+        order.setDeliveryStatus(DeliveryStatus.ASSIGNED);
+        deliveryOrderRepo.save(order);
+        logger.info("[DELIVERY] ✅ Order #{} claimed by driver {}", orderId, driverPhone);
+
+        // Send confirmation to driver with order details
+        String driverConfirmation = """
+        🔥 קיבלת משלוח!
+        🆔 מספר הזמנה: %s
+        📞 טלפון לקוח: %s
+        📍 כתובת מסירה: %s
+        💰 סכום לתשלום: ₪%s
+        📝 הערות: %s
+        
+        בואו נתחיל 🚀
+        """.formatted(
+                order.getId(),
+                order.getCustomerPhone(),
+                order.getDeliveryAddress(),
+                order.getDeliveryFee(),
+                order.getNotes().isEmpty() ? "אין" : order.getNotes()
+        );
+
+        whatsappService.sendInteractiveButtonsSafe(
+                driverPhone,
+                driverConfirmation,
+                new WhatsappService.InteractiveButton("delivery_pickup_" + orderId, "✅ אני באיסוף")
+        );
+
+        // Notify business owner that driver claimed the order
+        String businessNotification = "🚚 נהג בדרך!\nמשלוח #" + orderId + " קורא לנהג\nהנהג בדרך לאיסוף מהעסק שלך 🚀";
+        whatsappService.sendSafeText(order.getBusinessPhone(), businessNotification);
+
+        logger.info("[DELIVERY] ✅ Sent confirmations for order #{}", orderId);
+        return null; // Message already sent via button
+    }
+
+    
+    
     public String markPickedUp(long orderId, String driverPhone) {
         DeliveryOrder order = deliveryOrderRepo.findById(orderId).orElse(null);
 

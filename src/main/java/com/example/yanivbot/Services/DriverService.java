@@ -1,10 +1,13 @@
 package com.example.yanivbot.Services;
 
+import com.example.yanivbot.Entities.DeliveryOrder;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.CarType;
+import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
+import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import com.example.yanivbot.Repositories.DriverRepository;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import org.slf4j.Logger;
@@ -21,21 +24,27 @@ public class DriverService {
 
     private static final Logger logger = LoggerFactory.getLogger(DriverService.class);
 
-    @Value("${dispatch.radius.km:5.0}")
+    @Value("${dispatch.radius.km}")
     private double dispatchRadiusKm;
-
+    
+    @Value("${driver.max-active-deliveries}")
+    private int maxActiveDeliveries;
+    
+    
     private final DriverRepository driverRepo;
     private final TaxiOrderRepository taxiOrderRepo;
+    private final DeliveryOrderRepository deliveryOrderRepo;
     private final WhatsappService whatsappService;
     private final GoogleSheetsService googleSheetsService;
 
     @Value("${admin.phones}")
     private String adminPhones;
 
-    public DriverService(DriverRepository driverRepo, TaxiOrderRepository taxiOrderRepo,
+    public DriverService(DriverRepository driverRepo, TaxiOrderRepository taxiOrderRepo, DeliveryOrderRepository deliveryOrderRepo,
                          WhatsappService whatsappService, GoogleSheetsService googleSheetsService) {
         this.driverRepo = driverRepo;
         this.taxiOrderRepo = taxiOrderRepo;
+        this.deliveryOrderRepo = deliveryOrderRepo;
         this.whatsappService = whatsappService;
         this.googleSheetsService = googleSheetsService;
     }
@@ -268,6 +277,9 @@ public class DriverService {
     /**
      * Dispatch delivery order to closest drivers within radius
      * Sends as interactive button for easy claiming
+     * Filters by:
+     * - Active delivery order count (DELIVERY and BOTH drivers limited to maxActiveDeliveries)
+     * - Active taxi orders (BOTH drivers blocked if they have any)
      */
     public void dispatchDeliveryToClosestDrivers(String message, double latitude, double longitude,
                                                  String orderDetails, long orderId) {
@@ -279,25 +291,30 @@ public class DriverService {
             return;
         }
 
-        // Filter out drivers who already have an active order
+        // Filter out drivers who have reached delivery limit or have active taxi orders
         availableDrivers = availableDrivers.stream()
                 .filter(driver -> {
-                    List<TaxiOrder> activeOrders = taxiOrderRepo
-                            .findByDriverPhoneAndStatusIn(driver.getPhone(),
-                                    List.of(TaxiOrderStatus.ASSIGNED, TaxiOrderStatus.CONFIRMED))
-                            .stream()
-                            .limit(1)
-                            .toList();
-                    boolean isBusy = !activeOrders.isEmpty();
-                    if (isBusy) {
-                        logger.debug("Driver {} skipped - already has active order", driver.getPhone());
-                    }
-                    return !isBusy;
+                    // For BOTH drivers: check if they have an active taxi order
+                    if (driver.getType() == DriverType.BOTH) {                          // ← NEW
+                        if (hasActiveTaxiOrder(driver.getPhone())) {                    // ← NEW
+                            logger.debug("Driver {} skipped - has active taxi order", driver.getPhone());
+                            return false;                                               // ← NEW
+                        }                                                               // ← NEW
+                    }                                                                   // ← NEW
+
+                    // Check delivery order limit                                        // ← NEW
+                    if (!canClaimMoreDeliveries(driver.getPhone())) {                   // ← NEW
+                        int activeCount = getActiveDeliveryCount(driver.getPhone());    // ← NEW
+                        logger.debug("Driver {} skipped - reached delivery limit ({}/{})", driver.getPhone(), activeCount, maxActiveDeliveries);
+                        return false;                                                   // ← NEW
+                    }                                                                   // ← NEW
+
+                    return true;
                 })
                 .toList();
 
         if (availableDrivers.isEmpty()) {
-            logger.warn("No available delivery drivers without active orders for order #{}", orderId);
+            logger.warn("No available delivery drivers for order #{} (all at capacity or have active taxi)", orderId);
             alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
             return;
         }
@@ -329,6 +346,12 @@ public class DriverService {
     /**
      * Dispatch delivery order to all available drivers (no location filtering)
      */
+    /**
+     * Dispatch delivery order to all available drivers (no location filtering)
+     * Filters by:
+     * - Active delivery order count (DELIVERY and BOTH drivers limited to maxActiveDeliveries)
+     * - Active taxi orders (BOTH drivers blocked if they have any)
+     */
     public void dispatchDeliveryToDrivers(String message, String orderDetails, long orderId) {
         List<Driver> availableDrivers = getActiveDrivers(DriverType.DELIVERY);
 
@@ -338,25 +361,30 @@ public class DriverService {
             return;
         }
 
-        // Filter out drivers who already have an active order
+        // Filter out drivers who have reached delivery limit or have active taxi orders
         availableDrivers = availableDrivers.stream()
                 .filter(driver -> {
-                    List<TaxiOrder> activeOrders = taxiOrderRepo
-                            .findByDriverPhoneAndStatusIn(driver.getPhone(),
-                                    List.of(TaxiOrderStatus.ASSIGNED, TaxiOrderStatus.CONFIRMED))
-                            .stream()
-                            .limit(1)
-                            .toList();
-                    boolean isBusy = !activeOrders.isEmpty();
-                    if (isBusy) {
-                        logger.debug("Driver {} skipped - already has active order", driver.getPhone());
-                    }
-                    return !isBusy;
+                    // For BOTH drivers: check if they have an active taxi order
+                    if (driver.getType() == DriverType.BOTH) {                          // ← NEW
+                        if (hasActiveTaxiOrder(driver.getPhone())) {                    // ← NEW
+                            logger.debug("Driver {} skipped - has active taxi order", driver.getPhone());
+                            return false;                                               // ← NEW
+                        }                                                               // ← NEW
+                    }                                                                   // ← NEW
+
+                    // Check delivery order limit                                        // ← NEW
+                    if (!canClaimMoreDeliveries(driver.getPhone())) {                   // ← NEW
+                        int activeCount = getActiveDeliveryCount(driver.getPhone());    // ← NEW
+                        logger.debug("Driver {} skipped - reached delivery limit ({}/{})", driver.getPhone(), activeCount, maxActiveDeliveries);
+                        return false;                                                   // ← NEW
+                    }                                                                   // ← NEW
+
+                    return true;
                 })
                 .toList();
 
         if (availableDrivers.isEmpty()) {
-            logger.warn("No available delivery drivers without active orders for order #{}", orderId);
+            logger.warn("No available delivery drivers for order #{} (all at capacity or have active taxi)", orderId);
             alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
             return;
         }
@@ -451,5 +479,55 @@ public class DriverService {
                 lat1, lon1, lat2, lon2, distance);
 
         return distance;
+    }
+
+    /**
+     * Check if driver has any active taxi orders (ASSIGNED or CONFIRMED)
+     */
+    public boolean hasActiveTaxiOrder(String driverPhone) {
+        return taxiOrderRepo
+                .findByDriverPhoneAndStatusIn(driverPhone,
+                        List.of(TaxiOrderStatus.ASSIGNED, TaxiOrderStatus.CONFIRMED))
+                .isPresent();  // ✅ Use isPresent() for Optional
+    }
+
+    public TaxiOrder getActiveTaxiOrder(String driverPhone) {
+        return taxiOrderRepo
+                .findByDriverPhoneAndStatusIn(driverPhone,
+                        List.of(TaxiOrderStatus.ASSIGNED, TaxiOrderStatus.CONFIRMED))
+                .orElse(null);  // ✅ Use orElse() for Optional
+    }
+
+    /**
+     * Check if driver has any active delivery orders (ASSIGNED, PICKED_UP, or DELIVERING)
+     */
+    public boolean hasActiveDeliveryOrders(String driverPhone) {
+        List<DeliveryOrder> active = getActiveDeliveryOrders(driverPhone);
+        return !active.isEmpty();
+    }
+
+    /**
+     * Check if driver can claim more delivery orders
+     * Returns true if driver hasn't reached maxActiveDeliveries limit
+     */
+    public boolean canClaimMoreDeliveries(String driverPhone) {
+        List<DeliveryOrder> active = getActiveDeliveryOrders(driverPhone);
+        return active.size() < maxActiveDeliveries;
+    }
+
+    /**
+     * Get count of active delivery orders for a driver
+     */
+    public int getActiveDeliveryCount(String driverPhone) {
+        return getActiveDeliveryOrders(driverPhone).size();
+    }
+
+    /**
+     * Get all active delivery orders for a driver (ASSIGNED, PICKED_UP, or DELIVERING)
+     */
+    public List<DeliveryOrder> getActiveDeliveryOrders(String driverPhone) {
+        return deliveryOrderRepo
+                .findByPickedUpByAndDeliveryStatusIn(driverPhone,
+                        List.of(DeliveryStatus.ASSIGNED, DeliveryStatus.PICKED_UP, DeliveryStatus.DELIVERING));
     }
 }

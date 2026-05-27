@@ -3,10 +3,7 @@ package com.example.yanivbot.Handlers;
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
-import com.example.yanivbot.Services.ConversationService;
-import com.example.yanivbot.Services.DriverService;
-import com.example.yanivbot.Services.TaxiOrderService;
-import com.example.yanivbot.Services.WhatsappService;
+import com.example.yanivbot.Services.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,15 +18,17 @@ public class DriverConversationHandler implements ConversationHandler {
     private final ConversationService convoService;
     private final WhatsappService whatsappService;
     private final TaxiOrderService taxiOrderService;
+    private final DeliveryOrderService deliveryOrderService;
 
     @Value("${admin.phones}")
     private String adminPhones;
 
-    public DriverConversationHandler(DriverService driverService, ConversationService convoService, WhatsappService whatsappService, TaxiOrderService taxiOrderService) {
+    public DriverConversationHandler(DriverService driverService, ConversationService convoService, WhatsappService whatsappService, TaxiOrderService taxiOrderService, DeliveryOrderService deliveryOrderService) {
         this.driverService = driverService;
         this.convoService = convoService;
         this.whatsappService = whatsappService;
         this.taxiOrderService = taxiOrderService;
+        this.deliveryOrderService = deliveryOrderService;
     }
 
     @Override
@@ -53,6 +52,11 @@ public class DriverConversationHandler implements ConversationHandler {
         // Handle taxi order completion button (taxi_complete_123)
         if (txt.startsWith("taxi_complete_")) {
             return handleTaxiOrderCompletion(message);
+        }
+
+        // Handle delivery claim button (delivery_claim_123)                
+        if (txt.startsWith("delivery_claim_")) {                           
+            return handleDeliveryOrderClaim(message);                       
         }
 
         // Handle location sharing - can happen in any state while driver is active
@@ -140,6 +144,32 @@ public class DriverConversationHandler implements ConversationHandler {
             return "❌ שגיאה בסיום הנסיעה. אנא נסה שוב.";
         }
     }
+
+    private String handleDeliveryOrderClaim(IncomingMessage message) {
+        String txt = message.getText().trim();
+        try {
+            logger.info("Driver {} attempting to claim delivery order from message: {}", message.getPhone(), txt);
+            long orderId = Long.parseLong(txt.replace("delivery_claim_", ""));
+            logger.info("Extracted delivery order ID: {}", orderId);
+            String result = deliveryOrderService.claimDeliveryOrder(orderId, message.getPhone());
+            logger.info("Claim result: {}", result);
+
+            // If the service sent the message directly, return empty string to avoid duplicate
+            if (result == null) {
+                return "";
+            }
+
+            return result;
+        } catch (NumberFormatException e) {
+            logger.error("Error parsing delivery order ID from message: {}", txt, e);
+            return "❌ שגיאה בפורמט הזמנה. אנא נסה שוב.";
+        } catch (Exception e) {
+            logger.error("Error claiming delivery order for driver {} from message {}: {}",
+                    message.getPhone(), txt, e.getMessage(), e);
+            return "❌ שגיאה בקבלת המשלוח. אנא נסה שוב.";
+        }
+    }
+    
 
     private String handleStartShift(Conversation convo, IncomingMessage message) {
         if (!isDriver(message.getPhone())) {
