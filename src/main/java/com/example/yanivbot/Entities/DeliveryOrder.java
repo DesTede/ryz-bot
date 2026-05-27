@@ -23,7 +23,9 @@ public class DeliveryOrder {
     private int readyInMinutes;
     
     @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_status", length = 50)
     private DeliveryStatus deliveryStatus;
+    
     private double deliveryFee;
     
     @Column(length = 1000)
