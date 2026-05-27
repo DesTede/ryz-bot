@@ -122,24 +122,6 @@ public class DriverConversationHandler implements ConversationHandler {
             return "❌ שגיאה בקבלת הנסיעה. אנא נסה שוב.";
         }
     }
-//    private String handleTaxiOrderClaim(IncomingMessage message) {
-//        String txt = message.getText().trim();
-//        try {
-//            logger.info("Driver {} attempting to claim taxi order from message: {}", message.getPhone(), txt);
-//            long orderId = Long.parseLong(txt.replace("taxi_claim_", ""));
-//            logger.info("Extracted order ID: {}", orderId);
-//            String result = taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
-//            logger.info("Claim result: {}", result);
-//            return result;
-//        } catch (NumberFormatException e) {
-//            logger.error("Error parsing order ID from message: {}", txt, e);
-//            return "❌ שגיאה בפורמט הזמנה. אנא נסה שוב.";
-//        } catch (Exception e) {
-//            logger.error("Error claiming taxi order for driver {} from message {}: {}",
-//                    message.getPhone(), txt, e.getMessage(), e);
-//            return "❌ שגיאה בקבלת הנסיעה. אנא נסה שוב.";
-//        }
-//    }
 
     private String handleTaxiOrderCompletion(IncomingMessage message) {
         String txt = message.getText().trim();
@@ -158,16 +140,6 @@ public class DriverConversationHandler implements ConversationHandler {
             return "❌ שגיאה בסיום הנסיעה. אנא נסה שוב.";
         }
     }
-//    private String handleTaxiOrderCompletion(IncomingMessage message) {
-//        String txt = message.getText().trim();
-//        try {
-//            long orderId = Long.parseLong(txt.replace("taxi_complete_", ""));
-//            return taxiOrderService.completeOrder(orderId, message.getPhone());
-//        } catch (Exception e) {
-//            logger.error("Error completing taxi order: {}", e.getMessage(), e);
-//            return "❌ שגיאה בסיום הנסיעה. אנא נסה שוב.";
-//        }
-//    }
 
     private String handleStartShift(Conversation convo, IncomingMessage message) {
         if (!isDriver(message.getPhone())) {
@@ -188,7 +160,7 @@ public class DriverConversationHandler implements ConversationHandler {
 
             driverService.updateDriverLocation(message.getPhone(), latitude, longitude);
 
-            return "✅ המיקום עודכן בהצלחה\n📍 אנחנו עדכנו את המיקום שלך בממערכת";
+            return "✅ המיקום שלך עודכן בהצלחה📍 ";
         } catch (Exception e) {
             logger.error("Error updating location during shift: {}", e.getMessage(), e);
             return "❌ שגיאה בעדכון המיקום. אנא נסה שוב.";
@@ -205,10 +177,9 @@ public class DriverConversationHandler implements ConversationHandler {
             driverService.clockIn(message.getPhone());
             driverService.updateDriverLocation(message.getPhone(), latitude, longitude);
             
-            
-
             convoService.updateState(convo, ConversationState.START);
-
+            convoService.saveTempData(convo, "DRIVER_ACTIVE");
+            
             return "🟢 הכל מוכן!\n🟢 המשמרת התחילה\n📍 המיקום התקבל בהצלחה\nנסיעות חדשות בדרך אליך 🚖";
         } catch (Exception e) {
             logger.error("Error processing location: {}", e.getMessage(), e);
