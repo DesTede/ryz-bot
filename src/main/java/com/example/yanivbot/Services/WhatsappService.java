@@ -263,7 +263,7 @@ public class WhatsappService {
      * Send request to WhatsApp API
      */
     private void sendRequest(JSONObject payload) throws Exception {
-        String url = "https://graph.facebook.com/" + apiVersion + "/" + phoneNumberId + "/messages";
+        String url = "https://graph.whatsapp.com/" + apiVersion + "/" + phoneNumberId + "/messages";
 
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         conn.setRequestMethod("POST");
@@ -452,7 +452,7 @@ public class WhatsappService {
      */
     private void sendMessageToWhatsAppAPI(Map<String, Object> message) {
         try {
-            String url = "https://graph.facebook.com/v18.0/" + phoneNumberId + "/messages";
+            String url = "https://graph.whatsapp.com/v18.0/" + phoneNumberId + "/messages";
 
             logger.info("DEBUG API CALL:");
             logger.info("  URL: {}", url);
