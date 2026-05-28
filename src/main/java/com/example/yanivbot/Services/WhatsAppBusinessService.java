@@ -32,7 +32,7 @@ public class WhatsAppBusinessService {
     private final ObjectMapper objectMapper;
     
     //changed from instagram to facebook
-    private static final String META_API_BASE = "https://graph.whatsapp.com";
+    private static final String META_API_BASE = "https://graph.facebook.com";
     
     public WhatsAppBusinessService(
             @Value("${whatsapp.phone-number-id}") String phoneNumberId,

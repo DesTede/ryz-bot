@@ -263,7 +263,7 @@ public class WhatsappService {
      * Send request to WhatsApp API
      */
     private void sendRequest(JSONObject payload) throws Exception {
-        String url = "https://graph.whatsapp.com/" + apiVersion + "/" + phoneNumberId + "/messages";
+        String url = "https://graph.facebook.com/" + apiVersion + "/" + phoneNumberId + "/messages";
 
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         conn.setRequestMethod("POST");
@@ -393,22 +393,19 @@ public class WhatsappService {
             }
 
             // Build template object
-//            Map<String, Object> template = new HashMap<>();
-//            template.put("name", templateName);
-//            template.put("parameters", parameters);
+            Map<String, Object> bodyComponent = new HashMap<>();
+            bodyComponent.put("type", "body");
+            bodyComponent.put("parameters", parameters);
 
-            // Build template object 
+            
+            List<Map<String, Object>> components = new ArrayList<>();
+            components.add(bodyComponent);
+
             Map<String, Object> template = new HashMap<>();
             template.put("name", templateName);
             template.put("language", Map.of("code", "he"));
-
-// Wrap parameters in body structure
-            Map<String, Object> body = new HashMap<>();
-            body.put("parameters", parameters);
-
-            Map<String, Object> templateParams = new HashMap<>();
-            templateParams.put("body", body);
-            template.put("parameters", templateParams);
+            template.put("components", components);
+            
             // Build message object
             Map<String, Object> message = new HashMap<>();
             message.put("messaging_product", "whatsapp");
@@ -452,8 +449,9 @@ public class WhatsappService {
      */
     private void sendMessageToWhatsAppAPI(Map<String, Object> message) {
         try {
-            String url = "https://graph.whatsapp.com/v18.0/" + phoneNumberId + "/messages";
-
+//            String url = "https://graph.facebook.com/v18.0/" + phoneNumberId + "/messages";
+            String url = "https://graph.facebook.com/" + apiVersion + "/" + phoneNumberId + "/messages";
+            
             logger.info("DEBUG API CALL:");
             logger.info("  URL: {}", url);
             logger.info("  Token: Bearer {}...{}", accessToken.substring(0, 10), accessToken.substring(accessToken.length()-10));
