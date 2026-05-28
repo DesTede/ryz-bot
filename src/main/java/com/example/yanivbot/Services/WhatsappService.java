@@ -362,7 +362,7 @@ public class WhatsappService {
     public void sendTemplateMessage(String phone, String templateName, List<String> variables) {
         logger.info("Preparing template message for {}: {}",
                 PhoneNumberUtil.maskPhoneNumber(phone), templateName);
-
+        
         try {
             // Validate inputs
             if (phone == null || phone.trim().isEmpty()) {
@@ -406,6 +406,11 @@ public class WhatsappService {
 
             // Log the message structure
             logger.debug("Message structure: {}", message);
+            
+            logger.info("DEBUG: Sending template '{}' to {}", templateName, phone);
+            logger.info("DEBUG: Variables count: {}", variables.size());
+            logger.info("DEBUG: Variables: {}", variables);
+            logger.info("DEBUG: Full message object: {}", message);
             
             sendMessageToWhatsAppAPI(message);
 
