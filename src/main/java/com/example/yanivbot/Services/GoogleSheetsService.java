@@ -33,7 +33,7 @@ import java.util.List;
  * - נהגים (drivers) table
  * - עסקים (businesses) table
  *
- * Every 5 minutes via @Scheduled
+ * Every X minutes via @Scheduled
  */
 @Service
 public class GoogleSheetsService {
@@ -87,7 +87,7 @@ public class GoogleSheetsService {
 
     /**
      * Sync drivers from Google Sheets
-     * Called every 5 minutes via @Scheduled
+     * Called every X minutes via @Scheduled
      */
     @Scheduled(fixedRate = 1800000) // 30 minutes
     public void syncDriversFromSheets() {
@@ -102,7 +102,7 @@ public class GoogleSheetsService {
 
     /**
      * Sync businesses from Google Sheets
-     * Called every 5 minutes via @Scheduled
+     * Called every X minutes via @Scheduled
      */
     @Scheduled(fixedRate = 1800000) // 30 minutes
     public void syncBusinessesFromSheets() {

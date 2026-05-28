@@ -48,7 +48,7 @@ public class AdminController {
     /**
      * Manually sync all drivers AND businesses from Google Sheets
      * Admin can call this after adding new drivers/businesses to the sheet
-     * instead of waiting for the @Scheduled sync (which runs every 5 minutes)
+     * instead of waiting for the @Scheduled sync (which runs every X minutes)
      *
      * Syncs:
      * - נהגים (drivers) table

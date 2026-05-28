@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class OrderMonitorService {
@@ -50,15 +51,15 @@ public class OrderMonitorService {
         this.geoCodingService = geoCodingService;
     }
 
-    // Runs every minute — checks unclaimed orders
-    @Scheduled(fixedDelay = 60000)
+    // Runs every X minute — checks unclaimed orders
+    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
     public void checkUnclaimedOrders() {
         checkUnclaimedTaxiOrders();
         checkUnclaimedDeliveryOrders();
     }
 
     // Runs every minute — dispatches delivery orders when ready
-    @Scheduled(fixedDelay = 60000)
+    @Scheduled(fixedDelay = 5,timeUnit = TimeUnit.MINUTES)
     public void checkOrdersReadyToDispatch() {
         List<DeliveryOrder> ordersToDispatch = deliveryOrderRepo
                 .findByDeliveryStatusAndScheduledDispatchTimeBefore(
@@ -125,15 +126,16 @@ public class OrderMonitorService {
 
             // Re-broadcast to drivers with same format as initial dispatch (button style)
             String msg = """
-                    🆔 %d
-                    📍 מאיפה: %s
-                    🎯 לאן: %s
+                                 🚖 נסיעה חדשה זמינה עבורך
+                    🆔 מספר הזמנה: %s
+                    📍 נקודת איסוף: %s
+                    🎯 יעד הנסיעה: %s
                     📝 פרטים נוספים: %s
                     """.formatted(
-                    order.getId(),
-                    order.getPickUpLocation(),
-                    order.getDestination(),
-                    order.getNotes().isEmpty() ? "אין" : order.getNotes()
+                            order.getId(),
+                            order.getPickUpLocation(),
+                            order.getDestination(),
+                            order.getNotes().isEmpty() ? "אין" : order.getNotes()
             );
 
             String orderDetails = "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
@@ -228,7 +230,7 @@ public class OrderMonitorService {
     /*
     private static final int LOCATION_STALE_MINUTES = 15; // alert if no update in 15 min
 
-    @Scheduled(fixedDelay = 600000)
+    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
     public void checkDriverLocations() {
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(LOCATION_STALE_MINUTES);
 
