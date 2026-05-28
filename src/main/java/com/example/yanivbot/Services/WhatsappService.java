@@ -452,7 +452,7 @@ public class WhatsappService {
      */
     private void sendMessageToWhatsAppAPI(Map<String, Object> message) {
         try {
-            String url = "https://graph.instagram.com/v18.0/" + phoneNumberId + "/messages";
+            String url = "https://graph.facebook.com/v18.0/" + phoneNumberId + "/messages";
 
             logger.info("DEBUG API CALL:");
             logger.info("  URL: {}", url);

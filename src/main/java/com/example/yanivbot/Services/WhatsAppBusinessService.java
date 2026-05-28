@@ -31,7 +31,7 @@ public class WhatsAppBusinessService {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     
-    private static final String META_API_BASE = "https://graph.instagram.com";
+    private static final String META_API_BASE = "https://graph.facebook.com";
     
     public WhatsAppBusinessService(
             @Value("${whatsapp.phone-number-id}") String phoneNumberId,
