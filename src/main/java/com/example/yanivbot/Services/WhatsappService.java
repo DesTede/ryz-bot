@@ -453,6 +453,12 @@ public class WhatsappService {
     private void sendMessageToWhatsAppAPI(Map<String, Object> message) {
         try {
             String url = "https://graph.instagram.com/v18.0/" + phoneNumberId + "/messages";
+
+            logger.info("DEBUG API CALL:");
+            logger.info("  URL: {}", url);
+            logger.info("  Token: Bearer {}...{}", accessToken.substring(0, 10), accessToken.substring(accessToken.length()-10));
+            logger.info("  Phone ID: {}", phoneNumberId);
+            
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", "Bearer " + accessToken);
             headers.setContentType(MediaType.APPLICATION_JSON);
