@@ -1,17 +1,26 @@
 package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Models.IncomingMessage;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -28,6 +37,9 @@ public class WhatsappService {
     @Value("${whatsapp.api-version:v23.0}")
     private String apiVersion;
 
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    
     public WhatsappService() {
     }
 
@@ -98,57 +110,6 @@ public class WhatsappService {
         }
     }
     
-    
-//    public IncomingMessage parseIncomingMessage(Map<String, Object> payload) {
-//        try {
-//            JSONObject json = new JSONObject(payload);
-//            JSONObject entry = json.getJSONArray("entry").getJSONObject(0);
-//            JSONObject change = entry.getJSONArray("changes").getJSONObject(0);
-//            JSONObject value = change.getJSONObject("value");
-//            JSONObject message = value.getJSONArray("messages").getJSONObject(0);
-//
-//            String phone = message.getString("from");
-//            String messageId = message.getString("id");
-//            String text = "";
-//            Double latitude = null;
-//            Double longitude = null;
-//
-//            // Check message type
-//            String messageType = message.getString("type");
-//
-//            if (messageType.equals("text")) {
-//                text = message.getJSONObject("text").getString("body");
-//            } else if (messageType.equals("location")) {
-//                // Handle location message
-//                JSONObject locationObj = message.getJSONObject("location");
-//                latitude = locationObj.getDouble("latitude");
-//                longitude = locationObj.getDouble("longitude");
-//                logger.info("Location received from {}: lat={}, lon={}", phone, latitude, longitude);
-//            } else if (messageType.equals("interactive")) {
-//                // Handle interactive messages (buttons, lists, etc.)
-//                JSONObject interactive = message.getJSONObject("interactive");
-//                String interactiveType = interactive.getString("type");
-//
-//                if (interactiveType.equals("button_reply")) {
-//                    // Button click - extract button ID
-//                    text = interactive.getJSONObject("button_reply").getString("id");
-//                } else if (interactiveType.equals("list_reply")) {
-//                    // List selection - extract selected item ID
-//                    text = interactive.getJSONObject("list_reply").getString("id");
-//                }
-//            }
-//
-//            IncomingMessage incomingMessage = new IncomingMessage(phone, text, messageId);
-//            incomingMessage.setLatitude(latitude);
-//            incomingMessage.setLongitude(longitude);
-//
-//            return incomingMessage;
-//        } catch (Exception e) {
-//            logger.error("Error parsing incoming message: {}", e.getMessage());
-//            return null;
-//        }
-//    }
-
     /**
      * Normalize phone number to international format
      */
@@ -378,4 +339,179 @@ public class WhatsappService {
             sendSafeText(phone, fullText);
         }
     }
+    
+    /**
+     * Send a message using WhatsApp Message Template
+     *
+     * Templates support dynamic variables ({{1}}, {{2}}, etc) that are replaced
+     * with actual values at runtime.
+     *
+     * Supported templates:
+     * - delivery_status_delivering: Sent to customer when order is picked up
+     *   Variables: {{1}}=Customer Name, {{2}}=Business Name, {{3}}=Driver Phone,
+     *              {{4}}=Delivery Address, {{5}}=Google Maps Link
+     *
+     * - delivery_status_completed: Sent to customer when delivery is complete
+     *   Variables: {{1}}=Business Name, {{2}}=Delivery Address
+     *
+     * @param phone Recipient phone number (format: 972XXXXXXXXX)
+     * @param templateName Template name registered in WhatsApp Business API
+     * @param variables List of variable values in order ({{1}}, {{2}}, etc)
+     * @throws Exception if template sending fails
+     */
+    public void sendTemplateMessage(String phone, String templateName, List<String> variables) {
+        logger.info("Preparing template message for {}: {}",
+                PhoneNumberUtil.maskPhoneNumber(phone), templateName);
+
+        try {
+            // Validate inputs
+            if (phone == null || phone.trim().isEmpty()) {
+                throw new IllegalArgumentException("Phone number cannot be empty");
+            }
+
+            if (templateName == null || templateName.trim().isEmpty()) {
+                throw new IllegalArgumentException("Template name cannot be empty");
+            }
+
+            if (variables == null || variables.isEmpty()) {
+                throw new IllegalArgumentException("Template variables cannot be empty");
+            }
+
+            logger.debug("Template variables count: {}", variables.size());
+            for (int i = 0; i < variables.size(); i++) {
+                logger.debug("  {{{}}} = {}", i + 1, variables.get(i));
+            }
+
+            // Build template parameters
+            List<Map<String, String>> parameters = new ArrayList<>();
+
+            for (String variable : variables) {
+                Map<String, String> param = new HashMap<>();
+                param.put("type", "text");
+                param.put("text", variable);
+                parameters.add(param);
+            }
+
+            // Build template object
+            Map<String, Object> template = new HashMap<>();
+            template.put("name", templateName);
+            template.put("parameters", parameters);
+
+            // Build message object
+            Map<String, Object> message = new HashMap<>();
+            message.put("messaging_product", "whatsapp");
+            message.put("to", phone);
+            message.put("type", "template");
+            message.put("template", template);
+
+            // Log the message structure
+            logger.debug("Message structure: {}", message);
+
+            // Send via WhatsApp Cloud API
+            // NOTE: This assumes you have a WhatsApp client configured
+            // Adapt this based on your actual WhatsApp SDK/client library
+
+            // Example for RestTemplate or similar:
+            // ResponseEntity<String> response = restTemplate.postForEntity(
+            //     "https://graph.instagram.com/v18.0/" + phoneNumberId + "/messages",
+            //     message,
+            //     String.class
+            // );
+
+            // Example for Facebook SDK:
+            // whatsappClient.sendMessage(message);
+
+            // Placeholder - Replace with actual API call
+            sendMessageToWhatsAppAPI(message);
+
+            logger.info("✅ Template message sent successfully to {}",
+                    PhoneNumberUtil.maskPhoneNumber(phone));
+            logger.info("   Template: {}", templateName);
+            logger.info("   Variables: {}", variables.size());
+
+        } catch (IllegalArgumentException e) {
+            logger.error("❌ Invalid template message parameters for {}: {}",
+                    PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage());
+            throw e;
+
+        } catch (Exception e) {
+            logger.error("❌ Error sending template message to {}: {}",
+                    PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage(), e);
+            throw new RuntimeException("Failed to send WhatsApp template message", e);
+        }
+    }
+
+    /**
+     * Helper method to send message to WhatsApp API
+     *
+     * Replace this implementation based on your actual WhatsApp client library
+     *
+     * @param message Message object to send
+     */
+    private void sendMessageToWhatsAppAPI(Map<String, Object> message) {
+        try {
+            String url = "https://graph.instagram.com/v18.0/" + phoneNumberId + "/messages";
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Bearer " + accessToken);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(message, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+
+            if (response.getStatusCode().isError()) {
+                throw new RuntimeException("WhatsApp API returned error: " + response.getBody());
+            }
+
+            logger.info("✅ Message sent to WhatsApp API successfully");
+
+        } catch (Exception e) {
+            logger.error("❌ API call failed: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to send message to WhatsApp API", e);
+        }
+    }
+    
+//
+//    /**
+//     * Send message using WhatsApp template
+//     *
+//     * @param phone Recipient phone number
+//     * @param templateName Template name (e.g., "delivery_status_delivering")
+//     * @param variables List of variables in order ({{1}}, {{2}}, etc)
+//     */
+//    public void sendTemplateMessage(String phone, String templateName, List<String> variables) {
+//        try {
+//            // Build template message request
+//            Map<String, Object> templateObject = new HashMap<>();
+//            templateObject.put("name", templateName);
+//
+//            // Add variables as parameters
+//            List<Map<String, String>> parameters = new ArrayList<>();
+//            for (String variable : variables) {
+//                Map<String, String> param = new HashMap<>();
+//                param.put("type", "text");
+//                param.put("text", variable);
+//                parameters.add(param);
+//            }
+//            templateObject.put("parameters", parameters);
+//
+//            // Build message object
+//            Map<String, Object> message = new HashMap<>();
+//            message.put("messaging_product", "whatsapp");
+//            message.put("to", phone);
+//            message.put("type", "template");
+//            message.put("template", templateObject);
+//
+//            // Send via WhatsApp API
+//            // Implementation depends on your WhatsApp client library
+//            // This is a placeholder - adapt to your actual API client
+//
+//            logger.info("Template message sent to {}: {}",
+//                    PhoneNumberUtil.maskPhoneNumber(phone), templateName);
+//
+//        } catch (Exception e) {
+//            logger.error("Error sending template message to {} for template {}: {}",
+//                    PhoneNumberUtil.maskPhoneNumber(phone), templateName, e.getMessage(), e);
+//            throw new RuntimeException("Failed to send template message", e);
+//        }
+//    }
 }

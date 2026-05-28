@@ -1,6 +1,9 @@
 package com.example.yanivbot.Services;
 
+import com.example.yanivbot.Entities.Business;
+import com.example.yanivbot.Entities.Customer;
 import com.example.yanivbot.Entities.DeliveryOrder;
+import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Repositories.BusinessRepository;
 import com.example.yanivbot.Utils.PhoneNumberUtil;
@@ -8,6 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import org.springframework.stereotype.Service;
+
+import java.util.Arrays;
+import java.util.List;
 
 
 @Service
@@ -168,27 +174,23 @@ public class DeliveryOrderService {
         logger.info("[DELIVERY] ✅ Order #{} claimed by driver {}", orderId, PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone));
 
         // Send confirmation to driver with order details
-        String driverConfirmation = """
+        String driverConfirmation ="""
         🔥 קיבלת משלוח!
         🆔 מספר הזמנה: %s
-        📞 טלפון לקוח: %s
+        שם העסק:%s
         📍 כתובת מסירה: %s
-        💰 סכום לתשלום: ₪%s
-        📝 הערות: %s
         
         בואו נתחיל 🚀
         """.formatted(
                 order.getId(),
-                order.getCustomerPhone(),
-                order.getDeliveryAddress(),
-                order.getDeliveryFee(),
-                order.getNotes().isEmpty() ? "אין" : order.getNotes()
+                businessRepo.findByPhone(order.getBusinessPhone()),
+                order.getDeliveryAddress()
         );
-
+                
         whatsappService.sendInteractiveButtonsSafe(
                 driverPhone,
                 driverConfirmation,
-                new WhatsappService.InteractiveButton("delivery_pickup_" + orderId, "✅ אני באיסוף")
+                new WhatsappService.InteractiveButton("delivery_pickup_" + orderId, "✅ אספתי")
         );
 
         // Notify business owner that driver claimed the order
@@ -198,36 +200,258 @@ public class DeliveryOrderService {
         logger.info("[DELIVERY] ✅ Sent confirmations for order #{}", orderId);
         return null; // Message already sent via button
     }
-
     
-    
+    /**
+     * Driver marks delivery as picked up from business
+     * Changes status: ASSIGNED → PICKED_UP
+     * Notifies business owner and sends complete button to driver
+     */
     public String markPickedUp(long orderId, String driverPhone) {
+        logger.info("[DELIVERY] Driver {} marking order #{} as picked up",
+                PhoneNumberUtil.maskPhoneNumber(driverPhone), orderId);
+
+        // Find the delivery order
         DeliveryOrder order = deliveryOrderRepo.findById(orderId).orElse(null);
 
-        if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
-        if (!order.getPickedUpBy().equals(driverPhone)) return "❌ הזמנה זו לא שויכה אליך.";
+        if (order == null) {
+            logger.warn("[DELIVERY] Order #{} not found", orderId);
+            return null;
+        }
 
+        // Check order is in correct status (ASSIGNED)
+        if (order.getDeliveryStatus() != DeliveryStatus.ASSIGNED) {
+            logger.warn("[DELIVERY] Order #{} not in ASSIGNED status: {}", orderId, order.getDeliveryStatus());
+            String msg = "🚫 משלוח #" + orderId + " לא במצב נכון לאיסוף\nמצב נוכחי: " + order.getDeliveryStatus();
+            whatsappService.sendSafeText(driverPhone, msg);
+            return null;
+        }
+
+        // Check driver matches
+        if (!order.getPickedUpBy().equals(driverPhone)) {
+            logger.warn("[DELIVERY] Driver {} trying to pickup order assigned to {}",
+                    PhoneNumberUtil.maskPhoneNumber(driverPhone),
+                    PhoneNumberUtil.maskPhoneNumber(order.getPickedUpBy()));
+            String msg = "🚫 משלוח #" + orderId + " לא שויך לך\nמשלוח זה שויך לנהג אחר";
+            whatsappService.sendSafeText(driverPhone, msg);
+            return null;
+        }
+
+        // Update order status
         order.setDeliveryStatus(DeliveryStatus.PICKED_UP);
         deliveryOrderRepo.save(order);
+        logger.info("[DELIVERY] ✅ Order #{} marked as PICKED_UP by driver {}", orderId,
+                PhoneNumberUtil.maskPhoneNumber(driverPhone));
 
-        return "✅ סימנת איסוף הזמנה #" + orderId + ".";
+        // Send confirmation to driver with complete button
+        String driverMsg ="""
+        🔥 אתה בדרך ללקוח!
+        🆔 מספר הזמנה: %s
+        שם העסק:%s
+        📞 טלפון לקוח: %s
+        📍 כתובת מסירה: %s
+        💰 סכום לתשלום: ₪%s
+        📝 הערות: %s
+
+        🛵 סע בזהירות 🙌
+        """.formatted(
+                order.getId(),
+                businessRepo.findByPhone(order.getBusinessPhone()),
+                order.getCustomerPhone(),
+                order.getDeliveryAddress(),
+                order.getDeliveryFee(),
+                order.getNotes().isEmpty() ? "אין" : order.getNotes()
+        );
+
+        whatsappService.sendInteractiveButtonsSafe(
+                driverPhone,
+                driverMsg,
+                new WhatsappService.InteractiveButton("delivery_complete_" + orderId, "✅ משלוח הושלם")
+        );
+
+        // Notify business owner
+        
+        String businessMsg = "📦 איסוף משלוח!\nמשלוח #" + orderId + " נאסף על ידי הנהג\nהנהג בדרך לקוח ✨";
+        whatsappService.sendSafeText(order.getBusinessPhone(), businessMsg);
+
+        // Notify customer using WhatsApp template
+        try {
+            // Fetch customer name from database
+            Customer customer = customerService.getCustomer(order.getCustomerPhone());
+            String customerName = customer != null ? customer.getName() : "לקוח";
+            
+            // Fetch business name from database
+            Business business = businessRepo.findByPhone(order.getBusinessPhone()).orElse(null);
+            String businessName = business != null ? business.getName() : "העסק";
+
+            // Generate real-time Google Maps link for driver location
+            String mapsLink = generateGoogleMapsLink(driverPhone);
+
+            // Build variables list in order: {{1}}, {{2}}, {{3}}, {{4}}, {{5}}
+            List<String> templateVariables = Arrays.asList(
+                    customerName,                    // {{1}} - Customer Name
+                    businessName,                    // {{2}} - Business Name
+                    driverPhone,                     // {{3}} - Driver Phone
+                    order.getDeliveryAddress(),      // {{4}} - Delivery Address
+                    mapsLink                         // {{5}} - Google Maps Link
+            );
+
+            // Send template message
+            whatsappService.sendTemplateMessage(
+                    order.getCustomerPhone(),
+                    "delivery_status_delivering",
+                    templateVariables
+            );
+
+            logger.info("[DELIVERY] ✅ Sent delivery_status_delivering template to customer for order #{}",
+                    orderId);
+
+        } catch (Exception e) {
+            logger.error("[DELIVERY] ⚠️ Error sending template to customer for order #{}: {}",
+                    orderId, e.getMessage());
+            // Log but don't fail - order processing continues even if template fails
+        }
+
+        logger.info("[DELIVERY] ✅ Sent pickup confirmations for order #{}", orderId);
+        return null;
     }
 
-    public String markDelivered(long orderId, String driverPhone) {
+    /**
+     * Driver marks delivery as complete
+     * Changes status: PICKED_UP → DELIVERED
+     * Notifies business owner and customer
+     */
+    public String completeDelivery(long orderId, String driverPhone) {
+        logger.info("[DELIVERY] Driver {} completing delivery order #{}",
+                PhoneNumberUtil.maskPhoneNumber(driverPhone), orderId);
+
+        // Find the delivery order
         DeliveryOrder order = deliveryOrderRepo.findById(orderId).orElse(null);
 
-        if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
-        if (!order.getPickedUpBy().equals(driverPhone)) return "❌ הזמנה זו לא שויכה אליך.";
+        if (order == null) {
+            logger.warn("[DELIVERY] Order #{} not found", orderId);
+            return null;
+        }
 
+        // Check order is in correct status (PICKED_UP)
+        if (order.getDeliveryStatus() != DeliveryStatus.PICKED_UP) {
+            logger.warn("[DELIVERY] Order #{} not in PICKED_UP status: {}", orderId, order.getDeliveryStatus());
+            String msg = "🚫 משלוח #" + orderId + " לא במצב נכון לסיום\nמצב נוכחי: " + order.getDeliveryStatus();
+            whatsappService.sendSafeText(driverPhone, msg);
+            return null;
+        }
+
+        // Check driver matches
+        if (!order.getPickedUpBy().equals(driverPhone)) {
+            logger.warn("[DELIVERY] Driver {} trying to complete order assigned to {}",
+                    PhoneNumberUtil.maskPhoneNumber(driverPhone),
+                    PhoneNumberUtil.maskPhoneNumber(order.getPickedUpBy()));
+            String msg = "🚫 משלוח #" + orderId + " לא שויך לך";
+            whatsappService.sendSafeText(driverPhone, msg);
+            return null;
+        }
+
+        // Update order status
         order.setDeliveryStatus(DeliveryStatus.DELIVERED);
         deliveryOrderRepo.save(order);
+        logger.info("[DELIVERY] ✅ Order #{} marked as DELIVERED by driver {}", orderId,
+                PhoneNumberUtil.maskPhoneNumber(driverPhone));
 
-        whatsappService.sendSafeText(order.getBusinessPhone(),
-                "הזמנה #" + orderId + " הגיעה ליעד!\n✅ הלקוח קיבל את המשלוח");
+        // Send confirmation to driver
+        String driverMsg = """
+        🎉 משלוח הושלם בהצלחה!
+        🆔 מספר הזמנה: %s
+        
+        תודה על העבודה המעולה! 💪
+        """.formatted(order.getId());
 
-        whatsappService.sendSafeText(order.getCustomerPhone(),
-                "✅ ההזמנה שלך מ־Movez הגיעה בהצלחה!\n🚚 Movez דואגים שהמשלוח יגיע אליך במהירות ובבטחה 💙\n✅ תודה על ההזמנה ובתיאבון 😋");
+        whatsappService.sendSafeText(driverPhone, driverMsg);
 
-        return "🏁 הזמנה #" + orderId + " סומנה כמסורה.";
+        // Notify business owner
+        String businessMsg = "✅ משלוח הושלם!\nמשלוח #" + orderId + " הגיע בהצלחה ללקוח\nתודה! 🎉";
+        whatsappService.sendSafeText(order.getBusinessPhone(), businessMsg);
+
+        // Notify customer
+        try {
+            // Fetch business name from database
+            Business business = businessRepo.findByPhone(order.getBusinessPhone()).orElse(null);
+            String businessName = business != null ? business.getName() : "העסק";
+
+            // Build variables list in order: {{1}}, {{2}}
+            List<String> templateVariables = Arrays.asList(
+                    businessName,                    // {{1}} - Business Name
+                    order.getDeliveryAddress()       // {{2}} - Delivery Address
+            );
+
+            // Send template message
+            whatsappService.sendTemplateMessage(
+                    order.getCustomerPhone(),
+                    "delivery_status_completed",
+                    templateVariables
+            );
+
+            logger.info("[DELIVERY] ✅ Sent delivery_status_completed template to customer for order #{}",
+                    orderId);
+
+        } catch (Exception e) {
+            logger.error("[DELIVERY] ⚠️ Error sending template to customer for order #{}: {}",
+                    orderId, e.getMessage());
+            // Log but don't fail - order processing continues even if template fails
+        }
+        return null;
+    }
+
+    /**
+     * Generate a real-time Google Maps link for driver location
+     *
+     * The link uses the driver's current coordinates and updates dynamically
+     * when the customer opens it in their browser.
+     *
+     * Format: https://maps.google.com/?q=latitude,longitude
+     *
+     * @param driverPhone Driver's phone number
+     * @return Google Maps URL with driver's current location
+     */
+    private String generateGoogleMapsLink(String driverPhone) {
+        try {
+            logger.debug("Generating maps link for driver {}",
+                    PhoneNumberUtil.maskPhoneNumber(driverPhone));
+
+            // Fetch driver from database
+            Driver driver = driverService.findByPhone(driverPhone);
+
+            if (driver == null) {
+                logger.warn("Driver {} not found in database",
+                        PhoneNumberUtil.maskPhoneNumber(driverPhone));
+                return "https://maps.google.com";
+            }
+
+            // Check if driver has valid location
+            if (driver.getLatitude() == 0 || driver.getLongitude() == 0) {
+                logger.warn("Driver {} has no location data (lat/lng = 0)",
+                        PhoneNumberUtil.maskPhoneNumber(driverPhone));
+                return "https://maps.google.com";
+            }
+
+            // Generate Google Maps link with current coordinates
+            // Format: https://maps.google.com/?q=latitude,longitude
+            String mapsLink = String.format(
+                    "https://maps.google.com/?q=%.6f,%.6f",
+                    driver.getLatitude(),
+                    driver.getLongitude()
+            );
+
+            logger.info("✅ Generated maps link for driver {}: lat={}, lng={}",
+                    PhoneNumberUtil.maskPhoneNumber(driverPhone),
+                    driver.getLatitude(),
+                    driver.getLongitude());
+
+            return mapsLink;
+
+        } catch (Exception e) {
+            logger.error("⚠️ Error generating maps link for driver {}: {}",
+                    PhoneNumberUtil.maskPhoneNumber(driverPhone),
+                    e.getMessage(), e);
+            return "https://maps.google.com";
+        }
     }
 }

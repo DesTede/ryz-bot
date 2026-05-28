@@ -3,6 +3,7 @@ package com.example.yanivbot.Services;
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Repositories.ConversationRepository;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -42,7 +43,7 @@ public class ConversationService {
         }
 
         // Create new conversation
-        logger.info("getOrCreate: Creating new conversation for {}", phone);
+        logger.info("getOrCreate: Creating new conversation for {}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone));
         Conversation convo = new Conversation();
         convo.setPhone(phone);
         convo.setState(ConversationState.START);

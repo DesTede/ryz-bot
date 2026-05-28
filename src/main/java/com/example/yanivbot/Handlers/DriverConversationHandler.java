@@ -59,7 +59,17 @@ public class DriverConversationHandler implements ConversationHandler {
         if (txt.startsWith("delivery_claim_")) {                           
             return handleDeliveryOrderClaim(message);                       
         }
+        
+        // Handle delivery pickup button (delivery_pickup_123)               
+        if (txt.startsWith("delivery_pickup_")) {                           
+            return handleDeliveryPickup(message);                           
+        }                                                                   
 
+        // Handle delivery complete button (delivery_complete_123)          
+        if (txt.startsWith("delivery_complete_")) {                         
+            return handleDeliveryComplete(message);                         
+        }
+        
         // Handle location sharing - can happen in any state while driver is active
         if (message.hasLocation()) {
             if (state == ConversationState.AWAITING_DRIVER_LOCATION) {
@@ -170,7 +180,58 @@ public class DriverConversationHandler implements ConversationHandler {
             return "❌ שגיאה בקבלת המשלוח. אנא נסה שוב.";
         }
     }
-    
+
+    private String handleDeliveryPickup(IncomingMessage message) {
+        String txt = message.getText().trim();
+        try {
+            logger.info("Driver {} marking delivery as picked up from message: {}",
+                    PhoneNumberUtil.maskPhoneNumber(message.getPhone()), txt);
+            long orderId = Long.parseLong(txt.replace("delivery_pickup_", ""));
+            logger.info("Extracted delivery order ID: {}", orderId);
+            String result = deliveryOrderService.markPickedUp(orderId, message.getPhone());
+            logger.info("Pickup result: {}", result);
+
+            // If the service sent the message directly, return empty string to avoid duplicate
+            if (result == null) {
+                return "";
+            }
+
+            return result;
+        } catch (NumberFormatException e) {
+            logger.error("Error parsing delivery order ID from message: {}", txt, e);
+            return "❌ שגיאה בפורמט הזמנה. אנא נסה שוב.";
+        } catch (Exception e) {
+            logger.error("Error marking delivery pickup for driver {} from message {}: {}",
+                    PhoneNumberUtil.maskPhoneNumber(message.getPhone()), txt, e.getMessage(), e);
+            return "❌ שגיאה בסימון איסוף המשלוח. אנא נסה שוב.";
+        }
+    }
+
+    private String handleDeliveryComplete(IncomingMessage message) {
+        String txt = message.getText().trim();
+        try {
+            logger.info("Driver {} marking delivery as complete from message: {}",
+                    PhoneNumberUtil.maskPhoneNumber(message.getPhone()), txt);
+            long orderId = Long.parseLong(txt.replace("delivery_complete_", ""));
+            logger.info("Extracted delivery order ID: {}", orderId);
+            String result = deliveryOrderService.completeDelivery(orderId, message.getPhone());
+            logger.info("Complete result: {}", result);
+
+            // If the service sent the message directly, return empty string to avoid duplicate
+            if (result == null) {
+                return "";
+            }
+
+            return result;
+        } catch (NumberFormatException e) {
+            logger.error("Error parsing delivery order ID from message: {}", txt, e);
+            return "❌ שגיאה בפורמט הזמנה. אנא נסה שוב.";
+        } catch (Exception e) {
+            logger.error("Error completing delivery for driver {} from message {}: {}",
+                    PhoneNumberUtil.maskPhoneNumber(message.getPhone()), txt, e.getMessage(), e);
+            return "❌ שגיאה בסיום המשלוח. אנא נסה שוב.";
+        }
+    }
 
     private String handleStartShift(Conversation convo, IncomingMessage message) {
         if (!isDriver(message.getPhone())) {
