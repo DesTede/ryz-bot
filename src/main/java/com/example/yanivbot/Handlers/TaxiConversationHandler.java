@@ -171,7 +171,7 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         if (!txt.equals("order_confirm_yes") && !txt.equals("כן")) {
             logger.warn("Invalid confirmation response: '{}'", txt);
-            return "אנא בחר: אשר (כן) או בטל (לא)";
+            return "אנא בחר: אשר (כן) או בטל (בטל)";
         }
 
         String orderData = convo.getTempData();

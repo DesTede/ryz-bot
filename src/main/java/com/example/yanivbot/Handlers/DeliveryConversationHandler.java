@@ -190,7 +190,29 @@ public class DeliveryConversationHandler implements ConversationHandler {
      * Stage 5: Price
      */
     private String handlePrice(Conversation convo, IncomingMessage message) {
-        String price = message.getText().trim();
+        String txt = message.getText().trim();
+
+        if (!txt.matches("^\\d+(\\.\\d{1,2})?$")) {
+            String errorMsg = "❌ מחיר לא תקין\n" +
+                    "אנא הקלד מחיר בספרות בלבד\n" +
+                    "דוגמה: 45.90 או 50";
+            whatsappService.sendSafeText(message.getPhone(), errorMsg);
+            return null; // Stay in same state, ask again
+        }
+
+        double price = Double.parseDouble(txt);
+        
+        if (price < 0) {
+            whatsappService.sendSafeText(message.getPhone(),
+                    "❌ המחיר חייב להיות גדול מ-0");
+            return null;
+        }
+        if (price > 10000) {
+            whatsappService.sendSafeText(message.getPhone(),
+                    "❌ המחיר גבוה מדי (מקסימום 10,000₪)");
+            return null;
+        }
+        
         String tempData = convo.getTempData() + "|" + price;
         logger.info("[DELIVERY] Stage 5: Saving price: '{}' | TempData: '{}'", price, tempData);
 
@@ -198,7 +220,9 @@ public class DeliveryConversationHandler implements ConversationHandler {
         convoService.updateState(convo, ConversationState.DELIVERY_NOTES);
 
         logger.info("[DELIVERY] ✅ Price saved | Moving to Stage 6 (Notes)");
-        return "📝 יש הערות נוספות לשליח?\n(קוד כניסה, הערה להזמנה וכו׳)\nאם אין הערות רשמו: לא";
+        
+        
+        return "📝 יש הערות נוספות לשליח?\n(קוד כניסה, הערה להזמנה וכו׳)\nאם אין הערות רשמו: אין";
     }
 
     /**
@@ -235,7 +259,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
             String customerPhone = parts[1];
             String address = parts[2];
             int readyMinutes = Integer.parseInt(parts[3]);  // ✅ Convert to int
-            double price = Double.parseDouble(parts[4]);     // ✅ Convert to double
+            double price = Double.parseDouble(parts[4]);
 
             // Show confirmation with all details
             String confirmation = buildConfirmationMessage(customerName, customerPhone, address,
