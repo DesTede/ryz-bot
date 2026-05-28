@@ -393,10 +393,22 @@ public class WhatsappService {
             }
 
             // Build template object
+//            Map<String, Object> template = new HashMap<>();
+//            template.put("name", templateName);
+//            template.put("parameters", parameters);
+
+            // Build template object 
             Map<String, Object> template = new HashMap<>();
             template.put("name", templateName);
-            template.put("parameters", parameters);
+            template.put("language", Map.of("code", "he"));
 
+// Wrap parameters in body structure
+            Map<String, Object> body = new HashMap<>();
+            body.put("parameters", parameters);
+
+            Map<String, Object> templateParams = new HashMap<>();
+            templateParams.put("body", body);
+            template.put("parameters", templateParams);
             // Build message object
             Map<String, Object> message = new HashMap<>();
             message.put("messaging_product", "whatsapp");
