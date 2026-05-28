@@ -49,6 +49,7 @@ public class MessageRouter {
             (לחץ 00 לאתחול)
             אז איך קוראים לך?""";
     private static final String DRIVER_WELCOME_MESSAGE = """
+            💡 ברוכים הבאים למערכת הנהגים של Movez!
             כדי להתחיל לקבל נסיעות לחץ על
             🟢 התחל משמרת
 

@@ -391,7 +391,12 @@ public class DeliveryConversationHandler implements ConversationHandler {
             logger.info("[DELIVERY] ❌ User cancelled order");
             convoService.updateState(convo, ConversationState.START);
             convoService.saveTempData(convo, "");
-            return "❌ ההזמנה בוטלה. בואו נתחיל מחדש!";
+            return """
+                    ❌ ההזמנה בוטלה בהצלחה.
+                    נשמח
+                    לעמוד לשירותכם שוב ב־Movez\uD83D\uDC99
+                    בשביל
+                    להתחיל מחדש, פשוט שלחו הודעה\uD83D\uDE80""";
         }
 
         return null;

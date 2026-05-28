@@ -88,7 +88,7 @@ public class DriverConversationHandler implements ConversationHandler {
             }
 
             // Waiting for location
-            return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.";
+            return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.\n לאחר מכן תוכל להתחיל לקבל הזמנות חדשות \uD83D\uDE80";
         }
 //        // Handle location in AWAITING_DRIVER_LOCATION state
 //        if (state == ConversationState.AWAITING_DRIVER_LOCATION) {

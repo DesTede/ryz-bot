@@ -124,7 +124,17 @@ public class TaxiOrderService {
         }
         
         // Send confirmation with interactive button for completion
-        String confirmationMsg = "🔥 קיבלת את הנסיעה!\n🆔 " + orderId + "\n📞 טלפון נוסע: " + order.getPhone() + "\n🚗 סע בזהירות 🙌";
+        String confirmationMsg =
+                        "🔥 *נסיעה חדשה התקבלה!*\n" +
+                        "-------------------------\n" +
+                        "🆔 *מספר הזמנה:* " + orderId + "\n" +
+                        "📞 *טלפון נוסע:* " + order.getPhone() + "\n" +
+                        "🏁 *בסיום לחץ לסיום נסיעה*\n" +
+                        "-------------------------\n" +
+                        "🚗 *סע בזהירות!* 🙌";
+
+
+
         whatsappService.sendInteractiveButtonsSafe(
                 driverPhone,
                 confirmationMsg,
@@ -181,16 +191,18 @@ public class TaxiOrderService {
                 String carTypeName = driver.getCarType() != null && driver.getCarType().getHebrewName() != null
                         ? driver.getCarType().getHebrewName()
                         : "כלי רכב";
-                vehicleInfo = String.format("\n🚘 פרטי הרכב:\n%s • %s • %s",
+                vehicleInfo = String.format("\n\n🚘 פרטי הרכב:\n%s • %s • %s",
                         driver.getCarModel(),
                         carTypeName,
                         driver.getCarColor());
             }
 
             String msg = """
-            ✅ הנהג בדרכו אליך 
+            ✅ *הנהג בדרכו אליך*
+            
             👤 שם הנהג: %s
             📞 טלפון: %s%s
+           
             📍 איסוף: %s
             🎯 יעד: %s
             """.formatted(
@@ -202,7 +214,7 @@ public class TaxiOrderService {
             );
 
             if (!locationLink.isEmpty()) {
-                msg += "🗺️ צפייה במיקום הנהג:\n" + locationLink;
+                msg += "🗺️ צפייה במיקום הנהג:\n\n" + locationLink;
             }
 
             whatsappService.sendSafeText(order.getPhone(), msg);
