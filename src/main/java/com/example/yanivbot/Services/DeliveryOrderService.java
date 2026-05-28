@@ -306,7 +306,7 @@ public class DeliveryOrderService {
 
             // Send template message
             whatsappService.sendTemplateMessage(
-                    order.getCustomerPhone(),
+                    whatsappService.normalizePhone(order.getCustomerPhone()),
                     "delivery_status_delivering",
                     templateVariables
             );
@@ -393,7 +393,7 @@ public class DeliveryOrderService {
 
             // Send template message
             whatsappService.sendTemplateMessage(
-                    order.getCustomerPhone(),
+                    whatsappService.normalizePhone(order.getCustomerPhone()),
                     "delivery_status_completed",
                     templateVariables
             );
