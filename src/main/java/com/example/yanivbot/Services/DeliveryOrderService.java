@@ -200,7 +200,10 @@ public class DeliveryOrderService {
         );
 
         // Notify business owner that driver claimed the order
-        String businessNotification = "🚚 נהג בדרך!\nמשלוח #" + orderId + " קורא לנהג\nהנהג בדרך לאיסוף מהעסק שלך 🚀";
+//        String businessNotification = "🚚 נהג בדרך!\nמשלוח #" + orderId + " קורא לנהג\nהנהג בדרך לאיסוף מהעסק שלך 🚀";
+//        String businessNotification = "🛵 הנהג בדרך אליך!\nמשלוח מספר #" + orderId + " כבר משויך לנהג.\nהוא ממש עכשיו יוצא לאיסוף מהעסק שלך 🚀";
+        String businessNotification = "יאלה, יצאנו לדרך! 🎉\nמשלוח #" + orderId + " בטיפול.\nהנהג כבר בדרך לעסק שלך לאסוף את ההזמנה 🤙";
+        
         whatsappService.sendSafeText(order.getBusinessPhone(), businessNotification);
 
         logger.info("[DELIVERY] ✅ Sent confirmations for order #{}", orderId);
@@ -279,7 +282,9 @@ public class DeliveryOrderService {
 
         // Notify business owner
         
-        String businessMsg = "📦 איסוף משלוח!\nמשלוח #" + orderId + " נאסף על ידי הנהג\nהנהג בדרך ללקוח ✨";
+//        String businessMsg = "📦 איסוף משלוח!\nמשלוח #" + orderId + " נאסף על ידי הנהג\nהנהג בדרך ללקוח ✨";
+        String businessMsg = "🛵 השליח אסף את ההזמנה ויוצא לדרך!\nמעדכנים שמשלוח #" + order.getId() + " נאסף מהעסק שלך עכשיו וטס ללקוח 🔥";
+        
         whatsappService.sendSafeText(order.getBusinessPhone(), businessMsg);
 
         // Notify customer using WhatsApp template
