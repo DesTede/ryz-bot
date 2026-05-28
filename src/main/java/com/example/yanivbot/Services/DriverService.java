@@ -261,7 +261,7 @@ public class DriverService {
             whatsappService.sendInteractiveButtonsSafe(
                     driver.getPhone(),
                     message,
-                    new WhatsappService.InteractiveButton("taxi_claim_" + orderId, "✅ קבל נסיעה #" + orderId)
+                    new WhatsappService.InteractiveButton("taxi_claim_" + orderId, "✅ \uD83D\uDE80 אני לוקח #" + orderId)
             );
         }
     }
@@ -330,7 +330,7 @@ public class DriverService {
             whatsappService.sendInteractiveButtonsSafe(
                     driver.getPhone(),
                     message,
-                    new WhatsappService.InteractiveButton("delivery_claim_" + orderId, "✅ קבל משלוח #" + orderId)
+                    new WhatsappService.InteractiveButton("delivery_claim_" + orderId, "✅ \uD83D\uDE80 אני לוקח #" + orderId)
             );
         }
     }
@@ -385,7 +385,7 @@ public class DriverService {
             whatsappService.sendInteractiveButtonsSafe(
                     driver.getPhone(),
                     message,
-                    new WhatsappService.InteractiveButton("delivery_claim_" + orderId, "✅ קבל משלוח #" + orderId)
+                    new WhatsappService.InteractiveButton("delivery_claim_" + orderId, "✅ \uD83D\uDE80 אני לוקח #" + orderId)
             );
         }
     }
