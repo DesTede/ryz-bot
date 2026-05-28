@@ -141,7 +141,8 @@ public class OrderMonitorService {
                     "📞 לקוח: " + order.getPhone();
 
             // Re-dispatch using same method as initial dispatch (sends buttons, not text)
-            driverService.dispatchToDrivers(DriverType.TAXI, msg, orderDetails, order.getId());
+            
+            driverService.dispatchToDrivers(DriverType.TAXI, msg, orderDetails, order.getId(),order.getRequestedCarType());
 
             // Mark as alerted to prevent sending this alert again
             order.setAdminAlerted(true);

@@ -38,7 +38,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
 
         if (txt.matches("^נמסר\\s+\\d+$")) {
             long orderId = Long.parseLong(txt.split("\\s+")[1]);
-            return deliveryOrderService.markDelivered(orderId, message.getPhone());
+            return deliveryOrderService.completeDelivery(orderId, message.getPhone());
         }
 
         // Handle confirmation buttons
@@ -202,59 +202,114 @@ public class DeliveryConversationHandler implements ConversationHandler {
     }
 
     /**
-     * Stage 6: Notes - then show confirmation
+     * Handle delivery notes (Stage 6)
+     * User types: Notes or "אין" (no notes)
+     * Next: Show confirmation with all details
      */
     private String handleNotes(Conversation convo, IncomingMessage message) {
-        String notes = message.getText().trim();
-        if (notes.equals("אין")) {
-            notes = "";
-        }
-        logger.info("[DELIVERY] Stage 6: Saving notes: '{}' (empty={})", notes, notes.isEmpty());
+        String txt = message.getText().trim();
 
-        String tempData = convo.getTempData() + "|" + notes;
-        String[] parts = tempData.split("\\|", -1);  // Use -1 to NOT discard trailing empty strings
+        // Simply store the notes without parsing
+        String notes = txt.isEmpty() ? "" : txt;
 
-        logger.info("[DELIVERY] Complete tempData: '{}' | Parts count: {}", tempData, parts.length);
+        // Build complete tempData: name|phone|address|readyTime|price|notes
+        String tempData = convo.getTempData();
+        String[] parts = tempData.split("\\|");
 
-        // We need exactly 6 parts: name, phone, address, readyTime, price, notes
-        if (parts.length >= 6) {
+        if (parts.length >= 5) {
+            // Add notes to the end
+            String completeTempData = tempData + "|" + notes;
+
+            // Save updated tempData
+            convoService.saveTempData(convo, completeTempData);
+
+            logger.info("[DELIVERY] ✅ All data collected:");
+            logger.info("  - Customer Name: {}", parts[0]);
+            logger.info("  - Address: {}", parts[2]);
+            logger.info("  - Ready Time: {} minutes", parts[3]);
+            logger.info("  - Price: {} ₪", parts[4]);
+            logger.info("  - Notes: {}", notes.isEmpty() ? "(none)" : notes);
+
+            // ✅ CONVERT TO CORRECT TYPES
             String customerName = parts[0];
             String customerPhone = parts[1];
             String address = parts[2];
-            int readyInMinutes = Integer.parseInt(parts[3]);
-            double price = Double.parseDouble(parts[4]);
-            String notesStr = parts[5];
+            int readyMinutes = Integer.parseInt(parts[3]);  // ✅ Convert to int
+            double price = Double.parseDouble(parts[4]);     // ✅ Convert to double
 
-            logger.info("[DELIVERY] ✅ All data collected:");
-            logger.info("  - Customer Name: {}", customerName);
-            logger.info("  - Customer Phone: {}", customerPhone);
-            logger.info("  - Address: {}", address);
-            logger.info("  - Ready Time: {} minutes", readyInMinutes);
-            logger.info("  - Price: {} ₪", price);
-            logger.info("  - Notes: {}", notesStr.isEmpty() ? "(none)" : notesStr);
+            // Show confirmation with all details
+            String confirmation = buildConfirmationMessage(customerName, customerPhone, address,
+                    readyMinutes, price, notes);
 
-            // Show confirmation with actual values
-            String confirmationMessage = buildConfirmationMessage(customerName, customerPhone, address, readyInMinutes, price, notesStr);
+            convoService.updateState(convo, ConversationState.DELIVERY_NOTES);
 
-            // Save complete tempData for confirmation
-            convoService.saveTempData(convo, tempData);
-
-            logger.info("[DELIVERY] 📤 Sending confirmation message with YES/NO buttons");
-
-            // Send confirmation with yes/no buttons
+            // Send confirmation with YES/NO buttons
             whatsappService.sendInteractiveButtons(
                     message.getPhone(),
-                    confirmationMessage,
+                    confirmation,
                     new WhatsappService.InteractiveButton("delivery_confirm_yes", "אישור משלוח ✅"),
-                    new WhatsappService.InteractiveButton("delivery_confirm_no", "ביטול משלוח ❌")
+                    new WhatsappService.InteractiveButton("delivery_confirm_no", "ביטול ❌")
             );
 
-            return null;
+            return null; // Message sent via buttons
         }
 
-        logger.error("[DELIVERY] ❌ Error: Not enough parts. Expected 6+, got {}", parts.length);
-        return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
+        return "❌ שגיאה בעיבוד הנתונים. אנא נסה שנית.";
     }
+//    /**
+//     * Stage 6: Notes - then show confirmation
+//     */
+//    private String handleNotes(Conversation convo, IncomingMessage message) {
+//        String notes = message.getText().trim();
+//        if (notes.equals("אין")) {
+//            notes = "";
+//        }
+//        logger.info("[DELIVERY] Stage 6: Saving notes: '{}' (empty={})", notes, notes.isEmpty());
+//
+//        String tempData = convo.getTempData() + "|" + notes;
+//        String[] parts = tempData.split("\\|", -1);  // Use -1 to NOT discard trailing empty strings
+//
+//        logger.info("[DELIVERY] Complete tempData: '{}' | Parts count: {}", tempData, parts.length);
+//
+//        // We need exactly 6 parts: name, phone, address, readyTime, price, notes
+//        if (parts.length >= 6) {
+//            String customerName = parts[0];
+//            String customerPhone = parts[1];
+//            String address = parts[2];
+//            int readyInMinutes = Integer.parseInt(parts[3]);
+//            double price = Double.parseDouble(parts[4]);
+//            String notesStr = parts[5];
+//
+//            logger.info("[DELIVERY] ✅ All data collected:");
+//            logger.info("  - Customer Name: {}", customerName);
+//            logger.info("  - Customer Phone: {}", customerPhone);
+//            logger.info("  - Address: {}", address);
+//            logger.info("  - Ready Time: {} minutes", readyInMinutes);
+//            logger.info("  - Price: {} ₪", price);
+//            logger.info("  - Notes: {}", notesStr.isEmpty() ? "(none)" : notesStr);
+//
+//            // Show confirmation with actual values
+//            String confirmationMessage = buildConfirmationMessage(customerName, customerPhone, address, readyInMinutes, price, notesStr);
+//
+//            // Save complete tempData for confirmation
+//            convoService.saveTempData(convo, tempData);
+//
+//            logger.info("[DELIVERY] 📤 Sending confirmation message with YES/NO buttons");
+//
+//            // Send confirmation with yes/no buttons
+//            whatsappService.sendInteractiveButtons(
+//                    message.getPhone(),
+//                    confirmationMessage,
+//                    new WhatsappService.InteractiveButton("delivery_confirm_yes", "אישור משלוח ✅"),
+//                    new WhatsappService.InteractiveButton("delivery_confirm_no", "ביטול משלוח ❌")
+//            );
+//
+//            return null;
+//        }
+//
+//        logger.error("[DELIVERY] ❌ Error: Not enough parts. Expected 6+, got {}", parts.length);
+//        return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
+//    }
 
     /**
      * Build confirmation message string

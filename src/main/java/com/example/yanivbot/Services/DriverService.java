@@ -519,4 +519,6 @@ public class DriverService {
                 .findByPickedUpByAndDeliveryStatusIn(driverPhone,
                         List.of(DeliveryStatus.ASSIGNED, DeliveryStatus.PICKED_UP, DeliveryStatus.DELIVERING));
     }
+
+    
 }

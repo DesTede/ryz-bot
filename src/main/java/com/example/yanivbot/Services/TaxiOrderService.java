@@ -9,6 +9,7 @@ import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -86,6 +87,20 @@ public class TaxiOrderService {
         if (activeOrder != null)
             return "⚠️ שים לב\nכבר משויכת אליך נסיעה פעילה #" + activeOrder.getId() + " 🚗\n📍 יש לסיים אותה לפני קבלת נסיעה חדשה";
 
+        Driver driver = driverService.findByPhone(driverPhone);
+        if (driver != null && driver.getType() == DriverType.BOTH) {
+            if (driverService.hasActiveDeliveryOrders(driverPhone)) {
+                int activeDeliveries = driverService.getActiveDeliveryCount(driverPhone);
+                logger.warn("[TAXI] BOTH driver {} blocked - has {} active deliveries",
+                        PhoneNumberUtil.maskPhoneNumber(driverPhone), activeDeliveries);
+
+                String msg = "⚠️ שים לב\nיש לך " + activeDeliveries + " משלוחים פעילים בדרך\n" +
+                        "סיים אותם קודם לפני שתוכל לקבל נסיעות מונית";
+                whatsappService.sendSafeText(driverPhone, msg);
+                return null; // Message sent
+            }
+        }
+        
         TaxiOrder order = taxiOrderRepo.findById(orderId).orElse(null);
 
         if (order == null)
