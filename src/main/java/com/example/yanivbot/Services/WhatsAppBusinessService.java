@@ -31,6 +31,7 @@ public class WhatsAppBusinessService {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     
+    //changed from instagram to facebook
     private static final String META_API_BASE = "https://graph.facebook.com";
     
     public WhatsAppBusinessService(
