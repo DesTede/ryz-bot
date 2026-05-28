@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 
 @Service
@@ -81,6 +82,7 @@ public class DeliveryOrderService {
         String msg = """
         🚚 הזמנת משלוח חדשה
         בית עסק: %s
+        📞 טלפון העסק: %s
         📍 יעד משלוח: %s
         💰 סכום: ₪%s
         📝 הערות: %s
@@ -88,6 +90,7 @@ public class DeliveryOrderService {
         ✅ לקבלת המשלוח לחץ על הכפתור למטה
         """.formatted(
                 businessName,
+                order.getBusinessPhone(),
                 order.getDeliveryAddress(),
                 order.getDeliveryFee(),
                 order.getNotes().isEmpty() ? "אין" : order.getNotes(),
@@ -173,6 +176,9 @@ public class DeliveryOrderService {
         deliveryOrderRepo.save(order);
         logger.info("[DELIVERY] ✅ Order #{} claimed by driver {}", orderId, PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone));
 
+        Business business = businessRepo.findByPhone(order.getBusinessPhone()).orElse(null);
+        String businessName = (business != null && business.getName() != null) ? business.getName() : "העסק";
+
         // Send confirmation to driver with order details
         String driverConfirmation ="""
         🔥 קיבלת משלוח!
@@ -183,7 +189,7 @@ public class DeliveryOrderService {
         בואו נתחיל 🚀
         """.formatted(
                 order.getId(),
-                businessRepo.findByPhone(order.getBusinessPhone()),
+                businessName,
                 order.getDeliveryAddress()
         );
                 
@@ -242,6 +248,9 @@ public class DeliveryOrderService {
         logger.info("[DELIVERY] ✅ Order #{} marked as PICKED_UP by driver {}", orderId,
                 PhoneNumberUtil.maskPhoneNumber(driverPhone));
 
+        Business business = businessRepo.findByPhone(order.getBusinessPhone()).orElse(null);
+        String businessName = (business != null && business.getName() != null) ? business.getName() : "העסק";
+        
         // Send confirmation to driver with complete button
         String driverMsg ="""
         🔥 אתה בדרך ללקוח!
@@ -255,7 +264,7 @@ public class DeliveryOrderService {
         🛵 סע בזהירות 🙌
         """.formatted(
                 order.getId(),
-                businessRepo.findByPhone(order.getBusinessPhone()),
+                businessName,
                 order.getCustomerPhone(),
                 order.getDeliveryAddress(),
                 order.getDeliveryFee(),
@@ -270,7 +279,7 @@ public class DeliveryOrderService {
 
         // Notify business owner
         
-        String businessMsg = "📦 איסוף משלוח!\nמשלוח #" + orderId + " נאסף על ידי הנהג\nהנהג בדרך לקוח ✨";
+        String businessMsg = "📦 איסוף משלוח!\nמשלוח #" + orderId + " נאסף על ידי הנהג\nהנהג בדרך ללקוח ✨";
         whatsappService.sendSafeText(order.getBusinessPhone(), businessMsg);
 
         // Notify customer using WhatsApp template
@@ -280,8 +289,8 @@ public class DeliveryOrderService {
             String customerName = customer != null ? customer.getName() : "לקוח";
             
             // Fetch business name from database
-            Business business = businessRepo.findByPhone(order.getBusinessPhone()).orElse(null);
-            String businessName = business != null ? business.getName() : "העסק";
+//            Business business = businessRepo.findByPhone(order.getBusinessPhone()).orElse(null);
+//            String businessName = business != null ? business.getName() : "העסק";
 
             // Generate real-time Google Maps link for driver location
             String mapsLink = generateGoogleMapsLink(driverPhone);
