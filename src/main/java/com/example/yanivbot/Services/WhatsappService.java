@@ -400,28 +400,13 @@ public class WhatsappService {
             // Build message object
             Map<String, Object> message = new HashMap<>();
             message.put("messaging_product", "whatsapp");
-            message.put("to", phone);
+            message.put("to", normalizePhone(phone));
             message.put("type", "template");
             message.put("template", template);
 
             // Log the message structure
             logger.debug("Message structure: {}", message);
-
-            // Send via WhatsApp Cloud API
-            // NOTE: This assumes you have a WhatsApp client configured
-            // Adapt this based on your actual WhatsApp SDK/client library
-
-            // Example for RestTemplate or similar:
-            // ResponseEntity<String> response = restTemplate.postForEntity(
-            //     "https://graph.instagram.com/v18.0/" + phoneNumberId + "/messages",
-            //     message,
-            //     String.class
-            // );
-
-            // Example for Facebook SDK:
-            // whatsappClient.sendMessage(message);
-
-            // Placeholder - Replace with actual API call
+            
             sendMessageToWhatsAppAPI(message);
 
             logger.info("✅ Template message sent successfully to {}",
@@ -469,49 +454,4 @@ public class WhatsappService {
             throw new RuntimeException("Failed to send message to WhatsApp API", e);
         }
     }
-    
-//
-//    /**
-//     * Send message using WhatsApp template
-//     *
-//     * @param phone Recipient phone number
-//     * @param templateName Template name (e.g., "delivery_status_delivering")
-//     * @param variables List of variables in order ({{1}}, {{2}}, etc)
-//     */
-//    public void sendTemplateMessage(String phone, String templateName, List<String> variables) {
-//        try {
-//            // Build template message request
-//            Map<String, Object> templateObject = new HashMap<>();
-//            templateObject.put("name", templateName);
-//
-//            // Add variables as parameters
-//            List<Map<String, String>> parameters = new ArrayList<>();
-//            for (String variable : variables) {
-//                Map<String, String> param = new HashMap<>();
-//                param.put("type", "text");
-//                param.put("text", variable);
-//                parameters.add(param);
-//            }
-//            templateObject.put("parameters", parameters);
-//
-//            // Build message object
-//            Map<String, Object> message = new HashMap<>();
-//            message.put("messaging_product", "whatsapp");
-//            message.put("to", phone);
-//            message.put("type", "template");
-//            message.put("template", templateObject);
-//
-//            // Send via WhatsApp API
-//            // Implementation depends on your WhatsApp client library
-//            // This is a placeholder - adapt to your actual API client
-//
-//            logger.info("Template message sent to {}: {}",
-//                    PhoneNumberUtil.maskPhoneNumber(phone), templateName);
-//
-//        } catch (Exception e) {
-//            logger.error("Error sending template message to {} for template {}: {}",
-//                    PhoneNumberUtil.maskPhoneNumber(phone), templateName, e.getMessage(), e);
-//            throw new RuntimeException("Failed to send template message", e);
-//        }
-//    }
 }
