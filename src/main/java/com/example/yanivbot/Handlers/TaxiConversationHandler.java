@@ -96,7 +96,7 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         return """
                 🚗 מעולה!
-                 שלחו את נקודת האיסוף שלכם📍
+                 שלחו את כתובת האיסוף שלכם📍
                 (לא לשכוח עיר)\s""";
     }
 
