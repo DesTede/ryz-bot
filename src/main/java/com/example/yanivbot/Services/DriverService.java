@@ -409,9 +409,13 @@ public class DriverService {
 
         logger.warn("No drivers available for order #{} - alerting admins", orderId);
 
-        String adminMessage = "⚠️ הזמנת " + (type == DriverType.TAXI ? "מונית" : "משלוח") +
-                " חדשה #" + orderId + " נוצרה אך אין נהגים זמינים!\n" +
-                orderDetails;
+        String adminMessage = "🚨 *אוי לא, אין נהגים פנויים!*\n" +
+                "נוצרה הזמנת " + (type == DriverType.TAXI ? "מונית" : "משלוח") + " חדשה (#" + orderId + ") אבל אין אף נהג זמין כרגע במערכת 😰\n\n" +
+                "📋 *פרטי ההזמנה:*\n" + orderDetails;
+                
+//                "⚠️ הזמנת " + (type == DriverType.TAXI ? "מונית" : "משלוח") +
+//                " חדשה #" + orderId + " נוצרה אך אין נהגים זמינים!\n" +
+//                orderDetails;
 
         notifyAdmins(adminMessage);
 

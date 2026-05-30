@@ -98,7 +98,10 @@ public class AdminCommandHandler {
         if (botConfigService.isBotActive()) {
             // Bot already on
             logger.info("Admin {} tried to turn on bot, but it's already on", phone);
-            return "הבוט כבר פעיל וזמין ללקוחות ומשתמשים 🟢";
+            return """
+                    \uD83D\uDE80 אנחנו שוב באוויר!
+                    \uD83D\uDFE2 הבוט פעיל, יציב וזמין לכולם.
+                    ✅ השירות חזר לעבודה כרגיל.""";
         }
 
         // Turn on bot
@@ -106,7 +109,11 @@ public class AdminCommandHandler {
         logger.warn("Admin {} turned ON the bot", phone);
 
         // Notify all admins
-        String adminMessage = "🟢 בוט פעיל וזמין ללקוחות ומשתמשים\n✅ השירות חזר לעבודה";
+        String adminMessage = """
+                🚀 *אנחנו שוב באוויר!*
+                -------------------------
+                🟢 הבוט פעיל, יציב וזמין לכולם.
+                ✅ השירות חזר לעבודה כרגיל. Movez 💙""";
         notifyAllAdmins(adminMessage, whatsappService);
 
         return null; // Message already sent via notifyAllAdmins

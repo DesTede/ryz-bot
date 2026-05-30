@@ -112,11 +112,18 @@ public class OrderMonitorService {
                     order.getId(), TAXI_ALERT_MINUTES);
 
             // Notify admins - "Order unclaimed for X minutes" alert
-            String adminMsg = "⚠️ הזמנת מונית #" + order.getId() + " לא נלקחה כבר " +
-                    TAXI_ALERT_MINUTES + " דקות!\n" +
-                    "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
-                    "🎯 לאן: " + order.getDestination() + "\n" +
-                    "📞 לקוח: " + order.getPhone();
+            String adminMsg ="⏰ *מונית מחכה יותר מדי זמן!* (#" + order.getId() + ")\n" +
+                    "כבר " + TAXI_ALERT_MINUTES + " דקות שאף נהג לא לקח את הנסיעה 😱\n\n" +
+                    "📍 *איסוף:* " + order.getPickUpLocation() + "\n" +
+                    "🎯 *יעד:* " + order.getDestination() + "\n" +
+                    "📞 *לקוח:* " + order.getPhone();
+
+            
+//            "⚠️ הזמנת מונית #" + order.getId() + " לא נלקחה כבר " + TAXI_ALERT_MINUTES + " דקות!\n" +
+//                    "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
+//                    "🎯 לאן: " + order.getDestination() + "\n" +
+//                    "📞 לקוח: " + order.getPhone();
+            
 
             whatsappService.notifyAdmins(adminMsg);
 
@@ -183,10 +190,15 @@ public class OrderMonitorService {
                     order.getId(), DELIVERY_ALERT_MINUTES);
 
             // Notify admins - "Order unclaimed for X minutes" alert
-            String adminMsg = "⚠️ הזמנת משלוח #" + order.getId() + " לא נלקחה כבר " +
-                    DELIVERY_ALERT_MINUTES + " דקות!\n" +
-                    "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
-                    "📞 עסק: " + order.getBusinessPhone();
+            String adminMsg = "\uD83C\uDF55\uD83C\uDF54 *משלוח תקוע באוויר!* (#" + order.getId() + ")\n" +
+                    "עברו כבר " + DELIVERY_ALERT_MINUTES + " דקות וההזמנה עדיין לא נאספה ⏳\n\n" +
+                    "📍 *כתובת למשלוח:* " + order.getDeliveryAddress() + "\n" +
+                    "📞 *טלפון העסק:* " + order.getBusinessPhone();
+                    
+//                    "⚠️ הזמנת משלוח #" + order.getId() + " לא נלקחה כבר " +
+//                    DELIVERY_ALERT_MINUTES + " דקות!\n" +
+//                    "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
+//                    "📞 עסק: " + order.getBusinessPhone();
 
             whatsappService.notifyAdmins(adminMsg);
 

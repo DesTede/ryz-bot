@@ -222,7 +222,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         logger.info("[DELIVERY] ✅ Price saved | Moving to Stage 6 (Notes)");
         
         
-        return "📝 יש הערות נוספות לשליח?\n(קוד כניסה, הערה להזמנה וכו׳)\nאם אין הערות רשמו: אין";
+        return "📝 יש הערות נוספות לשליח?\n(קומה, מספר דירה, קוד כניסה, הערה להזמנה וכו׳)\nאם אין הערות רשמו: אין";
     }
 
     /**
