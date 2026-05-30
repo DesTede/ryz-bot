@@ -23,6 +23,9 @@ public class Customer {
     private LocalDateTime createdAt;
     private LocalDateTime lastOrderAt;
     private int totalOrders;
+    private int totalTaxiOrders;
+    private int totalDeliveryOrders;
+    private LocalDateTime lastMessageAt;
     
     @PrePersist
     public void onCreate() {
@@ -86,9 +89,41 @@ public class Customer {
     public void setTotalOrders(int totalOrders) {
         this.totalOrders = totalOrders;
     }
+
+    public int getTotalTaxiOrders() {
+        return totalTaxiOrders;
+    }
+
+    public void setTotalTaxiOrders(int totalTaxiOrders) {
+        this.totalTaxiOrders = totalTaxiOrders;
+    }
+
+    public int getTotalDeliveryOrders() {
+        return totalDeliveryOrders;
+    }
+
+    public void setTotalDeliveryOrders(int totalDeliveryOrders) {
+        this.totalDeliveryOrders = totalDeliveryOrders;
+    }
+
+    public LocalDateTime getLastMessageAt() {
+        return lastMessageAt;
+    }
+
+    public void setLastMessageAt(LocalDateTime lastMessageAt) {
+        this.lastMessageAt = lastMessageAt;
+    }
+
     
-    public void incrementTotalOrders() {
+    public void incrementTaxiOrders() {
         this.totalOrders++;
+        this.totalTaxiOrders++;
+        this.lastOrderAt = LocalDateTime.now();
+    }
+
+    public void incrementDeliveryOrders() {
+        this.totalOrders++;
+        this.totalDeliveryOrders++;
         this.lastOrderAt = LocalDateTime.now();
     }
 }

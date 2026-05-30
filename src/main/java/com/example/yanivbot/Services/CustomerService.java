@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,7 +32,8 @@ public class CustomerService {
         
         if (existing.isPresent()) {
             Customer customer = existing.get();
-            customer.incrementTotalOrders();
+            customer.incrementDeliveryOrders();
+            customer.setTotalDeliveryOrders(customer.getTotalDeliveryOrders() + 1);
             // Update name if it's empty
             if (customer.getName() == null || customer.getName().isEmpty()) {
                 customer.setName(name);
@@ -42,11 +44,43 @@ public class CustomerService {
         } else {
             // New customer
             Customer newCustomer = new Customer(phone, name);
-            newCustomer.incrementTotalOrders();
+            newCustomer.incrementDeliveryOrders();
+            newCustomer.setTotalDeliveryOrders(1);
             customerRepo.save(newCustomer);
             logger.info("Saved new customer: {}", phone);
             return newCustomer;
         }
+    }
+
+    /**
+     * Register a new customer when they first chat (no order yet)
+     * Only creates - never overwrites existing
+     */
+    public void registerNewCustomer(String phone, String name) {
+        if (customerRepo.findByPhone(phone).isEmpty()) {
+            Customer newCustomer = new Customer(phone, name);
+            customerRepo.save(newCustomer);
+            logger.info("Registered new customer on first chat: {}", phone);
+        }
+    }
+
+    /**
+     * Called when a taxi order is placed
+     */
+    public void recordTaxiOrder(String phone) {
+        Customer customer = customerRepo.findByPhone(phone).orElse(new Customer(phone, "לקוח"));
+        customer.incrementTaxiOrders();
+        customerRepo.save(customer);
+    }
+
+    /**
+     * Update lastMessageAt on every inbound message
+     */
+    public void updateLastMessageAt(String phone) {
+        customerRepo.findByPhone(phone).ifPresent(customer -> {
+            customer.setLastMessageAt(LocalDateTime.now());
+            customerRepo.save(customer);
+        });
     }
     
     /**
@@ -154,4 +188,5 @@ public class CustomerService {
             this.avgOrdersPerCustomer = avgOrdersPerCustomer;
         }
     }
+
 }

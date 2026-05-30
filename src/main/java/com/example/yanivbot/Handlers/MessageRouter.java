@@ -231,6 +231,7 @@ public class MessageRouter {
             logger.info("Welcome already sent, capturing name: '{}'", txt);
             String name = txt;
             convoService.saveTempData(convo, name);
+            customerService.registerNewCustomer(phone, name);
             convoService.updateState(convo, ConversationState.START_MENU);
 
             // Show service menu with customer's name

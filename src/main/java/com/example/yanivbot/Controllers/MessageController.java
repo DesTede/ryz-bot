@@ -4,6 +4,7 @@ import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Handlers.MessageRouter;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.ConversationService;
+import com.example.yanivbot.Services.CustomerService;
 import com.example.yanivbot.Services.WhatsappService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,9 @@ public class MessageController {
 
     @Autowired
     private ConversationService convoService;
+    
+    @Autowired
+    private CustomerService customerService;
 
     @Autowired
     private MessageRouter messageRouter;
@@ -62,6 +66,7 @@ public class MessageController {
             // Get or create conversation
             Conversation convo = convoService.getOrCreate(message.getPhone());
             convoService.updateLastMessageTime(message.getPhone());
+            customerService.updateLastMessageAt(message.getPhone());
             
             logger.info("Handling message from {}: '{}' | State: {}", message.getPhone(), message.getText(), convo.getState());
 

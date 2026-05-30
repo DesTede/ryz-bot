@@ -3,6 +3,7 @@ package com.example.yanivbot.Services;
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.TaxiOrder;
+import com.example.yanivbot.Handlers.MessageRouter;
 import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
@@ -25,6 +26,7 @@ public class TaxiOrderService {
     private final DriverService driverService;
     private final GeoCodingService geoCodingService;
     private final CustomerService customerService;
+    
 
     public TaxiOrderService(ConversationService convoService, TaxiOrderRepository taxiOrderRepo, WhatsappService whatsappService,
                             DriverService driverService, GeoCodingService geoCodingService, CustomerService customerService) {
@@ -38,8 +40,9 @@ public class TaxiOrderService {
 
     public void createTaxiOrder(String customerPhone, String pickUp, String destination, String notes, CarType carType) {
         // Save customer
-        customerService.saveOrUpdateCustomer(customerPhone, "לקוח");
-
+//        customerService.saveOrUpdateCustomer(customerPhone, "לקוח");
+        customerService.recordTaxiOrder(customerPhone);
+        
         TaxiOrder taxiOrder = new TaxiOrder(customerPhone, pickUp, destination, notes);
         taxiOrder.setRequestedCarType(carType);
         taxiOrderRepo.save(taxiOrder);
