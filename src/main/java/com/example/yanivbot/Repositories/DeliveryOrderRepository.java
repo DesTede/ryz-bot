@@ -1,6 +1,7 @@
 package com.example.yanivbot.Repositories;
 
 import com.example.yanivbot.Entities.DeliveryOrder;
+import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.DeliveryStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -35,7 +36,10 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
     Optional<DeliveryOrder> findFirstByBusinessPhoneAndDeliveryStatusOrderByCreatedAtDesc(
             String businessPhone, DeliveryStatus status);
 
-    
+    Optional<DeliveryOrder> findByTrackingToken(String trackingToken);
+
+
+
 //    List<DeliveryOrder> active = repo.findByPickedUpByAndDeliveryStatusIn(
 //            driverPhone,
 //            List.of(ASSIGNED, PICKED_UP, DELIVERING)

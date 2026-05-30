@@ -10,17 +10,21 @@ import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
 
 @Service
 public class DeliveryOrderService {
 
     private static final Logger logger = LoggerFactory.getLogger(DeliveryOrderService.class);
+
+    @Value("${app.base-url}")
+    private String baseUrl;
 
     private final ConversationService convoService;
     private final DeliveryOrderRepository deliveryOrderRepo;
@@ -247,12 +251,18 @@ public class DeliveryOrderService {
 
         // Update order status
         order.setDeliveryStatus(DeliveryStatus.PICKED_UP);
+        order.setTrackingToken(UUID.randomUUID().toString());
         deliveryOrderRepo.save(order);
         logger.info("[DELIVERY] ✅ Order #{} marked as PICKED_UP by driver {}", orderId,
                 PhoneNumberUtil.maskPhoneNumber(driverPhone));
 
         Business business = businessRepo.findByPhone(order.getBusinessPhone()).orElse(null);
         String businessName = (business != null && business.getName() != null) ? business.getName() : "העסק";
+
+        Driver pickupDriver = driverService.findByPhone(driverPhone);
+        String driverLiveLink = (pickupDriver != null && pickupDriver.getLocationToken() != null)
+                ? "\n📍 שדר מיקום ללקוח:\n" + baseUrl + "/driver/live/" + pickupDriver.getLocationToken()
+                : "";
         
         // Send confirmation to driver with complete button
         String driverMsg ="""
@@ -272,7 +282,8 @@ public class DeliveryOrderService {
                 order.getDeliveryAddress(),
                 order.getDeliveryFee(),
                 order.getNotes().isEmpty() ? "אין" : order.getNotes()
-        );
+                ) +
+                driverLiveLink;
 
         whatsappService.sendInteractiveButtonsSafe(
                 driverPhone,
@@ -281,48 +292,34 @@ public class DeliveryOrderService {
         );
 
         // Notify business owner
-        
-//        String businessMsg = "📦 איסוף משלוח!\nמשלוח #" + orderId + " נאסף על ידי הנהג\nהנהג בדרך ללקוח ✨";
         String businessMsg = "🛵 השליח אסף את ההזמנה ויוצא לדרך!\nמעדכנים שמשלוח #" + order.getId() + " נאסף מהעסק שלך עכשיו וטס ללקוח 🔥";
-        
         whatsappService.sendSafeText(order.getBusinessPhone(), businessMsg);
-
-        // Notify customer using WhatsApp template
+        
         try {
-            // Fetch customer name from database
             Customer customer = customerService.getCustomer(order.getCustomerPhone());
             String customerName = customer != null ? customer.getName() : "לקוח";
-            
-            // Fetch business name from database
-//            Business business = businessRepo.findByPhone(order.getBusinessPhone()).orElse(null);
-//            String businessName = business != null ? business.getName() : "העסק";
 
-            // Generate real-time Google Maps link for driver location
-            String mapsLink = generateGoogleMapsLink(driverPhone);
+            Business customerBusiness = businessRepo.findByPhone(order.getBusinessPhone()).orElse(null);
+            String notifBusinessName = (customerBusiness != null && customerBusiness.getName() != null)
+                    ? customerBusiness.getName() : "העסק";
 
-            // Build variables list in order: {{1}}, {{2}}, {{3}}, {{4}}, {{5}}
-            List<String> templateVariables = Arrays.asList(
-                    customerName,                    // {{1}} - Customer Name
-                    businessName,                    // {{2}} - Business Name
-                    driverPhone,                     // {{3}} - Driver Phone
-                    order.getDeliveryAddress(),      // {{4}} - Delivery Address
-                    mapsLink                         // {{5}} - Google Maps Link
-            );
+            String trackingLink = baseUrl + "/track/" + order.getTrackingToken();
 
-            // Send template message
-            whatsappService.sendTemplateMessage(
+            String customerMsg = "🛵 ההזמנה שלך בדרך!\n\n" +
+                    "👤 " + customerName + ", ההזמנה מ-" + notifBusinessName + " יצאה לדרך.\n" +
+                    "📍 כתובת מסירה: " + order.getDeliveryAddress() + "\n\n" +
+                    "🗺️ מעקב חי אחר השליח:\n" + trackingLink;
+
+            whatsappService.sendSmartCustomerMessage(
                     whatsappService.normalizePhone(order.getCustomerPhone()),
+                    customerMsg,
                     "delivery_status_delivering",
-                    templateVariables
+                    Arrays.asList(customerName, notifBusinessName, driverPhone, order.getDeliveryAddress(), trackingLink),
+                    convoService
             );
-
-            logger.info("[DELIVERY] ✅ Sent delivery_status_delivering template to customer for order #{}",
-                    orderId);
-
+            logger.info("[DELIVERY] ✅ Sent tracking link to customer for order #{}", orderId);
         } catch (Exception e) {
-            logger.error("[DELIVERY] ⚠️ Error sending template to customer for order #{}: {}",
-                    orderId, e.getMessage());
-            // Log but don't fail - order processing continues even if template fails
+            logger.error("[DELIVERY] ⚠️ Error sending tracking link to customer for order #{}: {}", orderId, e.getMessage());
         }
 
         logger.info("[DELIVERY] ✅ Sent pickup confirmations for order #{}", orderId);

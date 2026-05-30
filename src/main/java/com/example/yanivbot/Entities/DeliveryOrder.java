@@ -36,9 +36,15 @@ public class DeliveryOrder {
         this.createdAt = LocalDateTime.now();
     }
     private LocalDateTime scheduledDispatchTime;
+    
+    @Column(name = "tracking_token")
+    private String trackingToken;
+    
 
     private boolean isDispatched;
     private boolean adminAlerted = false;
+    
+    
 
     public DeliveryOrder() {
     }

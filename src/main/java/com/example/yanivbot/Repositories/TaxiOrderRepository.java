@@ -20,5 +20,7 @@ public interface TaxiOrderRepository extends JpaRepository<TaxiOrder, Long> {
     
     List<TaxiOrder> findAllByOrderByCreatedAtDesc();
     
+    Optional<TaxiOrder> findByTrackingToken(String trackingToken);
+    
     
 }

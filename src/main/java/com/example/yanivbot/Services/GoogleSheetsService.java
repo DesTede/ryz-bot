@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * [COMPLETE FILE]
@@ -220,6 +221,10 @@ public class GoogleSheetsService {
                 existing.setCarType(parseCarType(carType));
                 existing.setCarColor(carColor.isEmpty() ? null : carColor);
                 existing.setCarModel(carModel.isEmpty() ? null : carModel);
+                // Generate token if missing (existing drivers before this feature)
+                if (existing.getLocationToken() == null) {
+                    existing.setLocationToken(UUID.randomUUID().toString());
+                }
                 driverRepo.save(existing);
                 logger.info("Updated driver: {} with car details: {}/{}/{}", phone, carType, carColor, carModel);
             } else {
@@ -228,6 +233,7 @@ public class GoogleSheetsService {
                 newDriver.setCarType(parseCarType(carType));
                 newDriver.setCarColor(carColor.isEmpty() ? null : carColor);
                 newDriver.setCarModel(carModel.isEmpty() ? null : carModel);
+                newDriver.setLocationToken(UUID.randomUUID().toString());
                 driverRepo.save(newDriver);
                 logger.info("Added new driver: {} with car details: {}/{}/{}", phone, carType, carColor, carModel);
             }

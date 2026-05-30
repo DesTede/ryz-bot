@@ -11,14 +11,19 @@ import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class TaxiOrderService {
 
     private static final Logger logger = LoggerFactory.getLogger(TaxiOrderService.class);
+
+    @Value("${app.base-url}")
+    private String baseUrl;
 
     private final ConversationService convoService;
     private final TaxiOrderRepository taxiOrderRepo;
@@ -115,6 +120,10 @@ public class TaxiOrderService {
         
         order.setStatus(TaxiOrderStatus.ASSIGNED);
         order.setDriverPhone(driverPhone);
+        
+        //live location updates
+        order.setTrackingToken(UUID.randomUUID().toString());
+        
         taxiOrderRepo.save(order);
 
         // Attempt to notify customer and other drivers, but don't let exceptions break the claim
@@ -125,6 +134,11 @@ public class TaxiOrderService {
         }
         
         // Send confirmation with interactive button for completion
+        Driver claimedDriver = driverService.findByPhone(driverPhone);
+        String driverLiveLink = (claimedDriver != null && claimedDriver.getLocationToken() != null)
+                ? "\n📍 שדר מיקום ללקוח:\n" + baseUrl + "/driver/live/" + claimedDriver.getLocationToken()
+                : "";
+        
         String confirmationMsg =
                         "🔥 *נסיעה חדשה התקבלה!*\n" +
                         "-------------------------\n" +
@@ -132,7 +146,8 @@ public class TaxiOrderService {
                         "📞 *טלפון נוסע:* " + order.getPhone() + "\n" +
                         "🏁 *בסיום לחץ לסיום נסיעה*\n" +
                         "-------------------------\n" +
-                        "🚗 *סע בזהירות!* 🙌";
+                        "🚗 *סע בזהירות!* 🙌" +
+                        driverLiveLink;
 
 
 
@@ -190,11 +205,11 @@ public class TaxiOrderService {
             String driverName = driver != null ? driver.getName() : order.getDriverPhone();
             String driverPhone = order.getDriverPhone();
 
-            double[] driverLocation = driverService.getDriverLocation(driverPhone);
-            String locationLink = "";
-            if (driverLocation != null && driverLocation.length == 2) {
-                locationLink = whatsappService.generateGoogleMapsLink(driverLocation[0], driverLocation[1]);
-            }
+//            double[] driverLocation = driverService.getDriverLocation(driverPhone);
+//            String locationLink = "";
+//            if (driverLocation != null && driverLocation.length == 2) {
+//                locationLink = whatsappService.generateGoogleMapsLink(driverLocation[0], driverLocation[1]);
+//            }
 
             String vehicleInfo = "";
             if (driver != null && driver.getCarType() != null && driver.getCarModel() != null && driver.getCarColor() != null) {
@@ -222,10 +237,14 @@ public class TaxiOrderService {
                     order.getPickUpLocation(),
                     order.getDestination()
             );
-
-            if (!locationLink.isEmpty()) {
-                msg += "🗺️ צפייה במיקום הנהג:\n\n" + locationLink;
+            
+            if (order.getTrackingToken() != null) {
+                msg += "🗺️ מעקב חי אחר הנהג:\n" + baseUrl + "/track/" + order.getTrackingToken();
             }
+
+//            if (!locationLink.isEmpty()) {
+//                msg += "🗺️ צפייה במיקום הנהג:\n\n" + locationLink;
+//            }
 
             whatsappService.sendSafeText(order.getPhone(), msg);
             logger.info("Customer notification sent for order #{}", order.getId());

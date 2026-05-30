@@ -44,6 +44,9 @@ public class TaxiOrder {
 
     @Column(name = "admin_alerted_no_drivers", nullable = false)
     private boolean adminAlertedNoDrivers = false;
+    
+    @Column(name = "tracking_token")
+    private String trackingToken;
 
     // Constructors
     public TaxiOrder() {
@@ -148,5 +151,13 @@ public class TaxiOrder {
 
     public void setAdminAlertedNoDrivers(boolean adminAlertedNoDrivers) {
         this.adminAlertedNoDrivers = adminAlertedNoDrivers;
+    }
+
+    public String getTrackingToken() {
+        return trackingToken;
+    }
+
+    public void setTrackingToken(String trackingToken) {
+        this.trackingToken = trackingToken;
     }
 }

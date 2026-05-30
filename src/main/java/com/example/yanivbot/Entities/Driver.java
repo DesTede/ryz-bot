@@ -35,6 +35,7 @@ public class Driver {
     private String carColor;
     private String carModel;
 
+    private String locationToken;
     public Driver() {
     }
 
@@ -138,5 +139,14 @@ public class Driver {
 
     public void setCarModel(String carModel) {
         this.carModel = carModel;
+    }
+
+    @Column(name = "location_token", unique = true)
+    public String getLocationToken() {
+        return locationToken;
+    }
+
+    public void setLocationToken(String locationToken) {
+        this.locationToken = locationToken;
     }
 }
