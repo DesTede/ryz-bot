@@ -61,7 +61,8 @@ public class MessageController {
         try {
             // Get or create conversation
             Conversation convo = convoService.getOrCreate(message.getPhone());
-
+            convoService.updateLastMessageTime(message.getPhone());
+            
             logger.info("Handling message from {}: '{}' | State: {}", message.getPhone(), message.getText(), convo.getState());
 
             // Route to appropriate handler

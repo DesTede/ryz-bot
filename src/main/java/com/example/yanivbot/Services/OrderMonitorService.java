@@ -189,18 +189,18 @@ public class OrderMonitorService {
             logger.warn("Delivery order #{} unclaimed for {} minutes - alerting admins",
                     order.getId(), DELIVERY_ALERT_MINUTES);
 
+            
             // Notify admins - "Order unclaimed for X minutes" alert
             String adminMsg = "\uD83C\uDF55\uD83C\uDF54 *משלוח תקוע באוויר!* (#" + order.getId() + ")\n" +
                     "עברו כבר " + DELIVERY_ALERT_MINUTES + " דקות וההזמנה עדיין לא נאספה ⏳\n\n" +
                     "📍 *כתובת למשלוח:* " + order.getDeliveryAddress() + "\n" +
                     "📞 *טלפון העסק:* " + order.getBusinessPhone();
-                    
-//                    "⚠️ הזמנת משלוח #" + order.getId() + " לא נלקחה כבר " +
-//                    DELIVERY_ALERT_MINUTES + " דקות!\n" +
-//                    "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
-//                    "📞 עסק: " + order.getBusinessPhone();
-
-            whatsappService.notifyAdmins(adminMsg);
+            
+            driverService.notifyAdminsSmartMessage(
+                    adminMsg,
+                    "delivery_order_delayed_admin",
+                    List.of(String.valueOf(order.getId()), String.valueOf(DELIVERY_ALERT_MINUTES))
+            );
 
             // Notify business owner
             whatsappService.sendSafeText(order.getBusinessPhone(),

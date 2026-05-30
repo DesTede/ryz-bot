@@ -46,9 +46,6 @@ public class WhatsappService {
     /**
      * Parse incoming message from Meta WhatsApp webhook
      */
-    /**
-     * Parse incoming message from Meta WhatsApp webhook
-     */
     public IncomingMessage parseIncomingMessage(Map<String, Object> payload) {
         try {
             JSONObject json = new JSONObject(payload);
@@ -77,25 +74,27 @@ public class WhatsappService {
             // Check message type
             String messageType = message.getString("type");
 
-            if (messageType.equals("text")) {
-                text = message.getJSONObject("text").getString("body");
-            } else if (messageType.equals("location")) {
-                // Handle location message
-                JSONObject locationObj = message.getJSONObject("location");
-                latitude = locationObj.getDouble("latitude");
-                longitude = locationObj.getDouble("longitude");
-                logger.info("Location received from {}: lat={}, lon={}", phone, latitude, longitude);
-            } else if (messageType.equals("interactive")) {
-                // Handle interactive messages (buttons, lists, etc.)
-                JSONObject interactive = message.getJSONObject("interactive");
-                String interactiveType = interactive.getString("type");
+            switch (messageType) {
+                case "text" -> text = message.getJSONObject("text").getString("body");
+                case "location" -> {
+                    // Handle location message
+                    JSONObject locationObj = message.getJSONObject("location");
+                    latitude = locationObj.getDouble("latitude");
+                    longitude = locationObj.getDouble("longitude");
+                    logger.info("Location received from {}: lat={}, lon={}", phone, latitude, longitude);
+                }
+                case "interactive" -> {
+                    // Handle interactive messages (buttons, lists, etc.)
+                    JSONObject interactive = message.getJSONObject("interactive");
+                    String interactiveType = interactive.getString("type");
 
-                if (interactiveType.equals("button_reply")) {
-                    // Button click - extract button ID
-                    text = interactive.getJSONObject("button_reply").getString("id");
-                } else if (interactiveType.equals("list_reply")) {
-                    // List selection - extract selected item ID
-                    text = interactive.getJSONObject("list_reply").getString("id");
+                    if (interactiveType.equals("button_reply")) {
+                        // Button click - extract button ID
+                        text = interactive.getJSONObject("button_reply").getString("id");
+                    } else if (interactiveType.equals("list_reply")) {
+                        // List selection - extract selected item ID
+                        text = interactive.getJSONObject("list_reply").getString("id");
+                    }
                 }
             }
 
@@ -247,17 +246,36 @@ public class WhatsappService {
 
     /**
      * Notify admins about important events
+     * Single source of truth for admin notifications
      */
     public void notifyAdmins(String message) {
-        // This would be populated from environment variable
         String adminPhonesStr = System.getenv("ADMIN_PHONES");
-        if (adminPhonesStr != null && !adminPhonesStr.isEmpty()) {
-            String[] phones = adminPhonesStr.split(",");
-            for (String phone : phones) {
-                sendSafeText(phone.trim(), message);
+        if (adminPhonesStr == null || adminPhonesStr.isEmpty()) {
+            logger.warn("No admin phones configured (ADMIN_PHONES environment variable not set)");
+            return;
+        }
+
+        String[] phones = adminPhonesStr.split(",");
+        for (String phone : phones) {
+            phone = phone.trim();
+            if (!phone.isEmpty()) {
+                logger.info("Sending admin alert to: {}",
+                        PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone));
+                sendSafeText(phone, message);
             }
         }
     }
+    
+//    public void notifyAdmins(String message) {
+//        // This would be populated from environment variable
+//        String adminPhonesStr = System.getenv("ADMIN_PHONES");
+//        if (adminPhonesStr != null && !adminPhonesStr.isEmpty()) {
+//            String[] phones = adminPhonesStr.split(",");
+//            for (String phone : phones) {
+//                sendSafeText(phone.trim(), message);
+//            }
+//        }
+//    }
 
     /**
      * Send request to WhatsApp API
@@ -298,13 +316,6 @@ public class WhatsappService {
     }
 
     /**
-     * Add this to your WhatsappService class
-     *
-     * Safe version of sendInteractiveButtons that catches and logs exceptions
-     * instead of letting them propagate to the caller
-     */
-
-    /**
      * Send interactive buttons safely - catches exceptions to prevent error messages
      * to the user
      */
@@ -342,15 +353,14 @@ public class WhatsappService {
     
     /**
      * Send a message using WhatsApp Message Template
-     *
      * Templates support dynamic variables ({{1}}, {{2}}, etc) that are replaced
      * with actual values at runtime.
-     *
+     * <p>
      * Supported templates:
      * - delivery_status_delivering: Sent to customer when order is picked up
      *   Variables: {{1}}=Customer Name, {{2}}=Business Name, {{3}}=Driver Phone,
      *              {{4}}=Delivery Address, {{5}}=Google Maps Link
-     *
+     * <p>
      * - delivery_status_completed: Sent to customer when delivery is complete
      *   Variables: {{1}}=Business Name, {{2}}=Delivery Address
      *
@@ -442,7 +452,7 @@ public class WhatsappService {
 
     /**
      * Helper method to send message to WhatsApp API
-     *
+     * <p>
      * Replace this implementation based on your actual WhatsApp client library
      *
      * @param message Message object to send
@@ -473,6 +483,76 @@ public class WhatsappService {
         } catch (Exception e) {
             logger.error("❌ API call failed: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to send message to WhatsApp API", e);
+        }
+    }
+
+    /**
+     * Notify admins smartly: template if outside 24-hour window, 
+     * regular text if inside (free)
+     * Smart delivery to multiple admins based on their 24-hour window status
+     *
+     * @param regularMessage Regular text message content
+     * @param templateName Template name for outside window
+     * @param templateVariables Variables for template
+     */
+    public void notifyAdminsSmartMessage(String regularMessage, String templateName,
+                                         List<String> templateVariables,
+                                         ConversationService convoService) {
+        String adminPhonesStr = System.getenv("ADMIN_PHONES");
+        if (adminPhonesStr != null && !adminPhonesStr.isEmpty()) {
+            String[] phones = adminPhonesStr.split(",");
+            for (String phone : phones) {
+                sendSmartCustomerMessage(phone.trim(), regularMessage, templateName,
+                        templateVariables, convoService);
+            }
+        }
+    }
+
+    /**
+     * Same as above but for admins
+     * Caller explicitly chooses: template or regular message
+     */
+    public void notifyAdminsWithOption(String regularMessage, String templateName,
+                                       List<String> templateVariables,
+                                       boolean useTemplate) {
+        String adminPhonesStr = System.getenv("ADMIN_PHONES");
+        if (adminPhonesStr != null && !adminPhonesStr.isEmpty()) {
+            String[] phones = adminPhonesStr.split(",");
+            for (String phone : phones) {
+                sendMessageWithOption(phone.trim(), regularMessage, templateName,
+                        templateVariables, useTemplate);
+            }
+        }
+    }
+
+    /**
+     * Smart send: free regular text if within 24-hour window, paid template if outside
+     */
+    public void sendSmartCustomerMessage(String phone, String regularMessage, String templateName,
+                                         List<String> templateVariables,
+                                         ConversationService convoService) {
+        boolean inWindow = convoService.isWithin24HourWindow(phone);
+
+        if (inWindow) {
+            logger.info("Within 24-hour window - sending free text to {}", PhoneNumberUtil.maskPhoneNumber(phone));
+            sendSafeText(phone, regularMessage);
+        } else {
+            logger.info("Outside 24-hour window - sending template to {}", PhoneNumberUtil.maskPhoneNumber(phone));
+            sendTemplateMessage(normalizePhone(phone), templateName, templateVariables);
+        }
+    }
+
+    /**
+     * Explicit choice: caller decides whether to use template or regular text
+     */
+    public void sendMessageWithOption(String phone, String regularMessage, String templateName,
+                                      List<String> templateVariables, boolean useTemplate) {
+        if (useTemplate) {
+            logger.info("📋 Sending template (forced) to {}", PhoneNumberUtil.maskPhoneNumber(phone));
+            sendTemplateMessage(normalizePhone(phone), templateName, templateVariables);
+        } else {
+            logger.info("📱 Sending regular text (forced) to {}", PhoneNumberUtil.maskPhoneNumber(phone));
+            sendSafeText(phone, regularMessage);
         }
     }
 }

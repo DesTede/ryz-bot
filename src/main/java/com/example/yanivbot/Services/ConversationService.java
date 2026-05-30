@@ -90,4 +90,33 @@ public class ConversationService {
         Conversation convo = getOrCreate(phone);
         updateState(convo, state);
     }
+
+    /**
+     * Update last message time to now (call on every inbound customer message)
+     */
+    public void updateLastMessageTime(String phone) {
+        Conversation convo = getOrCreate(phone);
+        convo.setLastMessageTime(System.currentTimeMillis());
+        convoRepo.save(convo);
+    }
+
+    /**
+     * Returns true if customer sent a message within the last 24 hours
+     */
+    public boolean isWithin24HourWindow(String phone) {
+        Conversation convo = getOrCreate(phone);
+        long lastTime = convo.getLastMessageTime();
+        if (lastTime == 0) return false;
+        long elapsed = System.currentTimeMillis() - lastTime;
+        return elapsed < 24L * 60 * 60 * 1000;
+    }
+
+    /**
+     * Reset conversation state and tempData to START (called after order completion)
+     */
+    public void resetConversationForCustomer(String phone) {
+        Conversation convo = getOrCreate(phone);
+        updateState(convo, ConversationState.START);
+        saveTempData(convo, "");
+    }
 }

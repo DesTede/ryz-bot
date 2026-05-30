@@ -172,7 +172,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
                 logger.info("[DELIVERY] Ready time: {} minutes", minutes);
             } catch (NumberFormatException e) {
                 logger.warn("[DELIVERY] Invalid ready time input: '{}'", txt);
-                return "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו: מוכן עכשיו\nאו הקלידו זמן הכנה";
+                return "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו:\nאו הקלידו זמן הכנה";
             }
         }
 
@@ -408,7 +408,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         whatsappService.sendInteractiveButtons(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("delivery_ready_now", "⏱️ מוכן")
+                new WhatsappService.InteractiveButton("delivery_ready_now", "⏱️ מוכנה")
         );
     }
 }

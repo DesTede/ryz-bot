@@ -3,9 +3,7 @@ package com.example.yanivbot.Services;
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.TaxiOrder;
-import com.example.yanivbot.Handlers.MessageRouter;
 import com.example.yanivbot.Models.CarType;
-import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
@@ -157,8 +155,8 @@ public class TaxiOrderService {
         taxiOrderRepo.save(order);
 
         
-        whatsappService.sendSafeText(order.getPhone(),
-                "✅ הנסיעה הסתיימה בהצלחה\nתודה שבחרת לנסוע ב־Movez 🙌 🚙");
+//        whatsappService.sendSafeText(order.getPhone(),
+//                "✅ הנסיעה הסתיימה בהצלחה\nתודה שבחרת לנסוע ב־Movez 🙌 🚙");
 
         try {
             Conversation convo = convoService.getOrCreate(driverPhone);
@@ -168,6 +166,15 @@ public class TaxiOrderService {
         } catch (Exception e) {
             logger.warn("Could not update conversation state after order completion: {}", e.getMessage());
         }
+
+        String customerMsg = "✅ הנסיעה הסתיימה בהצלחה\nתודה שבחרת לנסוע ב־Movez 🙌 🚙";
+        // Send smart message: Free if in 24-hour window, template if outside
+        whatsappService.sendSmartCustomerMessage(
+                order.getPhone(), customerMsg,
+                "delivery_status_completed",
+                List.of("Movez"),
+                convoService
+        );
         
         return "🏁 נסיעה #" + orderId + " הסתיימה\nהמערכת סימנה אותך כפנוי לנסיעה הבאה 👍";
     }

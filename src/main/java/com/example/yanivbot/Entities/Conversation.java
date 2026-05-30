@@ -22,6 +22,8 @@ public class Conversation {
     private ConversationState state;
     
     private String tempData;
+    
+    private long lastMessageTime; 
 
     public Conversation(){}
     
@@ -52,5 +54,13 @@ public class Conversation {
 
     public void setTempData(String tempData) {
         this.tempData = tempData;
+    }
+
+    public long getLastMessageTime() {
+        return lastMessageTime;
+    }
+
+    public void setLastMessageTime(long lastMessageTime) {
+        this.lastMessageTime = lastMessageTime;
     }
 }

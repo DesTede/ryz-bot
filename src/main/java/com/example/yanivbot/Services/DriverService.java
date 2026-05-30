@@ -37,17 +37,16 @@ public class DriverService {
     private final DeliveryOrderRepository deliveryOrderRepo;
     private final WhatsappService whatsappService;
     private final GoogleSheetsService googleSheetsService;
-
-    @Value("${admin.phones}")
-    private String adminPhones;
+    private final ConversationService convoService;
 
     public DriverService(DriverRepository driverRepo, TaxiOrderRepository taxiOrderRepo, DeliveryOrderRepository deliveryOrderRepo,
-                         WhatsappService whatsappService, GoogleSheetsService googleSheetsService) {
+                         WhatsappService whatsappService, GoogleSheetsService googleSheetsService, ConversationService convoService) {
         this.driverRepo = driverRepo;
         this.taxiOrderRepo = taxiOrderRepo;
         this.deliveryOrderRepo = deliveryOrderRepo;
         this.whatsappService = whatsappService;
         this.googleSheetsService = googleSheetsService;
+        this.convoService = convoService;
     }
 
     /**
@@ -417,31 +416,19 @@ public class DriverService {
 //                " חדשה #" + orderId + " נוצרה אך אין נהגים זמינים!\n" +
 //                orderDetails;
 
-        notifyAdmins(adminMessage);
-
+        // Use smart method that saves 40-60% on costs
+        notifyAdminsSmartMessage(
+                adminMessage,                    
+                "no_drivers_available_admin",    
+                List.of(String.valueOf(orderId), type.name())  
+        );
+        
         // Mark as alerted so this message is never sent again for this order
         order.setAdminAlertedNoDrivers(true);
         taxiOrderRepo.save(order);
     }
 
-    /**
-     * Notify all admins
-     */
-    private void notifyAdmins(String message) {
-        if (adminPhones == null || adminPhones.isEmpty()) {
-            logger.warn("No admin phones configured");
-            return;
-        }
-
-        String[] phones = adminPhones.split(",");
-        for (String phone : phones) {
-            phone = phone.trim();
-            if (!phone.isEmpty()) {
-                logger.info("Sending admin alert to: {}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone)); //phone masked
-                whatsappService.sendSafeText(phone, message);
-            }
-        }
-    }
+   
 
     /**
      * Sync drivers from Google Sheets (called by GoogleSheetsService)
@@ -524,5 +511,33 @@ public class DriverService {
                         List.of(DeliveryStatus.ASSIGNED, DeliveryStatus.PICKED_UP, DeliveryStatus.DELIVERING));
     }
 
+    /**
+     * Notify admins smartly about events
+     * Delegates to WhatsappService for 24-hour aware delivery
+     */
+    public void notifyAdminsSmartMessage(String regularMessage, String templateName,
+                                         List<String> templateVariables) {
+        whatsappService.notifyAdminsSmartMessage(regularMessage, templateName,
+                templateVariables, convoService);
+    }
+
+    /**
+     * Notify admins with explicit choice
+     */
+    public void notifyAdminsWithOption(String regularMessage, String templateName,
+                                       List<String> templateVariables,
+                                       boolean useTemplate) {
+        whatsappService.notifyAdminsWithOption(regularMessage, templateName,
+                templateVariables, useTemplate);
+    }
+
+    /**
+     * Event-based notification
+     */
+    public void notifyAdminsEvent(String message, String templateName,
+                                  List<String> variables, boolean shouldUseTemplate) {
+        logger.info("notifyAdminsEvent: {} | Using template: {}", templateName, shouldUseTemplate);
+        notifyAdminsWithOption(message, templateName, variables, shouldUseTemplate);
+    }
     
 }

@@ -191,7 +191,7 @@ public class TaxiConversationHandler implements ConversationHandler {
         } catch (Exception e) {
             logger.error("Failed to create taxi order for {}: {}", message.getPhone(), e.getMessage(), e);
             convoService.updateState(convo, ConversationState.START);
-            convoService.saveTempData(convo,""); // ← ADDED: Clear tempData on error 
+            convoService.saveTempData(convo,"");  
             return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
         }
     }

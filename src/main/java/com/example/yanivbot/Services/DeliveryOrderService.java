@@ -395,12 +395,16 @@ public class DeliveryOrderService {
                     businessName,                    // {{1}} - Business Name
                     order.getDeliveryAddress()       // {{2}} - Delivery Address
             );
+            
+            String customerMsg = "✅ הנסיעה הסתיימה בהצלחה\nתודה שבחרת לנסוע ב־Movez 🙌 🚙";
 
-            // Send template message
-            whatsappService.sendTemplateMessage(
-                    whatsappService.normalizePhone(order.getCustomerPhone()),
+            // Send smart message: Free if in 24-hour window, template if outside
+            whatsappService.sendSmartCustomerMessage(
+                    order.getCustomerPhone(),
+                    customerMsg,
                     "delivery_status_completed",
-                    templateVariables
+                    templateVariables,
+                    convoService  // You need to inject this
             );
 
             logger.info("[DELIVERY] ✅ Sent delivery_status_completed template to customer for order #{}",
@@ -420,7 +424,7 @@ public class DeliveryOrderService {
      * The link uses the driver's current coordinates and updates dynamically
      * when the customer opens it in their browser.
      *
-     * Format: https://maps.google.com/?q=latitude,longitude
+     * Format: maps.google.com/?q=latitude,longitude
      *
      * @param driverPhone Driver's phone number
      * @return Google Maps URL with driver's current location
