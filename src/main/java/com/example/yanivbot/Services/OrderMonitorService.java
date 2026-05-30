@@ -194,7 +194,7 @@ public class OrderMonitorService {
             String adminMsg = "\uD83C\uDF55\uD83C\uDF54 *משלוח תקוע באוויר!* (#" + order.getId() + ")\n" +
                     "עברו כבר " + DELIVERY_ALERT_MINUTES + " דקות וההזמנה עדיין לא נאספה ⏳\n\n" +
                     "📍 *כתובת למשלוח:* " + order.getDeliveryAddress() + "\n" +
-                    "📞 *טלפון העסק:* " + order.getBusinessPhone();
+                    "📞 טלפון העסק: " + order.getBusinessPhone();
             
             driverService.notifyAdminsSmartMessage(
                     adminMsg,

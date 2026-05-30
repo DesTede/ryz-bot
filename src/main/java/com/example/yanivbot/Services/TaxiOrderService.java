@@ -31,16 +31,18 @@ public class TaxiOrderService {
     private final DriverService driverService;
     private final GeoCodingService geoCodingService;
     private final CustomerService customerService;
+    private final ShortLinkService shortLinkService;
     
 
     public TaxiOrderService(ConversationService convoService, TaxiOrderRepository taxiOrderRepo, WhatsappService whatsappService,
-                            DriverService driverService, GeoCodingService geoCodingService, CustomerService customerService) {
+                            DriverService driverService, GeoCodingService geoCodingService, CustomerService customerService, ShortLinkService shortLinkService) {
         this.convoService = convoService;
         this.taxiOrderRepo = taxiOrderRepo;
         this.whatsappService = whatsappService;
         this.driverService = driverService;
         this.geoCodingService = geoCodingService;
         this.customerService = customerService;
+        this.shortLinkService = shortLinkService;
     }
 
     public void createTaxiOrder(String customerPhone, String pickUp, String destination, String notes, CarType carType) {
@@ -136,14 +138,16 @@ public class TaxiOrderService {
         // Send confirmation with interactive button for completion
         Driver claimedDriver = driverService.findByPhone(driverPhone);
         String driverLiveLink = (claimedDriver != null && claimedDriver.getLocationToken() != null)
-                ? "\n📍 שדר מיקום ללקוח:\n" + baseUrl + "/driver/live/" + claimedDriver.getLocationToken()
+                ? "\n\n📍 שדר מיקום ללקוח:\n" + shortLinkService.createShortLink(baseUrl + "/driver/live/" + claimedDriver.getLocationToken())
                 : "";
+
+        
         
         String confirmationMsg =
                         "🔥 *נסיעה חדשה התקבלה!*\n" +
                         "-------------------------\n" +
                         "🆔 *מספר הזמנה:* " + orderId + "\n" +
-                        "📞 *טלפון נוסע:* " + order.getPhone() + "\n" +
+                        "📞 טלפון נוסע: " + order.getPhone() + "\n" +
                         "🏁 *בסיום לחץ לסיום נסיעה*\n" +
                         "-------------------------\n" +
                         "🚗 *סע בזהירות!* 🙌" +
@@ -237,9 +241,9 @@ public class TaxiOrderService {
                     order.getPickUpLocation(),
                     order.getDestination()
             );
-            
+
             if (order.getTrackingToken() != null) {
-                msg += "🗺️ מעקב חי אחר הנהג:\n" + baseUrl + "/track/" + order.getTrackingToken();
+                msg += "🗺️ מעקב חי אחר הנהג:\n" + shortLinkService.createShortLink(baseUrl + "/track/" + order.getTrackingToken());
             }
 
 //            if (!locationLink.isEmpty()) {

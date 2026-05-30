@@ -33,10 +33,11 @@ public class DeliveryOrderService {
     private final DriverService driverService;
     private final GeoCodingService geoCodingService;
     private final CustomerService customerService;
+    private final ShortLinkService shortLinkService;
 
     public DeliveryOrderService(ConversationService convoService, DeliveryOrderRepository deliveryOrderRepo, BusinessRepository businessRepo,
                                 WhatsappService whatsappService, DriverService driverService,
-                                GeoCodingService geoCodingService, CustomerService customerService) {
+                                GeoCodingService geoCodingService, CustomerService customerService, ShortLinkService shortLinkService) {
         this.convoService = convoService;
         this.deliveryOrderRepo = deliveryOrderRepo;
         this.businessRepo = businessRepo;
@@ -44,6 +45,7 @@ public class DeliveryOrderService {
         this.driverService = driverService;
         this.geoCodingService = geoCodingService;
         this.customerService = customerService;
+        this.shortLinkService = shortLinkService;
     }
 
     public void createDeliveryOrder(String businessPhone, String customerName, String customerPhone, String address,
@@ -261,7 +263,7 @@ public class DeliveryOrderService {
 
         Driver pickupDriver = driverService.findByPhone(driverPhone);
         String driverLiveLink = (pickupDriver != null && pickupDriver.getLocationToken() != null)
-                ? "\n📍 שדר מיקום ללקוח:\n" + baseUrl + "/driver/live/" + pickupDriver.getLocationToken()
+                ? "\n\n📍 שדר מיקום ללקוח:\n" + shortLinkService.createShortLink(baseUrl + "/driver/live/" + pickupDriver.getLocationToken())
                 : "";
         
         // Send confirmation to driver with complete button
@@ -303,7 +305,8 @@ public class DeliveryOrderService {
             String notifBusinessName = (customerBusiness != null && customerBusiness.getName() != null)
                     ? customerBusiness.getName() : "העסק";
 
-            String trackingLink = baseUrl + "/track/" + order.getTrackingToken();
+            String trackingLink = shortLinkService.createShortLink(baseUrl + "/track/" + order.getTrackingToken());
+
 
             String customerMsg = "🛵 ההזמנה שלך בדרך!\n\n" +
                     "👤 " + customerName + ", ההזמנה מ-" + notifBusinessName + " יצאה לדרך.\n" +
