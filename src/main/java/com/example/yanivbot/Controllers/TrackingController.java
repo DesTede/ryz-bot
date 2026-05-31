@@ -53,11 +53,9 @@ public class TrackingController {
                   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
                   <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body { font-family: 'Segoe UI', Arial, sans-serif; background: #111; display: flex; flex-direction: column; height: 100vh; }
-                    #header { background: #111; color: #f5a623; border-bottom: 2px solid #f5a623; padding: 14px 20px; text-align: center; font-size: 18px; font-weight: bold; letter-spacing: 0.5px; }
+                    html, body { height: 100%%; min-height: 100vh; }                    body { font-family: 'Segoe UI', Arial, sans-serif; background: #111; display: flex; flex-direction: column; }                    #header { background: #111; color: #f5a623; border-bottom: 2px solid #f5a623; padding: 14px 20px; text-align: center; font-size: 18px; font-weight: bold; letter-spacing: 0.5px; }
                     #status-bar { background: #1a1a1a; text-align: center; padding: 10px; font-size: 14px; color: #f5a623; border-bottom: 1px solid #2a2a2a; }
-                    #map { flex: 1; }
-                    #completed-overlay {
+                    #map { flex: 1; width: 100%%; min-height: 0; }                    #completed-overlay {
                       display: none;
                       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
                       background: rgba(0,0,0,0.95);
@@ -88,6 +86,7 @@ public class TrackingController {
                         subdomains: 'abcd',
                         maxZoom: 19
                       }).addTo(map);
+                      setTimeout(() => { map.invalidateSize(); }, 200);
                
                     const markerEmoji = '%s';
 

@@ -39,8 +39,6 @@ public class TaxiOrder {
     @Column(nullable = true, length = 500)
     private String notes;
 
-//    @Column(name = "admin_alerted", nullable = false)
-//    private boolean adminAlerted = false;
 
     @Column(name = "admin_last_alerted_at")
     private LocalDateTime adminLastAlertedAt;
