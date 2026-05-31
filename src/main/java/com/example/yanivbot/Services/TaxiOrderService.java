@@ -190,13 +190,16 @@ public class TaxiOrderService {
         }
 
         String customerMsg = "✅ הנסיעה הסתיימה בהצלחה\nתודה שבחרת לנסוע ב־Movez 🙌 🚙";
-        // Send smart message: Free if in 24-hour window, template if outside
-        whatsappService.sendSmartCustomerMessage(
-                order.getPhone(), customerMsg,
-                "delivery_status_completed",
-                List.of("Movez"),
-                convoService
-        );
+
+        whatsappService.sendSafeText(order.getPhone(), customerMsg);
+        
+//        // Send smart message: Free if in 24-hour window, template if outside
+//        whatsappService.sendSmartCustomerMessage(
+//                order.getPhone(), customerMsg,
+//                "delivery_status_completed",
+//                List.of("Movez"),
+//                convoService
+//        );
         
         return "🏁 נסיעה #" + orderId + " הסתיימה\nהמערכת סימנה אותך כפנוי לנסיעה הבאה 👍";
     }

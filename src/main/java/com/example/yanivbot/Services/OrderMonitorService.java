@@ -30,6 +30,7 @@ public class OrderMonitorService {
     private final DriverService driverService;
     private final BusinessOwnerService businessOwnerService;
     private final GeoCodingService geoCodingService;
+    private final ConversationService convoService;
 
     @Value("${admin.phones}")
     private String adminPhones;
@@ -42,13 +43,14 @@ public class OrderMonitorService {
                                WhatsappService whatsappService,
                                DriverService driverService,
                                BusinessOwnerService businessOwnerService,
-                               GeoCodingService geoCodingService) {
+                               GeoCodingService geoCodingService, ConversationService convoService) {
         this.taxiOrderRepo = taxiOrderRepo;
         this.deliveryOrderRepo = deliveryOrderRepo;
         this.whatsappService = whatsappService;
         this.driverService = driverService;
         this.businessOwnerService = businessOwnerService;
         this.geoCodingService = geoCodingService;
+        this.convoService = convoService;
     }
 
     // Runs every X minute — checks unclaimed orders
@@ -119,14 +121,13 @@ public class OrderMonitorService {
                     "📞 *לקוח:* " + order.getPhone();
 
             
-//            "⚠️ הזמנת מונית #" + order.getId() + " לא נלקחה כבר " + TAXI_ALERT_MINUTES + " דקות!\n" +
-//                    "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
-//                    "🎯 לאן: " + order.getDestination() + "\n" +
-//                    "📞 לקוח: " + order.getPhone();
+            whatsappService.notifyAdminsSmartMessage(
+                    adminMsg,
+                    "taxi_order_unclaimed_admin",
+                    List.of(String.valueOf(order.getId()), String.valueOf(TAXI_ALERT_MINUTES)),
+                    convoService  
+            );
             
-
-            whatsappService.notifyAdmins(adminMsg);
-
             // Notify customer
             whatsappService.sendSafeText(order.getPhone(),
                     "⚠️ טרם נמצא נהג להזמנתך. אנו ממשיכים לחפש...");

@@ -408,8 +408,9 @@ public class DriverService {
 
         logger.warn("No drivers available for order #{} - alerting admins", orderId);
 
+        String driverType = type == DriverType.TAXI ? "מונית" : "משלוח";
         String adminMessage = "🚨 *אוי לא, אין נהגים פנויים!*\n" +
-                "נוצרה הזמנת " + (type == DriverType.TAXI ? "מונית" : "משלוח") + " חדשה (#" + orderId + ") אבל אין אף נהג זמין כרגע במערכת 😰\n\n" +
+                "נוצרה הזמנת " + driverType + " חדשה (#" + orderId + ") אבל אין אף נהג זמין כרגע במערכת 😰\n\n" +
                 "📋 *פרטי ההזמנה:*\n" + orderDetails;
                 
 //                "⚠️ הזמנת " + (type == DriverType.TAXI ? "מונית" : "משלוח") +
@@ -420,7 +421,7 @@ public class DriverService {
         notifyAdminsSmartMessage(
                 adminMessage,                    
                 "no_drivers_available_admin",    
-                List.of(String.valueOf(orderId), type.name())  
+                List.of(driverType ,String.valueOf(orderId), type.name())  
         );
         
         // Mark as alerted so this message is never sent again for this order
