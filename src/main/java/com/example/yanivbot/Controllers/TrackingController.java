@@ -67,6 +67,12 @@ public class TrackingController {
                       font-size: 22px; color: #f5a623; text-align: center; gap: 12px;
                       z-index: 9999;
                     }
+                    #completed-overlay .completed-logo {
+                       height: 70px;
+                       width: auto;
+                       object-fit: contain;
+                       margin-top: 10px;
+                     }
                     #completed-overlay .icon { font-size: 60px; }
                   </style>
                 </head>
@@ -79,19 +85,20 @@ public class TrackingController {
                   <div id="completed-overlay">
                     <div class="icon">✅</div>
                     <div>ההזמנה הושלמה בהצלחה!</div>
-                    <div style="font-size:15px; color:#555;">תודה שבחרת ב-Movez 🙏</div>
+                    <div style="font-size:15px; color:#555;">תודה שבחרת בנו 🙏</div>
+                    <img src="/images/Logo.png" alt="Movez" class="completed-logo"/>
                   </div>
                   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
                   <script>
                     const token = '[TRACKING_TOKEN]';
                     const map = L.map('map').setView([31.7683, 35.2137], 13);
-                    
+               
                     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                         attribution: '© OpenStreetMap © CARTO',
                         subdomains: 'abcd',
                         maxZoom: 19
                       }).addTo(map);
-                      
+               
                     setTimeout(() => { map.invalidateSize(); }, 200);
                
                     const markerEmoji = '[MARKER_EMOJI]';
