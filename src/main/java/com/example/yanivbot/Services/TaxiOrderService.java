@@ -148,13 +148,15 @@ public class TaxiOrderService {
                     🔥 *נסיעה חדשה התקבלה!*
                     -------------------------
                     🆔 *מספר הזמנה:* %s
-                    📞 *טלפון נוסע:* %s
-                    
+                    -------------------------
+                    📞 טלפון נוסע: %s
+                    -------------------------
                     🏁 *בסיום לחץ לסיום נסיעה*
                     -------------------------
                     🚗 *סע בזהירות!* 🙌
                     
-                    🔗 שדר מיקום ללקוח: %s
+                    🔗 שדר מיקום ללקוח:
+                    %s
                     """.formatted(
                             orderId,
                             order.getPhone(),
@@ -198,14 +200,6 @@ public class TaxiOrderService {
 
         whatsappService.sendSafeText(order.getPhone(), customerMsg);
         
-//        // Send smart message: Free if in 24-hour window, template if outside
-//        whatsappService.sendSmartCustomerMessage(
-//                order.getPhone(), customerMsg,
-//                "delivery_status_completed",
-//                List.of("Movez"),
-//                convoService
-//        );
-        
         return "🏁 נסיעה #" + orderId + " הסתיימה\nהמערכת סימנה אותך כפנוי לנסיעה הבאה 👍";
     }
 
@@ -230,12 +224,14 @@ public class TaxiOrderService {
 
             String msg = """
             ✅ *הנהג בדרכו אליך*
-            
+            -------------------------
             👤 שם הנהג: %s
+            -------------------------
             📞 טלפון: %s%s
-           
+            -------------------------
             📍 איסוף: %s
             🎯 יעד: %s
+            -------------------------
             """.formatted(
                     driverName,
                     driverPhone,
