@@ -177,8 +177,6 @@ public class TaxiOrderService {
         taxiOrderRepo.save(order);
 
         
-//        whatsappService.sendSafeText(order.getPhone(),
-//                "✅ הנסיעה הסתיימה בהצלחה\nתודה שבחרת לנסוע ב־Movez 🙌 🚙");
 
         try {
             Conversation convo = convoService.getOrCreate(driverPhone);
@@ -260,27 +258,6 @@ public class TaxiOrderService {
             throw e; // Re-throw so calling method can handle it
         }
     }
-
-//    private void notifyOtherDrivers(long orderId, String claimingDriverPhone) {
-        // Normalize the claiming driver's phone
-//        String normalizedClaimingPhone = claimingDriverPhone;
-//        if (normalizedClaimingPhone.startsWith("972")) {
-//            normalizedClaimingPhone = normalizedClaimingPhone.substring(3);
-//        }
-//        Driver claimingDriver = driverService.findByPhone(claimingDriverPhone);
-//        if (claimingDriver == null) {
-//            logger.warn("Claiming driver {} not found for order #{}", claimingDriverPhone, orderId);
-//            return;
-//        }
-//        final String finalClaimingPhone = claimingDriverPhone;
-//        
-//        String message = "🚫 נסיעה #" + orderId + " כבר שויכה לנהג אחר\nהישאר זמין — הזמנה חדשה יכולה להגיע בכל רגע 🚀";
-//        driverService.getActiveDrivers(DriverType.TAXI).forEach(driver -> {
-//            if (!driver.getPhone().equals(finalClaimingPhone)) {
-//                whatsappService.sendSafeText(driver.getPhone(), message);
-//            }
-//        });
-//    }
 
     public String getDriverLocation(String customerPhone) {
         TaxiOrder activeOrder = taxiOrderRepo

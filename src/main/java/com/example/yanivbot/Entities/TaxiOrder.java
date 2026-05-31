@@ -39,8 +39,14 @@ public class TaxiOrder {
     @Column(nullable = true, length = 500)
     private String notes;
 
-    @Column(name = "admin_alerted", nullable = false)
-    private boolean adminAlerted = false;
+//    @Column(name = "admin_alerted", nullable = false)
+//    private boolean adminAlerted = false;
+
+    @Column(name = "admin_last_alerted_at")
+    private LocalDateTime adminLastAlertedAt;
+
+    @Column(name = "redispatch_stopped", nullable = false)
+    private boolean redispatchStopped = false;
 
     @Column(name = "admin_alerted_no_drivers", nullable = false)
     private boolean adminAlertedNoDrivers = false;
@@ -52,7 +58,6 @@ public class TaxiOrder {
     public TaxiOrder() {
         this.createdAt = LocalDateTime.now();
         this.status = TaxiOrderStatus.CREATED;
-        this.adminAlerted = false;
         this.adminAlertedNoDrivers = false;
     }
 
@@ -137,12 +142,20 @@ public class TaxiOrder {
         this.notes = notes;
     }
 
-    public boolean isAdminAlerted() {
-        return adminAlerted;
+    public LocalDateTime getAdminLastAlertedAt() { 
+        return adminLastAlertedAt; 
+    }
+    
+    public void setAdminLastAlertedAt(LocalDateTime adminLastAlertedAt) { 
+        this.adminLastAlertedAt = adminLastAlertedAt;
     }
 
-    public void setAdminAlerted(boolean adminAlerted) {
-        this.adminAlerted = adminAlerted;
+    public boolean isRedispatchStopped() {
+        return redispatchStopped;
+    }
+
+    public void setRedispatchStopped(boolean redispatchStopped) {
+        this.redispatchStopped = redispatchStopped;
     }
 
     public boolean isAdminAlertedNoDrivers() {

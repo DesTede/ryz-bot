@@ -265,18 +265,24 @@ public class WhatsappService {
             }
         }
     }
-    
-//    public void notifyAdmins(String message) {
-//        // This would be populated from environment variable
-//        String adminPhonesStr = System.getenv("ADMIN_PHONES");
-//        if (adminPhonesStr != null && !adminPhonesStr.isEmpty()) {
-//            String[] phones = adminPhonesStr.split(",");
-//            for (String phone : phones) {
-//                sendSafeText(phone.trim(), message);
-//            }
-//        }
-//    }
 
+    public void notifyAdminsWithButton(String message, InteractiveButton button) {
+        String adminPhonesStr = System.getenv("ADMIN_PHONES");
+        if (adminPhonesStr == null || adminPhonesStr.isEmpty()) {
+            logger.warn("No admin phones configured (ADMIN_PHONES environment variable not set)");
+            return;
+        }
+        String[] phones = adminPhonesStr.split(",");
+        for (String phone : phones) {
+            phone = phone.trim();
+            if (!phone.isEmpty()) {
+                logger.info("Sending admin alert with button to: {}",
+                        PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone));
+                sendInteractiveButtonsSafe(phone, message, button);
+            }
+        }
+    }
+    
     /**
      * Send request to WhatsApp API
      */
@@ -555,4 +561,6 @@ public class WhatsappService {
             sendSafeText(phone, regularMessage);
         }
     }
+    
+    
 }

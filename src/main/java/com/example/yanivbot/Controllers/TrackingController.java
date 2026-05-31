@@ -35,12 +35,13 @@ public class TrackingController {
 
     @GetMapping(value = "/track/{token}", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> trackingPage(@PathVariable String token) {
-        boolean exists = taxiOrderRepo.findByTrackingToken(token).isPresent()
-                || deliveryOrderRepo.findByTrackingToken(token).isPresent();
-
-        if (!exists) {
+        String orderType = "taxi";
+        if (deliveryOrderRepo.findByTrackingToken(token).isPresent()) {
+            orderType = "delivery";
+        } else if (!taxiOrderRepo.findByTrackingToken(token).isPresent()) {
             return ResponseEntity.notFound().build();
         }
+        String markerEmoji = orderType.equals("delivery") ? "🛵" : "🚕";
 
         String html = """
                 <!DOCTYPE html>
@@ -52,23 +53,25 @@ public class TrackingController {
                   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
                   <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; display: flex; flex-direction: column; height: 100vh; }
-                    #header { background: #1a73e8; color: white; padding: 14px 20px; text-align: center; font-size: 18px; font-weight: bold; letter-spacing: 0.5px; }
-                    #status-bar { background: white; text-align: center; padding: 10px; font-size: 14px; color: #555; border-bottom: 1px solid #e0e0e0; }
+                    body { font-family: 'Segoe UI', Arial, sans-serif; background: #111; display: flex; flex-direction: column; height: 100vh; }
+                    #header { background: #111; color: #f5a623; border-bottom: 2px solid #f5a623; padding: 14px 20px; text-align: center; font-size: 18px; font-weight: bold; letter-spacing: 0.5px; }
+                    #status-bar { background: #1a1a1a; text-align: center; padding: 10px; font-size: 14px; color: #f5a623; border-bottom: 1px solid #2a2a2a; }
                     #map { flex: 1; }
                     #completed-overlay {
                       display: none;
                       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                      background: rgba(255,255,255,0.95);
+                      background: rgba(0,0,0,0.95);
                       flex-direction: column; align-items: center; justify-content: center;
-                      font-size: 22px; color: #2e7d32; text-align: center; gap: 12px;
+                      font-size: 22px; color: #f5a623; text-align: center; gap: 12px;
                       z-index: 9999;
                     }
                     #completed-overlay .icon { font-size: 60px; }
                   </style>
                 </head>
                 <body>
-                  <div id="header">🚗 Movez — מעקב נהג בזמן אמת</div>
+                  <div id="header">
+                    <img src="data:image/png;base64,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" alt="Movez"/>
+                  </div>
                   <div id="status-bar">⏳ טוען מיקום...</div>
                   <div id="map"></div>
                   <div id="completed-overlay">
@@ -80,14 +83,18 @@ public class TrackingController {
                   <script>
                     const token = '%s';
                     const map = L.map('map').setView([31.7683, 35.2137], 13);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                      attribution: '© OpenStreetMap contributors'
-                    }).addTo(map);
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                        attribution: '© OpenStreetMap © CARTO',
+                        subdomains: 'abcd',
+                        maxZoom: 19
+                      }).addTo(map);
+               
+                    const markerEmoji = '%s';
 
                     const driverIcon = L.divIcon({
-                      html: '<div style="font-size:32px;">🚗</div>',
+                      html: '<div style="font-size:34px;filter:drop-shadow(0 0 6px #f5a623);">' + markerEmoji + '</div>',
                       className: '',
-                      iconAnchor: [16, 16]
+                      iconAnchor: [17, 17]
                     });
 
                     let marker = null;
@@ -127,7 +134,7 @@ public class TrackingController {
                   </script>
                 </body>
                 </html>
-                """.formatted(token);
+               \s""".formatted(token, markerEmoji);
 
         return ResponseEntity.ok(html);
     }

@@ -2,6 +2,8 @@ package com.example.yanivbot.Handlers;
 
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.IncomingMessage;
+import com.example.yanivbot.Repositories.DeliveryOrderRepository;
+import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import com.example.yanivbot.Services.BotConfigService;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.WhatsappService;
@@ -20,14 +22,18 @@ public class AdminCommandHandler {
     private final BotConfigService botConfigService;
     private final WhatsappService whatsappService;
     private final ConversationService convoService;
+    private final TaxiOrderRepository taxiOrderRepo;
+    private final DeliveryOrderRepository deliveryOrderRepo;
 
     @Value("${admin.phones}")
     private String adminPhones;
 
-    public AdminCommandHandler(BotConfigService botConfigService, WhatsappService whatsappService, ConversationService convoService) {
+    public AdminCommandHandler(BotConfigService botConfigService, WhatsappService whatsappService, ConversationService convoService, TaxiOrderRepository taxiOrderRepo, DeliveryOrderRepository deliveryOrderRepo) {
         this.botConfigService = botConfigService;
         this.whatsappService = whatsappService;
         this.convoService = convoService;
+        this.taxiOrderRepo = taxiOrderRepo;
+        this.deliveryOrderRepo = deliveryOrderRepo;
     }
 
     /**
@@ -65,6 +71,13 @@ public class AdminCommandHandler {
         // Turn ON bot (text or button)
         if (txt.equals("הפעל בוט") || txt.equals("hepel_bot")) {
             return handleBotOn(phone, whatsappService);
+        }
+        if (txt.startsWith("stop_redispatch_taxi_")) {
+            return handleStopTaxiRedispatch(txt);
+        }
+
+        if (txt.startsWith("stop_redispatch_del_")) {
+            return handleStopDeliveryRedispatch(txt);
         }
 
         return null; // Not an admin command
@@ -141,5 +154,35 @@ public class AdminCommandHandler {
      */
     public String getBotInactiveMessage() {
         return "🔴 הבוט אינו פעיל כרגע\nאנא נסה שוב מאוחר יותר\n\nתודה על הסבלנות 💙";
+    }
+
+    private String handleStopTaxiRedispatch(String buttonId) {
+        try {
+            long orderId = Long.parseLong(buttonId.replace("stop_redispatch_taxi_", ""));
+            return taxiOrderRepo.findById(orderId).map(order -> {
+                order.setRedispatchStopped(true);
+                taxiOrderRepo.save(order);
+                logger.info("Admin stopped redispatch for taxi order #{}", orderId);
+                return "✅ הפסקנו לשלוח הזמנת מונית #" + orderId + " לנהגים";
+            }).orElse("❌ לא מצאנו הזמנת מונית #" + orderId);
+        } catch (NumberFormatException e) {
+            logger.error("Invalid order ID in button: {}", buttonId);
+            return "❌ משהו השתבש, נסה שוב";
+        }
+    }
+
+    private String handleStopDeliveryRedispatch(String buttonId) {
+        try {
+            long orderId = Long.parseLong(buttonId.replace("stop_redispatch_del_", ""));
+            return deliveryOrderRepo.findById(orderId).map(order -> {
+                order.setRedispatchStopped(true);
+                deliveryOrderRepo.save(order);
+                logger.info("Admin stopped redispatch for delivery order #{}", orderId);
+                return "✅ הפסקנו לשלוח משלוח #" + orderId + " לנהגים";
+            }).orElse("❌ לא מצאנו משלוח #" + orderId);
+        } catch (NumberFormatException e) {
+            logger.error("Invalid order ID in button: {}", buttonId);
+            return "❌ משהו השתבש, נסה שוב";
+        }
     }
 }

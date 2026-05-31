@@ -40,10 +40,13 @@ public class DeliveryOrder {
     @Column(name = "tracking_token")
     private String trackingToken;
     
-
     private boolean isDispatched;
-    private boolean adminAlerted = false;
-    
+
+    @Column(name = "admin_last_alerted_at")
+    private LocalDateTime adminLastAlertedAt;
+
+    @Column(name = "redispatch_stopped", nullable = false)
+    private boolean redispatchStopped = false;
     
 
     public DeliveryOrder() {
@@ -125,10 +128,22 @@ public class DeliveryOrder {
     public void setNotes(String notes) {
         this.notes = notes;
     }
+
+    public LocalDateTime getAdminLastAlertedAt() {
+        return adminLastAlertedAt; 
+    }
     
-    public boolean isAdminAlerted() {return adminAlerted;}
-    
-    public void setAdminAlerted(boolean adminAlerted) {this.adminAlerted = adminAlerted;}
+    public void setAdminLastAlertedAt(LocalDateTime adminLastAlertedAt) {
+        this.adminLastAlertedAt = adminLastAlertedAt;
+    }
+
+    public boolean isRedispatchStopped() {
+        return redispatchStopped;
+    }
+
+    public void setRedispatchStopped(boolean redispatchStopped) {
+        this.redispatchStopped = redispatchStopped;
+    }
 
     public LocalDateTime getScheduledDispatchTime() {return scheduledDispatchTime;}
 

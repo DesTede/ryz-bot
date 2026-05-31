@@ -32,11 +32,10 @@ public class OrderMonitorService {
     private final GeoCodingService geoCodingService;
     private final ConversationService convoService;
 
-    @Value("${admin.phones}")
-    private String adminPhones;
-
     private static final int TAXI_ALERT_MINUTES = 5;
     private static final int DELIVERY_ALERT_MINUTES = 10;
+
+    private static final int ADMIN_REPEAT_ALERT_MINUTES = 5;
 
     public OrderMonitorService(TaxiOrderRepository taxiOrderRepo,
                                DeliveryOrderRepository deliveryOrderRepo,
@@ -93,7 +92,7 @@ public class OrderMonitorService {
 
     /**
      * Check unclaimed taxi orders
-     *
+     * <p>
      * Prevents duplicate alerts:
      * - adminAlertedNoDrivers: Set by DriverService when no drivers are initially available
      * - adminAlerted: Set here after TAXI_ALERT_MINUTES to prevent repeated alerts
@@ -105,8 +104,9 @@ public class OrderMonitorService {
 
         for (TaxiOrder order : unclaimedOrders) {
             // Skip if admin was already alerted about this order
-            if (order.isAdminAlerted()) {
-                logger.debug("Order #{} already alerted, skipping", order.getId());
+            LocalDateTime lastAlert = order.getAdminLastAlertedAt();
+            if (lastAlert != null && lastAlert.isAfter(LocalDateTime.now().minusMinutes(ADMIN_REPEAT_ALERT_MINUTES))) {
+                logger.debug("Order #{} alerted recently, skipping", order.getId());
                 continue;
             }
 
@@ -155,7 +155,7 @@ public class OrderMonitorService {
             driverService.dispatchToDrivers(DriverType.TAXI, msg, orderDetails, order.getId(),order.getRequestedCarType());
 
             // Mark as alerted to prevent sending this alert again
-            order.setAdminAlerted(true);
+            order.setAdminLastAlertedAt(LocalDateTime.now());
             taxiOrderRepo.save(order);
         }
     }
@@ -170,8 +170,9 @@ public class OrderMonitorService {
 
         for (DeliveryOrder order : unclaimedOrders) {
             // Skip if already alerted
-            if (order.isAdminAlerted()) {
-                logger.debug("Delivery order #{} already alerted, skipping", order.getId());
+            LocalDateTime lastAlert = order.getAdminLastAlertedAt();
+            if (lastAlert != null && lastAlert.isAfter(LocalDateTime.now().minusMinutes(ADMIN_REPEAT_ALERT_MINUTES))) {
+                logger.debug("Delivery order #{} alerted recently, skipping", order.getId());
                 continue;
             }
 
@@ -208,7 +209,7 @@ public class OrderMonitorService {
                     "⚠️ טרם נמצא שליח להזמנה #" + order.getId() + ". אנו ממשיכים לחפש...");
 
             // Mark as alerted to prevent sending this alert again
-            order.setAdminAlerted(true);
+            order.setAdminLastAlertedAt(LocalDateTime.now());
             deliveryOrderRepo.save(order);
         }
     }
