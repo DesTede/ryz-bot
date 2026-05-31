@@ -43,7 +43,6 @@ public class TrackingController {
         }
         String markerEmoji = orderType.equals("delivery") ? "🛵" : "🚕";
 
-        // שינוי: השתמשנו בכינויים קבועים במקום %s כדי למנוע קריסה מה-Base64
         String html = """
                 <!DOCTYPE html>
                 <html lang="he" dir="rtl">
@@ -54,8 +53,9 @@ public class TrackingController {
                   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
                   <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
-                    html, body { height: 100vh; margin: 0; padding: 0; overflow: hidden; }
+                    html, body { height: 100vh; width: 100vw; margin: 0; padding: 0; overflow: hidden; }
                     body { font-family: 'Segoe UI', Arial, sans-serif; background: #111; display: flex; flex-direction: column; }
+                    #header { background: #111; color: #f5a623; border-bottom: 2px solid #f5a623; padding: 14px 20px; text-align: center; font-size: 22px; font-weight: bold; letter-spacing: 1px; }
                     #status-bar { background: #1a1a1a; text-align: center; padding: 10px; font-size: 14px; color: #f5a623; border-bottom: 1px solid #2a2a2a; }
                     #map { flex: 1; width: 100vw; height: 100%; min-height: 0; }
                     #completed-overlay {
@@ -71,7 +71,7 @@ public class TrackingController {
                 </head>
                 <body>
                   <div id="header">
-                    <img src="data:image/png;base64,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" alt="Movez"/>
+                    Movez
                   </div>
                   <div id="status-bar">⏳ טוען מיקום...</div>
                   <div id="map"></div>
@@ -84,6 +84,7 @@ public class TrackingController {
                   <script>
                     const token = '[TRACKING_TOKEN]';
                     const map = L.map('map').setView([31.7683, 35.2137], 13);
+                    
                     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                         attribution: '© OpenStreetMap © CARTO',
                         subdomains: 'abcd',

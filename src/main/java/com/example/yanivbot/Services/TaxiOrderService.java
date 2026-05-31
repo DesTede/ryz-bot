@@ -216,13 +216,7 @@ public class TaxiOrderService {
             Driver driver = driverService.findByPhone(order.getDriverPhone());
             String driverName = driver != null ? driver.getName() : order.getDriverPhone();
             String driverPhone = order.getDriverPhone();
-
-//            double[] driverLocation = driverService.getDriverLocation(driverPhone);
-//            String locationLink = "";
-//            if (driverLocation != null && driverLocation.length == 2) {
-//                locationLink = whatsappService.generateGoogleMapsLink(driverLocation[0], driverLocation[1]);
-//            }
-
+            
             String vehicleInfo = "";
             if (driver != null && driver.getCarType() != null && driver.getCarModel() != null && driver.getCarColor() != null) {
                 String carTypeName = driver.getCarType() != null && driver.getCarType().getHebrewName() != null

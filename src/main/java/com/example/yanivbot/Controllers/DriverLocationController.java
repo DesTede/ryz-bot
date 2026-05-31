@@ -48,7 +48,7 @@ public class DriverLocationController {
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body {
                       font-family: 'Segoe UI', Arial, sans-serif;
-                      background: #f0f4f8;
+                      background: #282a2b;
                       display: flex;
                       flex-direction: column;
                       align-items: center;
