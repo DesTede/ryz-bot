@@ -138,7 +138,7 @@ public class TaxiOrderService {
         // Send confirmation with interactive button for completion
         Driver claimedDriver = driverService.findByPhone(driverPhone);
         String driverLiveLink = (claimedDriver != null && claimedDriver.getLocationToken() != null)
-                ? "\n\n📍 שדר מיקום ללקוח:\n" + shortLinkService.createShortLink(baseUrl + "/driver/live/" + claimedDriver.getLocationToken())
+                ?  shortLinkService.createShortLink(baseUrl + "/driver/live/" + claimedDriver.getLocationToken())
                 : "";
 
 
@@ -154,7 +154,7 @@ public class TaxiOrderService {
                     -------------------------
                     🚗 *סע בזהירות!* 🙌
                     
-                    🔗 קישור לנהג: %s
+                    🔗 שדר מיקום ללקוח: %s
                     """.formatted(
                             orderId,
                             order.getPhone(),

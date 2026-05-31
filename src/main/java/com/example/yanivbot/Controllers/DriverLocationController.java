@@ -57,8 +57,8 @@ public class DriverLocationController {
                       gap: 24px;
                       padding: 24px;
                     }
-                    #logo { display: flex; justify-content: center; align-items: center; height: 75px; }
-                    #logo img { height: 55px; width: auto; object-fit: contain; }
+                    #logo { display: flex; justify-content: center; align-items: center; height: 85px; }
+                    #logo img { height: 70px; width: auto; object-fit: contain; }
                     #status-card {
                       background: white;
                       border-radius: 16px;
@@ -91,7 +91,7 @@ public class DriverLocationController {
                   </div>
 
                   <script>
-                    const token = '[DRIVER_TOKEN';
+                    const token = '[DRIVER_TOKEN]';
                     let wakeLock = null;
 
                     async function requestWakeLock() {
