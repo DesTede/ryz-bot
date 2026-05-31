@@ -141,18 +141,25 @@ public class TaxiOrderService {
                 ? "\n\n📍 שדר מיקום ללקוח:\n" + shortLinkService.createShortLink(baseUrl + "/driver/live/" + claimedDriver.getLocationToken())
                 : "";
 
-        
-        
-        String confirmationMsg =
-                        "🔥 *נסיעה חדשה התקבלה!*\n" +
-                        "-------------------------\n" +
-                        "🆔 *מספר הזמנה:* " + orderId + "\n" +
-                        "📞 טלפון נוסע " + order.getPhone() + "\n" +
-                        "🏁 *בסיום לחץ לסיום נסיעה*\n" +
-                        "-------------------------\n" +
-                        "🚗 *סע בזהירות!* 🙌" +
-                        driverLiveLink;
 
+
+        String confirmationMsg = """
+                    
+                    🔥 *נסיעה חדשה התקבלה!*
+                    -------------------------
+                    🆔 *מספר הזמנה:* %s
+                    📞 *טלפון נוסע:* %s
+                    
+                    🏁 *בסיום לחץ לסיום נסיעה*
+                    -------------------------
+                    🚗 *סע בזהירות!* 🙌
+                    
+                    🔗 קישור לנהג: %s
+                    """.formatted(
+                            orderId,
+                            order.getPhone(),
+                            driverLiveLink
+                            );
 
 
         whatsappService.sendInteractiveButtonsSafe(

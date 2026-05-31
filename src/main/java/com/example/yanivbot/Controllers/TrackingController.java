@@ -43,6 +43,7 @@ public class TrackingController {
         }
         String markerEmoji = orderType.equals("delivery") ? "🛵" : "🚕";
 
+        // שינוי: השתמשנו בכינויים קבועים במקום %s כדי למנוע קריסה מה-Base64
         String html = """
                 <!DOCTYPE html>
                 <html lang="he" dir="rtl">
@@ -53,10 +54,10 @@ public class TrackingController {
                   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
                   <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
-                    html, body { height: 100vh; margin: 0; padding: 0; }
+                    html, body { height: 100vh; margin: 0; padding: 0; overflow: hidden; }
                     body { font-family: 'Segoe UI', Arial, sans-serif; background: #111; display: flex; flex-direction: column; }
                     #status-bar { background: #1a1a1a; text-align: center; padding: 10px; font-size: 14px; color: #f5a623; border-bottom: 1px solid #2a2a2a; }
-                    #map { flex: 1; width: 100vw; min-height: 0; }
+                    #map { flex: 1; width: 100vw; height: 100%; min-height: 0; }
                     #completed-overlay {
                       display: none;
                       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -81,16 +82,17 @@ public class TrackingController {
                   </div>
                   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
                   <script>
-                    const token = '%s';
+                    const token = '[TRACKING_TOKEN]';
                     const map = L.map('map').setView([31.7683, 35.2137], 13);
                     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                         attribution: '© OpenStreetMap © CARTO',
                         subdomains: 'abcd',
                         maxZoom: 19
                       }).addTo(map);
-                      setTimeout(() => { map.invalidateSize(); }, 200);
+                      
+                    setTimeout(() => { map.invalidateSize(); }, 200);
                
-                    const markerEmoji = '%s';
+                    const markerEmoji = '[MARKER_EMOJI]';
 
                     const driverIcon = L.divIcon({
                       html: '<div style="font-size:34px;filter:drop-shadow(0 0 6px #f5a623);">' + markerEmoji + '</div>',
@@ -135,7 +137,9 @@ public class TrackingController {
                   </script>
                 </body>
                 </html>
-               \s""".formatted(token, markerEmoji);
+               \s"""
+                .replace("[TRACKING_TOKEN]", token)
+                .replace("[MARKER_EMOJI]", markerEmoji);
 
         return ResponseEntity.ok(html);
     }
