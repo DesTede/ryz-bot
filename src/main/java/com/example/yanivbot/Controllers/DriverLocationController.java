@@ -57,7 +57,8 @@ public class DriverLocationController {
                       gap: 24px;
                       padding: 24px;
                     }
-                    #logo { font-size: 28px; font-weight: bold; color: #1a73e8; }
+                    #logo { display: flex; justify-content: center; align-items: center; height: 55px; }
+                    #logo img { height: 35px; width: auto; object-fit: contain; }
                     #status-card {
                       background: white;
                       border-radius: 16px;
@@ -76,7 +77,9 @@ public class DriverLocationController {
                   </style>
                 </head>
                 <body>
-                  <div id="logo">🚗 Movez</div>
+                  <div id="logo">
+                  <img src="/images/Logo.png" alt="Movez Logo"/>
+                  </div>
                   <div id="status-card">
                     <div id="icon">📡</div>
                     <div id="status-text">מתחבר ל-GPS...</div>
@@ -88,7 +91,7 @@ public class DriverLocationController {
                   </div>
 
                   <script>
-                    const token = '%s';
+                    const token = '[DRIVER_TOKEN';
                     let wakeLock = null;
 
                     async function requestWakeLock() {
@@ -174,7 +177,7 @@ public class DriverLocationController {
                   </script>
                 </body>
                 </html>
-                """.formatted(token);
+                """.replace("[DRIVER_TOKEN]", token);
 
         return ResponseEntity.ok(html);
     }
