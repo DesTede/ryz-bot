@@ -83,7 +83,7 @@ public class DriverLocationController {
                     <div id="sub-text">אנא המתן בזמן שאנו מאתרים את מיקומך</div>
                     <div id="accuracy"></div>
                   </div>
-                  <div style="font-size:13px; color:#aaa; text-align:center;">
+                  <div style="font-size:13px; color:#cc7a16; text-align:center;">
                     השאר דף זה פתוח כדי לשדר את מיקומך ללקוח
                   </div>
 
