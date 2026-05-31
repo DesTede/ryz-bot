@@ -57,8 +57,8 @@ public class DriverLocationController {
                       gap: 24px;
                       padding: 24px;
                     }
-                    #logo { display: flex; justify-content: center; align-items: center; height: 85px; }
-                    #logo img { height: 70px; width: auto; object-fit: contain; }
+                    #logo { display: flex; justify-content: center; align-items: center; height: 90px; }
+                    #logo img { height: 80px; width: auto; object-fit: contain; }
                     #status-card {
                       background: white;
                       border-radius: 16px;
