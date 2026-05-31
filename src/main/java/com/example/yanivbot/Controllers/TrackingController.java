@@ -55,8 +55,8 @@ public class TrackingController {
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     html, body { height: 100vh; width: 100vw; margin: 0; padding: 0; overflow: hidden; }
                     body { font-family: 'Segoe UI', Arial, sans-serif; background: #111; display: flex; flex-direction: column; }
-                    #header { background: #111; border-bottom: 2px solid #f5a623; padding: 10px 20px; display: flex; justify-content: center; align-items: center; height: 55px; }
-                    #header img { height: 30px; width: auto; object-fit: contain; }       
+                    #header { background: #111; border-bottom: 2px solid #f5a623; padding: 10px 20px; display: flex; justify-content: center; align-items: center; height: 75px; }
+                     #header img { height: 55px; width: auto; object-fit: contain; }
                     #status-bar { background: #1a1a1a; text-align: center; padding: 10px; font-size: 14px; color: #f5a623; border-bottom: 1px solid #2a2a2a; }
                     #map { flex: 1; width: 100vw; height: 100%; min-height: 0; }
                     #completed-overlay {

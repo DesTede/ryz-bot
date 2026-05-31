@@ -48,7 +48,7 @@ public class DriverLocationController {
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body {
                       font-family: 'Segoe UI', Arial, sans-serif;
-                      background: #282a2b;
+                      background: #111;
                       display: flex;
                       flex-direction: column;
                       align-items: center;
@@ -57,15 +57,15 @@ public class DriverLocationController {
                       gap: 24px;
                       padding: 24px;
                     }
-                    #logo { display: flex; justify-content: center; align-items: center; height: 55px; }
-                    #logo img { height: 35px; width: auto; object-fit: contain; }
+                    #logo { display: flex; justify-content: center; align-items: center; height: 75px; }
+                    #logo img { height: 55px; width: auto; object-fit: contain; }
                     #status-card {
                       background: white;
                       border-radius: 16px;
                       padding: 32px 24px;
                       text-align: center;
                       box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-                      width: 100%%;
+                      width: 100%;
                       max-width: 360px;
                     }
                     #icon { font-size: 56px; margin-bottom: 12px; }
