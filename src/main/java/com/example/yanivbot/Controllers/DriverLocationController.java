@@ -178,7 +178,6 @@ public class DriverLocationController {
                 </body>
                 </html>
                 """.replace("[DRIVER_TOKEN]", token);
-
         return ResponseEntity.ok(html);
     }
 
