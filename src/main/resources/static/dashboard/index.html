@@ -301,7 +301,7 @@
             text-align: right;
             font-size: 11px;
             font-family: var(--mono);
-            color: var(--muted);
+            color: #a0a0a0;
             text-transform: uppercase;
             letter-spacing: .5px;
             border-bottom: 1px solid var(--border);
@@ -1683,10 +1683,21 @@
         document.querySelector('.main').style.visibility = 'hidden';
     }
 
+    // function hideLogin() {
+    //     document.getElementById('login-overlay').style.display = 'none';
+    //     document.querySelector('.sidebar').style.visibility = 'visible';
+    //     document.querySelector('.main').style.visibility = 'visible';
+    // }
     function hideLogin() {
         document.getElementById('login-overlay').style.display = 'none';
         document.querySelector('.sidebar').style.visibility = 'visible';
         document.querySelector('.main').style.visibility = 'visible';
+        // Reset iOS zoom after password input focus
+        const viewport = document.querySelector('meta[name="viewport"]');
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0');
+        setTimeout(() => {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
+        }, 300);
     }
 
     async function submitLogin() {
