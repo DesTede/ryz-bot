@@ -313,26 +313,6 @@ public class AdminController {
     }
 
     // =========================================================
-    // CUSTOMERS
-    // =========================================================
-
-    @GetMapping("/customers")
-    public ResponseEntity<List<Customer>> getAllCustomers(
-            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
-        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        return ResponseEntity.ok(customerRepo.findAllByOrderByLastOrderAtDesc());
-    }
-
-    @GetMapping("/customers/search")
-    public ResponseEntity<List<Customer>> searchCustomers(
-            @RequestHeader(value = "X-Admin-Key", required = false) String key,
-            @RequestParam String q) {
-        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        return ResponseEntity.ok(
-                customerRepo.findByNameContainingIgnoreCaseOrPhoneContaining(q, q));
-    }
-
-    // =========================================================
     // BUSINESSES
     // =========================================================
 

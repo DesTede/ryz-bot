@@ -1310,15 +1310,12 @@ function renderCustomers(customers) {
 
 let searchTimeout;
 function searchCustomers() {
-  clearTimeout(searchTimeout);
-  const q = document.getElementById('cust-search').value.trim();
+  const q = document.getElementById('cust-search').value.trim().toLowerCase();
   if (!q) { renderCustomers(allCustomers); return; }
-  searchTimeout = setTimeout(async () => {
-    try {
-      const results = await api(`/admin/customers/search?q=${encodeURIComponent(q)}`);
-      renderCustomers(results);
-    } catch(e) {}
-  }, 300);
+  const results = allCustomers.filter(c =>
+    (c.name||'').toLowerCase().includes(q) || (c.phone||'').includes(q)
+  );
+  renderCustomers(results);
 }
 
 // ══════════════════════════════════════════════════════════════
