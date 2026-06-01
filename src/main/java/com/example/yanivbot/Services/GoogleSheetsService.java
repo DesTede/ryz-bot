@@ -305,4 +305,45 @@ public class GoogleSheetsService {
     public List<Driver> getAllDrivers() {
         return driverRepo.findAll();
     }
+    
+    public void addDriverToSheet(Driver driver) throws Exception {
+        Sheets sheets = getSheetsService();
+
+        List<Object> row = new ArrayList<>();
+        row.add(driver.getName() != null ? driver.getName() : "");
+        row.add(driver.getPhone() != null ? driver.getPhone() : "");
+        row.add(driver.getType() != null ? driver.getType().name() : "");
+        row.add(driver.getCarType() != null ? driver.getCarType().name() : "");
+        row.add(driver.getCarColor() != null ? driver.getCarColor() : "");
+        row.add(driver.getCarModel() != null ? driver.getCarModel() : "");
+
+        ValueRange body = new ValueRange().setValues(List.of(row));
+        sheets.spreadsheets().values()
+                .append(sheetsId, "נהגים!A:F", body)
+                .setValueInputOption("RAW")
+                .execute();
+
+        logger.info("Appended driver {} to Google Sheets", driver.getPhone());
+    }
+
+    /**
+     * Append a new business row to the עסקים sheet
+     * Columns: A=name, B=phone, C=address
+     */
+    public void addBusinessToSheet(Business business) throws Exception {
+        Sheets sheets = getSheetsService();
+
+        List<Object> row = new ArrayList<>();
+        row.add(business.getName() != null ? business.getName() : "");
+        row.add(business.getPhone() != null ? business.getPhone() : "");
+        row.add(business.getAddress() != null ? business.getAddress() : "");
+
+        ValueRange body = new ValueRange().setValues(List.of(row));
+        sheets.spreadsheets().values()
+                .append(sheetsId, "עסקים!A:C", body)
+                .setValueInputOption("RAW")
+                .execute();
+
+        logger.info("Appended business {} to Google Sheets", business.getPhone());
+    }
 }

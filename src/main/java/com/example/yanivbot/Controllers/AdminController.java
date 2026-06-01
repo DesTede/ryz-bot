@@ -124,6 +124,51 @@ public class AdminController {
         }
     }
 
+    @PostMapping("/drivers/add")
+    public ResponseEntity<String> addDriver(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @RequestBody Map<String, String> body) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        String name    = body.get("name");
+        String phone   = body.get("phone");
+        String type    = body.getOrDefault("type", "TAXI");
+        String carType = body.getOrDefault("carType", "");
+        String carColor = body.getOrDefault("carColor", "");
+        String carModel = body.getOrDefault("carModel", "");
+        if (name == null || name.isBlank() || phone == null || phone.isBlank()) {
+            return ResponseEntity.badRequest().body("❌ שם וטלפון הם שדות חובה");
+        }
+        if (driverRepo.findByPhone(phone).isPresent()) {
+            return ResponseEntity.badRequest().body("❌ נהג עם מספר זה כבר קיים");
+        }
+        com.example.yanivbot.Models.DriverType driverType;
+        try {
+            driverType = com.example.yanivbot.Models.DriverType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("❌ סוג נהג לא תקין: " + type);
+        }
+        Driver driver = new Driver(phone, name, false, driverType);
+        driver.setCarColor(carColor.isBlank() ? null : carColor);
+        driver.setCarModel(carModel.isBlank() ? null : carModel);
+        driver.setLocationToken(java.util.UUID.randomUUID().toString());
+        if (!carType.isBlank()) {
+            try {
+                driver.setCarType(com.example.yanivbot.Models.CarType.valueOf(carType.toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                logger.warn("Unknown carType {}, leaving null", carType);
+            }
+        }
+        driverRepo.save(driver);
+        try {
+            googleSheetsService.addDriverToSheet(driver);
+        } catch (Exception e) {
+            logger.error("Failed to write driver to Google Sheets: {}", e.getMessage(), e);
+            return ResponseEntity.ok("✅ נהג נוסף למסד הנתונים אך לא נכתב ל-Sheets: " + e.getMessage());
+        }
+        logger.info("Admin added new driver: {}", phone);
+        return ResponseEntity.ok("✅ נהג נוסף בהצלחה למסד הנתונים ול-Google Sheets");
+    }
+
     // =========================================================
     // BOT CONTROL
     // =========================================================
@@ -321,6 +366,48 @@ public class AdminController {
             @RequestHeader(value = "X-Admin-Key", required = false) String key) {
         if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         return ResponseEntity.ok(businessRepo.findAll());
+    }
+
+    @PostMapping("/businesses/add")
+    public ResponseEntity<String> addBusiness(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @RequestBody Map<String, String> body) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        String name  = body.get("name");
+        String phone = body.get("phone");
+        String address = body.getOrDefault("address", "");
+        if (name == null || name.isBlank() || phone == null || phone.isBlank()) {
+            return ResponseEntity.badRequest().body("❌ שם וטלפון הם שדות חובה");
+        }
+        if (businessRepo.findByPhone(phone).isPresent()) {
+            return ResponseEntity.badRequest().body("❌ עסק עם מספר זה כבר קיים");
+        }
+        Business business = new Business(name, phone, true);
+        business.setAddress(address);
+        businessRepo.save(business);
+        try {
+            googleSheetsService.addBusinessToSheet(business);
+        } catch (Exception e) {
+            logger.error("Failed to write business to Google Sheets: {}", e.getMessage(), e);
+            return ResponseEntity.ok("✅ עסק נוסף למסד הנתונים אך לא נכתב ל-Sheets: " + e.getMessage());
+        }
+        logger.info("Admin added new business: {}", phone);
+        return ResponseEntity.ok("✅ עסק נוסף בהצלחה למסד הנתונים ול-Google Sheets");
+    }
+
+    @PostMapping("/sync-businesses")
+    public ResponseEntity<String> syncBusinesses(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        try {
+            logger.info("Syncing businesses from Google Sheets");
+            googleSheetsService.syncBusinessesFromSheets();
+            logger.info("Business sync completed successfully");
+            return ResponseEntity.ok("✅ Business sync initiated");
+        } catch (Exception e) {
+            logger.error("Business sync failed: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body("❌ Sync failed: " + e.getMessage());
+        }
     }
 
     // =========================================================
