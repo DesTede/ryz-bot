@@ -62,6 +62,7 @@ public class AdminController {
     // EXISTING ENDPOINTS (unchanged)
     // =========================================================
 
+    
     @GetMapping("/dashboard")
     public void dashboardRedirect(jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
         response.sendRedirect("/dashboard/index.html");
