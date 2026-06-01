@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TaxiOrderRepository extends JpaRepository<TaxiOrder, Long> {
+
+    List<TaxiOrder> findByDriverPhone(String driverPhone);
     
     List<TaxiOrder> findByPhoneAndStatus (String phone, TaxiOrderStatus status);
 
@@ -21,6 +23,6 @@ public interface TaxiOrderRepository extends JpaRepository<TaxiOrder, Long> {
     List<TaxiOrder> findAllByOrderByCreatedAtDesc();
     
     Optional<TaxiOrder> findByTrackingToken(String trackingToken);
-    
-    
+
+    List<TaxiOrder> findByDriverPhoneOrderByCreatedAtDesc(String driverPhone);
 }

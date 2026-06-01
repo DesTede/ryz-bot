@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * Webhook endpoint for receiving messages from Meta WhatsApp Business API.
@@ -29,6 +31,9 @@ public class WhatsAppWebhookController {
     
     @Value("${whatsapp.webhook-verify-token:yanivbot_verify}")
     private String webhookVerifyToken;
+
+    @Value("${whatsapp.app-secret}")
+    private String appSecret;
     
     /**
      * Webhook GET endpoint for Meta verification during setup.
@@ -61,31 +66,41 @@ public class WhatsAppWebhookController {
      * Parses the message and routes to MessageController for processing.
      */
     @PostMapping("/whatsapp")
-    public ResponseEntity<Void> handleWebhook(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<Void> handleWebhook(
+            @RequestHeader(value = "X-Hub-Signature-256", required = false) String signature,
+            @RequestBody String rawBody) {
 
         System.out.println("===== WEBHOOK CALLED =====");
-        System.out.println("Payload: " + payload);
-                
+        System.out.println("Payload: " + rawBody);
+
+        if (!isValidSignature(signature, rawBody)) {
+            logger.warn("Invalid webhook signature — request rejected");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         try {
             logger.debug("Webhook payload received from Meta");
-            
+
+            Map<String, Object> payload = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(rawBody, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+
             // Parse incoming message using WhatsappService
             IncomingMessage incomingMessage = whatsappService.parseIncomingMessage(payload);
-            
+
             if (incomingMessage == null) {
                 logger.debug("No valid message in webhook payload");
                 return ResponseEntity.ok().build();
             }
-            
+
             String phoneNumber = incomingMessage.getPhone();
             String messageText = incomingMessage.getText();
-            
+
             logger.info("Message received from {}: {}", phoneNumber, messageText);
-            
+
             // Route to MessageController to process the message
             // MessageController.processMessage handles all the bot logic
             messageController.handleMetaMessage(incomingMessage);
-            
+
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             logger.error("Error processing webhook: {}", e.getMessage(), e);
@@ -93,5 +108,22 @@ public class WhatsAppWebhookController {
         }
     }
 
-    
+    private boolean isValidSignature(String signature, String rawBody) {
+        if (signature == null || !signature.startsWith("sha256=")) {
+            logger.warn("Missing or malformed X-Hub-Signature-256 header");
+            return false;
+        }
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(appSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] hash = mac.doFinal(rawBody.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : hash) hex.append(String.format("%02x", b));
+            String expected = "sha256=" + hex;
+            return expected.equals(signature);
+        } catch (Exception e) {
+            logger.error("Signature validation error: {}", e.getMessage());
+            return false;
+        }
+    }
 }

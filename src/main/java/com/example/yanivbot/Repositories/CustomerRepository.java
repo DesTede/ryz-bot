@@ -15,6 +15,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     List<Customer> findAllByOrderByLastOrderAtDesc();
     
     List<Customer> findAllByOrderByCreatedAtDesc();
+
+    List<Customer> findByNameContainingIgnoreCaseOrPhoneContaining(String name, String phone);
     
     int countByPhoneContaining(String phone);
 }

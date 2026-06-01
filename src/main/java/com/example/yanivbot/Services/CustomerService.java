@@ -44,7 +44,7 @@ public class CustomerService {
             // New customer
             Customer newCustomer = new Customer(phone, name);
             newCustomer.incrementDeliveryOrders();
-            newCustomer.setTotalDeliveryOrders(1);
+//            newCustomer.setTotalDeliveryOrders(1);
             customerRepo.save(newCustomer);
             logger.info("Saved new customer: {}", phone);
             return newCustomer;
