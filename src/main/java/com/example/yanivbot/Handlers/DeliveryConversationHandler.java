@@ -265,7 +265,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
             String confirmation = buildConfirmationMessage(customerName, customerPhone, address,
                     readyMinutes, price, notes);
 
-            convoService.updateState(convo, ConversationState.BUSINESS_MENU);
+            convoService.updateState(convo, ConversationState.DELIVERY_NOTES);
 
             // Send confirmation with YES/NO buttons
             whatsappService.sendInteractiveButtons(
