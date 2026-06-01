@@ -52,12 +52,27 @@
             flex-direction: column;
             padding: 0;
             z-index: 100;
+            overflow: hidden;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .sidebar-nav::-webkit-scrollbar { width: 3px; }
+        .sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .sidebar-bottom {
+            flex-shrink: 0;
+            border-top: 1px solid var(--border);
+            padding-top: 8px;
         }
 
         .sidebar-logo {
             padding: 20px 20px 18px;
             border-bottom: 1px solid var(--border);
-            background: linear-gradient(135deg, #111 0%, #1a1200 100%);
+            background: linear-gradient(135deg, #111111 0%, #1a1200 100%);
         }
         .sidebar-logo img {
             width: 120px;
@@ -104,7 +119,7 @@
         .nav-item .icon { font-size: 16px; flex-shrink: 0; }
 
         .bot-status-pill {
-            margin: auto 16px 20px;
+            margin: 8px 16px 16px;
             padding: 10px 14px;
             border-radius: 10px;
             background: var(--surface2);
@@ -523,47 +538,51 @@
 <!-- SIDEBAR -->
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <img src="/dashboard/logo-no-background.png" alt="Movez"/>
+        <img id="sidebar-logo-img" src="/dashboard/logo.png" alt="Movez"/>
         <div class="sub">admin dashboard</div>
     </div>
 
-    <div class="nav-section">ראשי</div>
-    <button class="nav-item active" onclick="showPage('overview')" id="nav-overview">
-        <span class="icon">📊</span> סקירה כללית
-    </button>
-    <button class="nav-item" onclick="showPage('live')" id="nav-live">
-        <span class="icon">⚡</span> הזמנות פעילות
-    </button>
+    <div class="sidebar-nav">
+        <div class="nav-section">ראשי</div>
+        <button class="nav-item active" onclick="showPage('overview')" id="nav-overview">
+            <span class="icon">📊</span> סקירה כללית
+        </button>
+        <button class="nav-item" onclick="showPage('live')" id="nav-live">
+            <span class="icon">⚡</span> הזמנות פעילות
+        </button>
 
-    <div class="nav-section">ניהול</div>
-    <button class="nav-item" onclick="showPage('orders')" id="nav-orders">
-        <span class="icon">📋</span> כל ההזמנות
-    </button>
-    <button class="nav-item" onclick="showPage('drivers')" id="nav-drivers">
-        <span class="icon">🚗</span> נהגים
-    </button>
-    <button class="nav-item" onclick="showPage('customers')" id="nav-customers">
-        <span class="icon">👥</span> לקוחות
-    </button>
-    <button class="nav-item" onclick="showPage('businesses')" id="nav-businesses">
-        <span class="icon">🏪</span> עסקים
-    </button>
+        <div class="nav-section">ניהול</div>
+        <button class="nav-item" onclick="showPage('orders')" id="nav-orders">
+            <span class="icon">📋</span> כל ההזמנות
+        </button>
+        <button class="nav-item" onclick="showPage('drivers')" id="nav-drivers">
+            <span class="icon">🚗</span> נהגים
+        </button>
+        <button class="nav-item" onclick="showPage('customers')" id="nav-customers">
+            <span class="icon">👥</span> לקוחות
+        </button>
+        <button class="nav-item" onclick="showPage('businesses')" id="nav-businesses">
+            <span class="icon">🏪</span> עסקים
+        </button>
 
-    <div class="nav-section">הגדרות</div>
-    <button class="nav-item" onclick="showPage('settings')" id="nav-settings">
-        <span class="icon">⚙️</span> הגדרות
-    </button>
+        <div class="nav-section">הגדרות</div>
+        <button class="nav-item" onclick="showPage('settings')" id="nav-settings">
+            <span class="icon">⚙️</span> הגדרות
+        </button>
+    </div>
 
-    <button class="nav-item" onclick="logout()" style="color:var(--danger);margin-bottom:4px">
-        <span class="icon">🚪</span> התנתק
-    </button>
+    <div class="sidebar-bottom">
+        <button class="nav-item" onclick="logout()" style="color:var(--danger)">
+            <span class="icon">🚪</span> התנתק
+        </button>
 
-    <div class="bot-status-pill" id="bot-pill">
-        <div>
-            <div class="label">סטטוס בוט</div>
-            <div class="val" id="bot-pill-val">טוען...</div>
+        <div class="bot-status-pill" id="bot-pill">
+            <div>
+                <div class="label">סטטוס בוט</div>
+                <div class="val" id="bot-pill-val">טוען...</div>
+            </div>
+            <button class="toggle-btn" onclick="toggleBot()">החלף</button>
         </div>
-        <button class="toggle-btn" onclick="toggleBot()">החלף</button>
     </div>
 </aside>
 
@@ -802,6 +821,22 @@
                         </div>
                     </div>
                 </div>
+                <div class="section-title" style="margin-top:20px">🏷️ לוגו</div>
+                <div class="table-wrap" style="padding:24px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                        <div>
+                            <div style="font-size:15px;font-weight:700">החלף לוגו</div>
+                            <div style="font-size:12px;color:var(--muted);margin-top:4px">העלה קובץ PNG להחלפת הלוגו בסרגל הצד ובמסך הכניסה</div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <img id="logo-preview" src="/dashboard/logo-no-background.png" style="height:32px;width:auto;border-radius:4px" onerror="this.style.display='none'"/>
+                            <label class="btn-primary" style="cursor:pointer;padding:9px 20px">
+                                בחר קובץ
+                                <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none" onchange="changeLogo(event)"/>
+                            </label>
+                        </div>
+                    </div>
+                </div>
                 <div class="section-title" style="margin-top:20px">🖼️ Favicon</div>
                 <div class="table-wrap" style="padding:24px">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
@@ -920,7 +955,7 @@
 <!-- LOGIN OVERLAY -->
 <div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:0">
     <div style="text-align:center;margin-bottom:32px">
-        <img src="/dashboard/logo-with-black-background.png" alt="Movez" style="width:170px;height:auto;margin-bottom:8px"/>
+        <img id="login-logo-img" src="/dashboard/logo.png" alt="Movez" style="width:170px;height:auto;margin-bottom:8px"/>
         <div style="font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:1px">ADMIN DASHBOARD</div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px;width:360px;max-width:90vw">
@@ -1490,6 +1525,18 @@
         const preview = document.getElementById('favicon-preview');
         if (preview) { preview.src = url; preview.style.display = 'block'; }
         toast('✅ Favicon עודכן (בלשונית הנוכחית בלבד)', 'success');
+    }
+
+    function changeLogo(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        document.getElementById('sidebar-logo-img').src = url;
+        const loginLogo = document.getElementById('login-logo-img');
+        if (loginLogo) loginLogo.src = url;
+        const preview = document.getElementById('logo-preview');
+        if (preview) { preview.src = url; preview.style.display = 'block'; }
+        toast('✅ לוגו עודכן (בלשונית הנוכחית בלבד)', 'success');
     }
 
     function openModal(id) {
