@@ -33,7 +33,6 @@ public class CustomerService {
         if (existing.isPresent()) {
             Customer customer = existing.get();
             customer.incrementDeliveryOrders();
-            customer.setTotalDeliveryOrders(customer.getTotalDeliveryOrders() + 1);
             // Update name if it's empty
             if (customer.getName() == null || customer.getName().isEmpty()) {
                 customer.setName(name);

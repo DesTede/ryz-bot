@@ -206,8 +206,6 @@ public class DeliveryOrderService {
         );
 
         // Notify business owner that driver claimed the order
-//        String businessNotification = "🚚 נהג בדרך!\nמשלוח #" + orderId + " קורא לנהג\nהנהג בדרך לאיסוף מהעסק שלך 🚀";
-//        String businessNotification = "🛵 הנהג בדרך אליך!\nמשלוח מספר #" + orderId + " כבר משויך לנהג.\nהוא ממש עכשיו יוצא לאיסוף מהעסק שלך 🚀";
         String businessNotification = "יאלה, יצאנו לדרך! 🎉\nמשלוח #" + orderId + " בטיפול.\nהנהג כבר בדרך לעסק שלך לאסוף את ההזמנה 🤙";
         
         whatsappService.sendSafeText(order.getBusinessPhone(), businessNotification);
