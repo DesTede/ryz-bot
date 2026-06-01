@@ -62,6 +62,11 @@ public class AdminController {
     // EXISTING ENDPOINTS (unchanged)
     // =========================================================
 
+    @GetMapping("/dashboard")
+    public void dashboardRedirect(jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        response.sendRedirect("/dashboard/index.html");
+    }
+    
     @GetMapping("/drivers")
     public ResponseEntity<List<Driver>> getAllDrivers(
             @RequestHeader(value = "X-Admin-Key", required = false) String key) {
