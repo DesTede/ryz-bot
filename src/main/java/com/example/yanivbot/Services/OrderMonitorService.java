@@ -1,8 +1,10 @@
 package com.example.yanivbot.Services;
 
+import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Entities.DeliveryOrder;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.TaxiOrder;
+import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
@@ -36,6 +38,12 @@ public class OrderMonitorService {
     private static final int DELIVERY_ALERT_MINUTES = 10;
 
     private static final int ADMIN_REPEAT_ALERT_MINUTES = 5;
+
+    public static final int CONVERSATION_NUDGE_MINUTES = 20;
+
+    public static final int CONVERSATION_TIMEOUT_MINUTES = 30; // hard reset after this many minutes idle
+
+
 
     public OrderMonitorService(TaxiOrderRepository taxiOrderRepo,
                                DeliveryOrderRepository deliveryOrderRepo,
@@ -236,6 +244,39 @@ public class OrderMonitorService {
                 order.getId(),
                 order.getId()
         );
+    }
+
+    /**
+     * Runs every 5 minutes — nudges customers who abandoned mid-flow between 20–30 minutes ago.
+     * Sends a friendly reminder within the 24hr window before the hard reset kicks in.
+     */
+    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
+    public void checkAbandonedConversations() {
+        long now = System.currentTimeMillis();
+        long nudgeFrom = now - (CONVERSATION_TIMEOUT_MINUTES * 60 * 1000); // 30 min ago
+        long nudgeTo   = now - (CONVERSATION_NUDGE_MINUTES * 60 * 1000L); // 20 min ago
+
+        List<ConversationState> midFlowStates = List.of(
+                ConversationState.TAXI_CAR_TYPE,
+                ConversationState.TAXI_PICKUP,
+                ConversationState.TAXI_DESTINATION,
+                ConversationState.TAXI_NOTES,
+                ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION,
+                ConversationState.DELIVERY_CUSTOMER_NAME,
+                ConversationState.DELIVERY_CUSTOMER_PHONE,
+                ConversationState.DELIVERY_ADDRESS,
+                ConversationState.DELIVERY_READY_TIME,
+                ConversationState.DELIVERY_PRICE,
+                ConversationState.DELIVERY_NOTES
+        );
+
+        List<Conversation> abandoned = convoService.findIdleMidFlowConversations(midFlowStates, nudgeFrom, nudgeTo);
+
+        for (Conversation convo : abandoned) {
+            logger.info("Nudging abandoned conversation for {} (state: {})", convo.getPhone(), convo.getState());
+            whatsappService.sendSafeText(convo.getPhone(),
+                    "👋 שכחת משהו?\nיש לך הזמנה פתוחה — רוצה להמשיך או להתחיל מחדש?\n\n_(לאיפוס שלח 00)_");
+        }
     }
 
     // Commented out: Check if active driver's location is updated every 15 minutes

@@ -7,6 +7,8 @@ import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -118,5 +120,13 @@ public class ConversationService {
         Conversation convo = getOrCreate(phone);
         updateState(convo, ConversationState.START);
         saveTempData(convo, "");
+    }
+
+    /**
+     * Find conversations that are mid-flow and idle between fromMs and toMs
+     * Used by scheduler to send nudge or reset abandoned conversations
+     */
+    public List<Conversation> findIdleMidFlowConversations(List<ConversationState> states, long fromMs, long toMs) {
+        return convoRepo.findByStateInAndLastMessageTimeBetween(states, fromMs, toMs);
     }
 }

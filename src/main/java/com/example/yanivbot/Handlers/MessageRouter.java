@@ -14,6 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import static com.example.yanivbot.Services.OrderMonitorService.CONVERSATION_TIMEOUT_MINUTES;
+
 /**
  * [COMPLETE FILE]
  * Routes incoming messages to the appropriate conversation handler based on state.
@@ -128,6 +130,23 @@ public class MessageRouter {
             convoService.saveTempData(convo, "");
             return "🔄 איפוס משתמש. בואו נתחיל מחדש! 🚀";
         }
+        
+        // ===== TIMEOUT CHECK — reset mid-flow conversations idle for 30+ minutes =====
+        boolean isMidFlow = state != ConversationState.START
+                && state != ConversationState.START_MENU
+                && state != ConversationState.BUSINESS_MENU
+                && state != ConversationState.AWAITING_DRIVER_LOCATION;
+
+        if (isMidFlow) {
+            long idleMs = System.currentTimeMillis() - convo.getLastMessageTime();
+            if (idleMs > CONVERSATION_TIMEOUT_MINUTES * 60 * 1000) {
+                logger.info("Conversation timed out for {} (idle {}min, state {})", phone, idleMs / 60000, state);
+                convoService.updateState(convo, ConversationState.START);
+                convoService.saveTempData(convo, "WELCOME_SENT");
+                return "⏰ ההזמנה פגה תוקף עקב חוסר פעילות.\nבואו נתחיל מחדש! מה בא לך?";
+            }
+        }
+
 
         // ===== START STATE =====
         if (state == ConversationState.START) {

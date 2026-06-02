@@ -19,4 +19,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     List<Customer> findByNameContainingIgnoreCaseOrPhoneContaining(String name, String phone);
     
     int countByPhoneContaining(String phone);
+    
+    
 }
