@@ -23,6 +23,8 @@ public class ConversationService {
 
     private static final Logger logger = LoggerFactory.getLogger(ConversationService.class);
 
+    public static final int CONVERSATION_NUDGE_MINUTES = 20;
+    public static final int CONVERSATION_TIMEOUT_MINUTES = 30;
     private final ConversationRepository convoRepo;
 
     public ConversationService(ConversationRepository convoRepo) {
@@ -122,11 +124,15 @@ public class ConversationService {
         saveTempData(convo, "");
     }
 
+    public void save(Conversation convo) {
+        convoRepo.save(convo);
+    }
+
     /**
      * Find conversations that are mid-flow and idle between fromMs and toMs
      * Used by scheduler to send nudge or reset abandoned conversations
      */
     public List<Conversation> findIdleMidFlowConversations(List<ConversationState> states, long fromMs, long toMs) {
-        return convoRepo.findByStateInAndLastMessageTimeBetween(states, fromMs, toMs);
+        return convoRepo.findByStateInAndLastMessageTimeBetweenAndNudgedAt(states, fromMs, toMs, 0L);
     }
 }

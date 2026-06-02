@@ -23,7 +23,8 @@ public class Conversation {
     
     private String tempData;
     
-    private long lastMessageTime; 
+    private long lastMessageTime;
+    private long nudgedAt;
 
     public Conversation(){}
     
@@ -62,5 +63,13 @@ public class Conversation {
 
     public void setLastMessageTime(long lastMessageTime) {
         this.lastMessageTime = lastMessageTime;
+    }
+
+    public long getNudgedAt() {
+        return nudgedAt;
+    }
+
+    public void setNudgedAt(long nudgedAt) {
+        this.nudgedAt = nudgedAt;
     }
 }

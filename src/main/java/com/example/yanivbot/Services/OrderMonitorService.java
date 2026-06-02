@@ -276,6 +276,8 @@ public class OrderMonitorService {
             logger.info("Nudging abandoned conversation for {} (state: {})", convo.getPhone(), convo.getState());
             whatsappService.sendSafeText(convo.getPhone(),
                     "👋 שכחת משהו?\nיש לך הזמנה פתוחה — רוצה להמשיך או להתחיל מחדש?\n\n_(לאיפוס שלח 00)_");
+            convo.setNudgedAt(System.currentTimeMillis());
+            convoService.save(convo);
         }
     }
 

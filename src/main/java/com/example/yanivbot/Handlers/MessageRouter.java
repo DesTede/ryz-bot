@@ -14,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import static com.example.yanivbot.Services.OrderMonitorService.CONVERSATION_TIMEOUT_MINUTES;
 
 /**
  * [COMPLETE FILE]
@@ -128,6 +127,8 @@ public class MessageRouter {
             logger.info("Reset signal received: '{}'", txt);
             convoService.updateState(convo, ConversationState.START);
             convoService.saveTempData(convo, "");
+            convo.setNudgedAt(0);
+            convoService.save(convo);
             return "🔄 איפוס משתמש. בואו נתחיל מחדש! 🚀";
         }
         
@@ -139,10 +140,12 @@ public class MessageRouter {
 
         if (isMidFlow) {
             long idleMs = System.currentTimeMillis() - convo.getLastMessageTime();
-            if (idleMs > CONVERSATION_TIMEOUT_MINUTES * 60 * 1000) {
+            if (idleMs > ConversationService.CONVERSATION_TIMEOUT_MINUTES * 60 * 1000) {
                 logger.info("Conversation timed out for {} (idle {}min, state {})", phone, idleMs / 60000, state);
                 convoService.updateState(convo, ConversationState.START);
                 convoService.saveTempData(convo, "WELCOME_SENT");
+                convo.setNudgedAt(0);
+                convoService.save(convo);
                 return "⏰ ההזמנה פגה תוקף עקב חוסר פעילות.\nבואו נתחיל מחדש! מה בא לך?";
             }
         }

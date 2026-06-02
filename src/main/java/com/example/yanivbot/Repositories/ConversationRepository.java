@@ -10,5 +10,7 @@ public interface ConversationRepository extends JpaRepository<Conversation,Strin
 
     List<Conversation> findByStateInAndLastMessageTimeBetween(
             List<ConversationState> states, long from, long to);
-    
+
+    List<Conversation> findByStateInAndLastMessageTimeBetweenAndNudgedAt(
+            List<ConversationState> states, long from, long to, long nudgedAt);
 }
