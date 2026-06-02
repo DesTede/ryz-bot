@@ -343,7 +343,8 @@ public class MessageRouter {
                 state == ConversationState.DELIVERY_ADDRESS ||
                 state == ConversationState.DELIVERY_READY_TIME ||
                 state == ConversationState.DELIVERY_PRICE ||
-                state == ConversationState.DELIVERY_NOTES) {
+                state == ConversationState.DELIVERY_NOTES ||
+                state == ConversationState.DELIVERY_AWAITING_CONFIRMATION) {
 
             logger.info("In DELIVERY state: {}", state);
             String deliveryResponse = deliveryHandler.handleMessage(convo, message);

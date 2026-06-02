@@ -40,12 +40,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
             long orderId = Long.parseLong(txt.split("\\s+")[1]);
             return deliveryOrderService.completeDelivery(orderId, message.getPhone());
         }
-
-        // Handle confirmation buttons
-        if (txt.equals("delivery_confirm_yes") || txt.equals("delivery_confirm_no")) {
-            return handleConfirmationButton(convo, message);
-        }
-
+        
         // ===== DELIVERY FLOW LOG =====
         logger.info("[DELIVERY] Phone: {} | Input: '{}' | State: {} | TempData: '{}'",
                 message.getPhone(), txt, state, convo.getTempData());
@@ -79,6 +74,11 @@ public class DeliveryConversationHandler implements ConversationHandler {
                 logger.info("[DELIVERY] -> handleNotes");
                 yield handleNotes(convo, message);
             }
+            case DELIVERY_AWAITING_CONFIRMATION -> {
+                logger.info("[DELIVERY] -> handleConfirmationButton");
+                yield handleConfirmationButton(convo, message);
+            }
+            
             default -> {
                 logger.warn("[DELIVERY] Unexpected state: {}", state);
                 yield null;
@@ -265,7 +265,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
             String confirmation = buildConfirmationMessage(customerName, customerPhone, address,
                     readyMinutes, price, notes);
 
-            convoService.updateState(convo, ConversationState.DELIVERY_NOTES);
+            convoService.updateState(convo, ConversationState.DELIVERY_AWAITING_CONFIRMATION);
 
             // Send confirmation with YES/NO buttons
             whatsappService.sendInteractiveButtons(

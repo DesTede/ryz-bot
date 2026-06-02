@@ -279,7 +279,8 @@ public class OrderMonitorService {
                 ConversationState.DELIVERY_ADDRESS,
                 ConversationState.DELIVERY_READY_TIME,
                 ConversationState.DELIVERY_PRICE,
-                ConversationState.DELIVERY_NOTES
+                ConversationState.DELIVERY_NOTES,
+                ConversationState.DELIVERY_AWAITING_CONFIRMATION
         );
 
         List<Conversation> abandoned = convoService.findIdleMidFlowConversations(midFlowStates, nudgeFrom, nudgeTo);

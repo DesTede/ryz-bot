@@ -19,7 +19,7 @@ public enum ConversationState {
     DELIVERY_READY_TIME,                    // When order will be ready
     DELIVERY_PRICE,                         // Delivery fee
     DELIVERY_NOTES,                         // Optional notes
-    DELIVERY_CONFIRMATION,                     //Confirmation
+    DELIVERY_AWAITING_CONFIRMATION,                     //Confirmation
     
     
     BUSINESS_MENU,                          // Business owner main menu
