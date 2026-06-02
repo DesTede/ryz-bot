@@ -389,45 +389,85 @@ public class DriverService {
         }
     }
 
-
     public void alertAdminIfNoDriversAvailable(long orderId, DriverType type, String orderDetails) {
-        // Get the order
-        Optional<TaxiOrder> orderOpt = taxiOrderRepo.findById(orderId);
-        if (orderOpt.isEmpty()) {
-            logger.warn("Order #{} not found", orderId);
-            return;
-        }
-
-        TaxiOrder order = orderOpt.get();
-
-        // Only send alert once per order
-        if (order.isAdminAlertedNoDrivers()) {
-            logger.info("No drivers alert already sent for order #{}, skipping", orderId);
-            return;
-        }
-
-        logger.warn("No drivers available for order #{} - alerting admins", orderId);
-
         String driverType = type == DriverType.TAXI ? "מונית" : "משלוח";
         String adminMessage = "🚨 *אוי לא, אין נהגים פנויים!*\n" +
                 "נוצרה הזמנת " + driverType + " חדשה (#" + orderId + ") אבל אין אף נהג זמין כרגע במערכת 😰\n\n" +
                 "📋 *פרטי ההזמנה:*\n" + orderDetails;
-                
-//                "⚠️ הזמנת " + (type == DriverType.TAXI ? "מונית" : "משלוח") +
-//                " חדשה #" + orderId + " נוצרה אך אין נהגים זמינים!\n" +
-//                orderDetails;
 
-        // Use smart method that saves 40-60% on costs
-        notifyAdminsSmartMessage(
-                adminMessage,                    
-                "no_drivers_available_admin",    
-                List.of(driverType ,String.valueOf(orderId), type.name())  
-        );
-        
-        // Mark as alerted so this message is never sent again for this order
-        order.setAdminAlertedNoDrivers(true);
-        taxiOrderRepo.save(order);
+        if (type == DriverType.TAXI) {
+            Optional<TaxiOrder> orderOpt = taxiOrderRepo.findById(orderId);
+            if (orderOpt.isEmpty()) {
+                logger.warn("Taxi order #{} not found", orderId);
+                return;
+            }
+            TaxiOrder order = orderOpt.get();
+            if (order.isAdminAlertedNoDrivers()) {
+                logger.info("No drivers alert already sent for taxi order #{}, skipping", orderId);
+                return;
+            }
+            logger.warn("No drivers available for taxi order #{} - alerting admins", orderId);
+            notifyAdminsSmartMessage(adminMessage, "no_drivers_available_admin",
+                    List.of(driverType, String.valueOf(orderId), type.name()));
+            order.setAdminAlertedNoDrivers(true);
+            taxiOrderRepo.save(order);
+        } else {
+            Optional<DeliveryOrder> orderOpt = deliveryOrderRepo.findById(orderId);
+            if (orderOpt.isEmpty()) {
+                logger.warn("Delivery order #{} not found", orderId);
+                return;
+            }
+            DeliveryOrder order = orderOpt.get();
+            if (order.isAdminAlertedNoDrivers()) {
+                logger.info("No drivers alert already sent for delivery order #{}, skipping", orderId);
+                return;
+            }
+            logger.warn("No drivers available for delivery order #{} - alerting admins", orderId);
+            notifyAdminsSmartMessage(adminMessage, "no_drivers_available_admin",
+                    List.of(driverType, String.valueOf(orderId), type.name()));
+            order.setAdminAlertedNoDrivers(true);
+            deliveryOrderRepo.save(order);
+        }
     }
+
+//    public void alertAdminIfNoDriversAvailable(long orderId, DriverType type, String orderDetails) {
+//        // Get the order
+//        Optional<TaxiOrder> orderOpt = taxiOrderRepo.findById(orderId);
+//        if (orderOpt.isEmpty()) {
+//            logger.warn("Order #{} not found", orderId);
+//            return;
+//        }
+//
+//        TaxiOrder order = orderOpt.get();
+//
+//        // Only send alert once per order
+//        if (order.isAdminAlertedNoDrivers()) {
+//            logger.info("No drivers alert already sent for order #{}, skipping", orderId);
+//            return;
+//        }
+//
+//        logger.warn("No drivers available for order #{} - alerting admins", orderId);
+//
+//        String driverType = type == DriverType.TAXI ? "מונית" : "משלוח";
+//        String adminMessage = "🚨 *אוי לא, אין נהגים פנויים!*\n" +
+//                "נוצרה הזמנת " + driverType + " חדשה (#" + orderId + ") אבל אין אף נהג זמין כרגע במערכת 😰\n\n" +
+//                "📋 *פרטי ההזמנה:*\n" + orderDetails;
+//                
+////                "⚠️ הזמנת " + (type == DriverType.TAXI ? "מונית" : "משלוח") +
+////                " חדשה #" + orderId + " נוצרה אך אין נהגים זמינים!\n" +
+////                orderDetails;
+//
+//        // Use smart method that saves 40-60% on costs
+//        notifyAdminsSmartMessage(
+//                adminMessage,                    
+//                "no_drivers_available_admin",    
+//                List.of(driverType ,String.valueOf(orderId), type.name())  
+//        );
+//        
+//        // Mark as alerted so this message is never sent again for this order
+//        order.setAdminAlertedNoDrivers(true);
+//        taxiOrderRepo.save(order);
+//    }
 
    
 

@@ -73,6 +73,8 @@ public class DeliveryOrderService {
 
         logger.info("Broadcasting order #{} to drivers...", order.getId());
         broadcastToDrivers(order);
+        order.setDispatched(true);
+        deliveryOrderRepo.save(order);
     }
 
     public void broadcastToDrivers(DeliveryOrder order) {

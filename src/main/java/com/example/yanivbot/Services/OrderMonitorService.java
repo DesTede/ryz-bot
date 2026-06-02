@@ -68,35 +68,35 @@ public class OrderMonitorService {
     }
 
     // Runs every minute — dispatches delivery orders when ready
-    @Scheduled(fixedDelay = 5,timeUnit = TimeUnit.MINUTES)
-    public void checkOrdersReadyToDispatch() {
-        List<DeliveryOrder> ordersToDispatch = deliveryOrderRepo
-                .findByDeliveryStatusAndScheduledDispatchTimeBefore(
-                        DeliveryStatus.CREATED, LocalDateTime.now());
-
-        for (DeliveryOrder order : ordersToDispatch) {
-            if (order.getPickedUpBy() != null) continue; // already claimed
-            if (order.isDispatched()) continue; // already dispatched
-
-            logger.info("Dispatching delivery order #{}", order.getId());
-
-            String businessAddress = businessOwnerService.getBusinessAddress(order.getBusinessPhone());
-            double[] coords = businessAddress != null ? geoCodingService.geocode(businessAddress) : null;
-
-            String msg = buildDispatchMessage(order);
-            String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
-                    "📞 עסק: " + order.getBusinessPhone();
-
-            if (coords != null) {
-                driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, coords[0], coords[1], orderDetails, order.getId());
-            } else {
-                driverService.dispatchToDrivers(DriverType.DELIVERY, msg, orderDetails, order.getId());
-            }
-
-            order.setDispatched(true);
-            deliveryOrderRepo.save(order);
-        }
-    }
+//    @Scheduled(fixedDelay = 5,timeUnit = TimeUnit.MINUTES)
+//    public void checkOrdersReadyToDispatch() {
+//        List<DeliveryOrder> ordersToDispatch = deliveryOrderRepo
+//                .findByDeliveryStatusAndScheduledDispatchTimeBefore(
+//                        DeliveryStatus.CREATED, LocalDateTime.now());
+//
+//        for (DeliveryOrder order : ordersToDispatch) {
+//            if (order.getPickedUpBy() != null) continue; // already claimed
+//            if (order.isDispatched()) continue; // already dispatched
+//
+//            logger.info("Dispatching delivery order #{}", order.getId());
+//
+//            String businessAddress = businessOwnerService.getBusinessAddress(order.getBusinessPhone());
+//            double[] coords = businessAddress != null ? geoCodingService.geocode(businessAddress) : null;
+//
+//            String msg = buildDispatchMessage(order);
+//            String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
+//                    "📞 עסק: " + order.getBusinessPhone();
+//
+//            if (coords != null) {
+//                driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, coords[0], coords[1], orderDetails, order.getId());
+//            } else {
+//                driverService.dispatchToDrivers(DriverType.DELIVERY, msg, orderDetails, order.getId());
+//            }
+//
+//            order.setDispatched(true);
+//            deliveryOrderRepo.save(order);
+//        }
+//    }
 
     /**
      * Check unclaimed taxi orders
@@ -216,6 +216,18 @@ public class OrderMonitorService {
             whatsappService.sendSafeText(order.getBusinessPhone(),
                     "⚠️ טרם נמצא שליח להזמנה #" + order.getId() + ". אנו ממשיכים לחפש...");
 
+            // Re-dispatch to drivers
+            String businessAddress = businessOwnerService.getBusinessAddress(order.getBusinessPhone());
+            double[] coords = businessAddress != null ? geoCodingService.geocode(businessAddress) : null;
+            String msg = buildDispatchMessage(order);
+            String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
+                    "📞 עסק: " + order.getBusinessPhone();
+            if (coords != null) {
+                driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, coords[0], coords[1], orderDetails, order.getId());
+            } else {
+                driverService.dispatchToDrivers(DriverType.DELIVERY, msg, orderDetails, order.getId());
+            }
+            
             // Mark as alerted to prevent sending this alert again
             order.setAdminLastAlertedAt(LocalDateTime.now());
             deliveryOrderRepo.save(order);

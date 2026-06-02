@@ -47,6 +47,9 @@ public class DeliveryOrder {
 
     @Column(name = "redispatch_stopped", nullable = false)
     private boolean redispatchStopped = false;
+
+    @Column(name = "admin_alerted_no_drivers", nullable = false)
+    private boolean adminAlertedNoDrivers = false;
     
 
     public DeliveryOrder() {
@@ -155,5 +158,13 @@ public class DeliveryOrder {
 
     public void setDispatched(boolean dispatched) {
         isDispatched = dispatched;
+    }
+
+    public boolean isAdminAlertedNoDrivers() {
+        return adminAlertedNoDrivers;
+    }
+
+    public void setAdminAlertedNoDrivers(boolean adminAlertedNoDrivers) {
+        this.adminAlertedNoDrivers = adminAlertedNoDrivers;
     }
 }
