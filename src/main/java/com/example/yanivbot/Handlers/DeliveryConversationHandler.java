@@ -358,7 +358,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
 
         if (txt.equals("delivery_confirm_yes")) {
             // Create the order
-            String[] parts = tempData.split("\\|");
+            String[] parts = tempData.split("\\|", -1);
             if (parts.length >= 6) {
                 String businessPhone = message.getPhone();
                 String customerName = parts[0];
