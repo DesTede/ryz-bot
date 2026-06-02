@@ -314,8 +314,11 @@ public class DriverConversationHandler implements ConversationHandler {
     }
 
     private void showShiftStartConfirmation(String phone) {
+//        String bodyText = "📍 כדי להתחיל משמרת עליך לשלוח מיקום נוכחי.\nלאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀\לחץ על הכפתור למטה לשיתוף מיקום";
         String bodyText = "📍 כדי להתחיל משמרת עליך לשלוח מיקום נוכחי.\nלאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀\n\nלשליחת מיקום, לחץ על + בתפריט ובחר 📍 מיקום";
 
+//        whatsappService.sendLocationRequestMessage(phone, bodyText);
+        
         whatsappService.sendInteractiveButtonsSafe(
                 phone,
                 bodyText,

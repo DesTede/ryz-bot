@@ -561,6 +561,37 @@ public class WhatsappService {
             sendSafeText(phone, regularMessage);
         }
     }
+
+    /**
+     * Send an interactive location request message.
+     * Displays a body text and a "Send Location" button the user can tap.
+     */
+    public void sendLocationRequestMessage(String phone, String bodyText) {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("messaging_product", "whatsapp");
+            payload.put("recipient_type", "individual");
+            payload.put("to", phone);
+            payload.put("type", "interactive");
+
+            JSONObject interactive = new JSONObject();
+            interactive.put("type", "location_request_message");
+
+            JSONObject body = new JSONObject();
+            body.put("text", bodyText);
+            interactive.put("body", body);
+
+            JSONObject action = new JSONObject();
+            action.put("name", "send_location");
+            interactive.put("action", action);
+
+            payload.put("interactive", interactive);
+
+            sendRequest(payload);
+        } catch (Exception e) {
+            logger.error("Error sending location request to {}: {}", phone, e.getMessage());
+        }
+    }
     
     
 }
