@@ -143,7 +143,7 @@ public class MessageRouter {
             if (idleMs > ConversationService.CONVERSATION_TIMEOUT_MINUTES * 60 * 1000) {
                 logger.info("Conversation timed out for {} (idle {}min, state {})", phone, idleMs / 60000, state);
                 convoService.updateState(convo, ConversationState.START);
-                convoService.saveTempData(convo, "WELCOME_SENT");
+                convoService.saveTempData(convo, "");
                 convo.setNudgedAt(0);
                 convoService.save(convo);
                 return "⏰ ההזמנה פגה תוקף עקב חוסר פעילות.\nבואו נתחיל מחדש! מה בא לך?";
