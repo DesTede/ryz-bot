@@ -99,9 +99,13 @@ public class MessageRouter {
 
         // ===== CHECK ADMIN COMMANDS FIRST (works even when bot is off) =====
         // Admin commands are handled and we stop here, whether they return a message or send via WhatsApp
+//        boolean isAdminCommand = txt.equals("כבה בוט") || txt.equals("kahah_bot")
+//                || txt.equals("הפעל בוט") || txt.equals("hepel_bot");
         boolean isAdminCommand = txt.equals("כבה בוט") || txt.equals("kahah_bot")
-                || txt.equals("הפעל בוט") || txt.equals("hepel_bot");
-
+                || txt.equals("הפעל בוט") || txt.equals("hepel_bot")
+                || txt.startsWith("stop_redispatch_taxi_") || txt.startsWith("stop_redispatch_del_");
+        
+        
         if (isAdminCommand) {
             // Check if user is actually an admin BEFORE processing the command
             if (!adminCommandHandler.isAdmin(phone)) {
@@ -146,7 +150,7 @@ public class MessageRouter {
                 convoService.saveTempData(convo, "");
                 convo.setNudgedAt(0);
                 convoService.save(convo);
-                return "⏰ ההזמנה פגה תוקף עקב חוסר פעילות.\nבואו נתחיל מחדש! מה בא לך?";
+                return "⏰ ההזמנה פגה תוקף עקב חוסר פעילות.\nבואו נתחיל מחדש!";
             }
         }
 

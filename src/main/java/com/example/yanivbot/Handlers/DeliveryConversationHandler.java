@@ -234,8 +234,8 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String txt = message.getText().trim();
 
         // Simply store the notes without parsing
-        String notes = txt.isEmpty() ? "" : txt;
-
+//        String notes = txt.isEmpty() ? "" : txt;
+        String notes = (txt.isEmpty() || txt.equals("אין")) ? "" : txt;
         // Build complete tempData: name|phone|address|readyTime|price|notes
         String tempData = convo.getTempData();
         String[] parts = tempData.split("\\|");

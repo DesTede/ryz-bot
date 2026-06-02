@@ -151,7 +151,7 @@ public class OrderMonitorService {
                             order.getId(),
                             order.getPickUpLocation(),
                             order.getDestination(),
-                            order.getNotes().isEmpty() ? "אין" : order.getNotes()
+                            (order.getNotes() == null || order.getNotes().isEmpty()) ? "אין" : order.getNotes()
             );
 
             String orderDetails = "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
