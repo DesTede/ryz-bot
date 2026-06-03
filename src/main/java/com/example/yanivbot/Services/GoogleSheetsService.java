@@ -90,7 +90,7 @@ public class GoogleSheetsService {
      * Sync drivers from Google Sheets
      * Called every X minutes via @Scheduled
      */
-    @Scheduled(fixedRate = 1800000) // 30 minutes
+//    @Scheduled(fixedRate = 1800000) // 30 minutes
     public void syncDriversFromSheets() {
         logger.info("Syncing drivers from Google Sheets (נהגים)...");
         try {
@@ -105,7 +105,7 @@ public class GoogleSheetsService {
      * Sync businesses from Google Sheets
      * Called every X minutes via @Scheduled
      */
-    @Scheduled(fixedRate = 1800000) // 30 minutes
+//    @Scheduled(fixedRate = 1800000) // 30 minutes
     public void syncBusinessesFromSheets() {
         logger.info("Syncing businesses from Google Sheets (עסקים)...");
         try {

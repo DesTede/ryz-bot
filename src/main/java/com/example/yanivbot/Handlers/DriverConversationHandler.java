@@ -330,15 +330,15 @@ public class DriverConversationHandler implements ConversationHandler {
         return driverService.findByPhone(phone) != null;
     }
 
-    public boolean isBusinessOwner(String phone) {
-        if (adminPhones != null && !adminPhones.isEmpty()) {
-            String[] phones = adminPhones.split(",");
-            for (String adminPhone : phones) {
-                if (adminPhone.trim().equals(phone)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
+//    public boolean isBusinessOwner(String phone) {
+//        if (adminPhones != null && !adminPhones.isEmpty()) {
+//            String[] phones = adminPhones.split(",");
+//            for (String adminPhone : phones) {
+//                if (adminPhone.trim().equals(phone)) {
+//                    return true;
+//                }
+//            }
+//        }
+//        return false;
+//    }
 }

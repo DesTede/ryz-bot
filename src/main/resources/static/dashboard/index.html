@@ -877,7 +877,7 @@
         <div class="table-wrap">
             <table>
                 <thead><tr>
-                    <th>שם עסק</th><th>טלפון</th><th>כתובת</th><th>פעיל</th>
+                    <th>שם עסק</th><th>טלפון</th><th>כתובת</th><th>פעיל</th><th>פעולות</th>
                 </tr></thead>
                 <tbody id="businesses-tbody"><tr class="loading-row"><td colspan="4">טוען...</td></tr></tbody>
             </table>
@@ -956,7 +956,7 @@
     <div class="modal">
         <h3>שיוך מחדש להזמנה <span id="reassign-order-id"></span></h3>
         <div class="modal-label">טלפון נהג חדש</div>
-        <input class="modal-input" id="reassign-phone" placeholder="972xxxxxxxxx"/>
+        <input class="modal-input" id="reassign-phone" placeholder="05xxxxxxxxx"/>
         <div class="modal-actions">
             <button class="btn-secondary" onclick="closeModal('reassign-modal')">ביטול</button>
             <button class="btn-primary" onclick="confirmReassign()">שיוך</button>
@@ -993,7 +993,7 @@
         <div class="modal-label">שם *</div>
         <input class="modal-input" id="add-driver-name" placeholder="ישראל ישראלי"/>
         <div class="modal-label">טלפון * (עם קידומת מדינה)</div>
-        <input class="modal-input" id="add-driver-phone" placeholder="972501234567" type="tel"/>
+        <input class="modal-input" id="add-driver-phone" placeholder="0501234567" type="tel"/>
         <div class="modal-label">סוג נהג *</div>
         <select class="modal-input" id="add-driver-type">
             <option value="TAXI">🚕 מונית (TAXI)</option>
@@ -1036,11 +1036,11 @@
     <div class="modal">
         <h3>➕ הוסף עסק חדש</h3>
         <div class="modal-label">שם עסק *</div>
-        <input class="modal-input" id="add-business-name" placeholder="פיצה האט"/>
+        <input class="modal-input" id="add-business-name" placeholder="פיצה מתי"/>
         <div class="modal-label">טלפון * (עם קידומת מדינה)</div>
-        <input class="modal-input" id="add-business-phone" placeholder="972501234567"/>
+        <input class="modal-input" id="add-business-phone" placeholder="0501234567"/>
         <div class="modal-label">כתובת</div>
-        <input class="modal-input" id="add-business-address" placeholder="רחוב הרצל 1, תל אביב"/>
+        <input class="modal-input" id="add-business-address" placeholder="רחוב הרצל 1, רחובות"/>
         <div class="modal-actions">
             <button class="btn-secondary" onclick="closeModal('add-business-modal')">ביטול</button>
             <button class="btn-primary" onclick="submitAddBusiness()">הוסף עסק</button>
@@ -1167,6 +1167,20 @@
     function truncate(str, n=20) {
         if (!str) return '—';
         return str.length > n ? str.substring(0, n) + '…' : str;
+    }
+
+    function formatPhone(phone) {
+        if (!phone) return '—';
+        if (phone.startsWith('972') && phone.length === 12) return '0' + phone.substring(3);
+        return phone;
+    }
+
+    function formatPhone972(phone) {
+        if (!phone) return phone;
+        phone = phone.replace(/[^0-9]/g, '');
+        if (phone.startsWith('0')) return '972' + phone.substring(1);
+        if (!phone.startsWith('972')) return '972' + phone;
+        return phone;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -1416,8 +1430,9 @@
     }
 
     async function confirmReassign() {
-        const phone = document.getElementById('reassign-phone').value.trim();
-        if (!phone) { toast('הכנס טלפון נהג', 'error'); return; }
+        const rawPhone = document.getElementById('reassign-phone').value.trim();
+        if (!rawPhone) { toast('הכנס טלפון נהג', 'error'); return; }
+        const phone = formatPhone972(rawPhone);
         try {
             await api(`/admin/orders/${currentReassignType}/${currentReassignId}/reassign/${phone}`, 'POST');
             toast(`✅ הזמנה #${currentReassignId} שויכה מחדש`, 'success');
@@ -1447,7 +1462,7 @@
         <div class="driver-card-header">
           <div>
             <div class="driver-name">${d.name||'—'}</div>
-            <div class="driver-phone">${d.phone}</div>
+            <div class="driver-phone">${formatPhone(d.phone)}</div>
           </div>
           ${busy ? '<span class="badge badge-orange">בהזמנה</span>' : d.active ? '<span class="badge badge-green">פעיל</span>' : '<span class="badge badge-muted">לא פעיל</span>'}
         </div>
@@ -1459,8 +1474,9 @@
         </div>
         ${d.locationUpdatedAt?`<div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:8px">📍 עדכון אחרון: ${minutesAgo(d.locationUpdatedAt)} לפני</div>`:''}
         <div class="driver-actions">
-          <button class="action-btn" onclick="toggleDriver('${d.phone}')">${d.active?'כבה':'הפעל'}</button>
-          <button class="action-btn" onclick="openDriverOrders('${d.phone}','${d.name||d.phone}')">היסטוריה</button>
+            <button class="action-btn" onclick="toggleDriver('${d.phone}')">${d.active?'כבה':'הפעל'}</button>
+            <button class="action-btn" onclick="openDriverOrders('${d.phone}','${d.name||d.phone}')">היסטוריה</button>
+            <button class="action-btn danger" onclick="deleteDriver('${d.phone}','${d.name||d.phone}')">מחק</button>
         </div>
       </div>`;
             }).join('') : '<div class="empty">אין נהגים רשומים</div>';
@@ -1471,6 +1487,15 @@
         try {
             const data = await api(`/admin/drivers/${phone}/toggle-active`, 'POST');
             toast(data.active ? '✅ נהג הופעל' : '🔴 נהג כובה', 'success');
+            loadDrivers();
+        } catch(e) { toast('שגיאה: ' + e.message, 'error'); }
+    }
+
+    async function deleteDriver(phone, name) {
+        if (!confirm(`למחוק את הנהג ${name}? פעולה זו אינה הפיכה.`)) return;
+        try {
+            await api(`/admin/drivers/${phone}`, 'DELETE');
+            toast('✅ נהג נמחק', 'success');
             loadDrivers();
         } catch(e) { toast('שגיאה: ' + e.message, 'error'); }
     }
@@ -1554,16 +1579,26 @@
     // ══════════════════════════════════════════════════════════════
     async function loadBusinesses() {
         const tb = document.getElementById('businesses-tbody');
-        tb.innerHTML = '<tr class="loading-row"><td colspan="4">טוען... <span class="spinner"></span></td></tr>';
+        tb.innerHTML = '<tr class="loading-row"><td colspan="5">טוען... <span class="spinner"></span></td></tr>';
         try {
             const businesses = await api('/admin/businesses');
             tb.innerHTML = businesses.length ? businesses.map(b => `<tr>
-      <td style="font-weight:600">${b.name||'—'}</td>
-      <td style="font-family:var(--mono);font-size:12px">${b.phone}</td>
-      <td style="font-size:13px;color:var(--muted)">${b.address||'—'}</td>
-      <td>${b.active ? '<span class="badge badge-green">פעיל</span>' : '<span class="badge badge-muted">לא פעיל</span>'}</td>
-    </tr>`).join('') : '<tr><td colspan="4" class="empty">אין עסקים רשומים</td></tr>';
-        } catch(e) { tb.innerHTML = `<tr><td colspan="4" class="empty">שגיאה</td></tr>`; }
+          <td style="font-weight:600">${b.name||'—'}</td>
+          <td style="font-family:var(--mono);font-size:12px">${formatPhone(b.phone)}</td>
+          <td style="font-size:13px;color:var(--muted)">${b.address||'—'}</td>
+          <td>${b.active ? '<span class="badge badge-green">פעיל</span>' : '<span class="badge badge-muted">לא פעיל</span>'}</td>
+          <td><button class="action-btn danger" onclick="deleteBusiness('${b.phone}','${b.name||b.phone}')">מחק</button></td>
+        </tr>`).join('') : '<tr><td colspan="5" class="empty">אין עסקים רשומים</td></tr>';
+        } catch(e) { tb.innerHTML = `<tr><td colspan="5" class="empty">שגיאה</td></tr>`; }
+    }
+
+    async function deleteBusiness(phone, name) {
+        if (!confirm(`למחוק את העסק ${name}? פעולה זו אינה הפיכה.`)) return;
+        try {
+            await api(`/admin/businesses/${phone}`, 'DELETE');
+            toast('✅ עסק נמחק', 'success');
+            loadBusinesses();
+        } catch(e) { toast('שגיאה: ' + e.message, 'error'); }
     }
 
     // ══════════════════════════════════════════════════════════════

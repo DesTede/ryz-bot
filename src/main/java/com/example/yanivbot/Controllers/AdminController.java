@@ -5,6 +5,7 @@ import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.*;
 import com.example.yanivbot.Services.*;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -74,7 +75,7 @@ public class AdminController {
         if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         try {
             logger.info("Fetching all drivers");
-            List<Driver> drivers = googleSheetsService.getAllDrivers();
+            List<Driver> drivers = driverRepo.findAll();
             logger.info("Retrieved {} drivers", drivers.size());
             return ResponseEntity.ok(drivers);
         } catch (Exception e) {
@@ -136,7 +137,7 @@ public class AdminController {
             @RequestBody Map<String, String> body) {
         if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         String name    = body.get("name");
-        String phone   = body.get("phone");
+        String phone   = PhoneNumberUtil.normalizePhone(body.get("phone"));
         String type    = body.getOrDefault("type", "TAXI");
         String carType = body.getOrDefault("carType", "");
         String carColor = body.getOrDefault("carColor", "");
@@ -165,14 +166,8 @@ public class AdminController {
             }
         }
         driverRepo.save(driver);
-        try {
-            googleSheetsService.addDriverToSheet(driver);
-        } catch (Exception e) {
-            logger.error("Failed to write driver to Google Sheets: {}", e.getMessage(), e);
-            return ResponseEntity.ok("✅ נהג נוסף למסד הנתונים אך לא נכתב ל-Sheets: " + e.getMessage());
-        }
         logger.info("Admin added new driver: {}", phone);
-        return ResponseEntity.ok("✅ נהג נוסף בהצלחה למסד הנתונים ול-Google Sheets");
+        return ResponseEntity.ok("✅ נהג נוסף בהצלחה");
     }
 
     // =========================================================
@@ -346,7 +341,19 @@ public class AdminController {
             return ResponseEntity.ok(result);
         }).orElse(ResponseEntity.notFound().build());
     }
-
+    
+    @DeleteMapping("/drivers/{phone}")
+    public ResponseEntity<String> deleteDriver(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @PathVariable String phone) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return driverRepo.findByPhone(phone).map(driver -> {
+            driverRepo.delete(driver);
+            logger.info("Admin deleted driver {}", phone);
+            return ResponseEntity.ok("✅ נהג נמחק בהצלחה");
+        }).orElse(ResponseEntity.notFound().build());
+    }
+    
     @GetMapping("/drivers/{phone}/orders")
     public ResponseEntity<Map<String, Object>> getDriverOrders(
             @RequestHeader(value = "X-Admin-Key", required = false) String key,
@@ -380,7 +387,7 @@ public class AdminController {
             @RequestBody Map<String, String> body) {
         if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         String name  = body.get("name");
-        String phone = body.get("phone");
+        String phone = PhoneNumberUtil.normalizePhone(body.get("phone"));
         String address = body.getOrDefault("address", "");
         if (name == null || name.isBlank() || phone == null || phone.isBlank()) {
             return ResponseEntity.badRequest().body("❌ שם וטלפון הם שדות חובה");
@@ -390,17 +397,24 @@ public class AdminController {
         }
         Business business = new Business(name, phone, true);
         business.setAddress(address);
+
         businessRepo.save(business);
-        try {
-            googleSheetsService.addBusinessToSheet(business);
-        } catch (Exception e) {
-            logger.error("Failed to write business to Google Sheets: {}", e.getMessage(), e);
-            return ResponseEntity.ok("✅ עסק נוסף למסד הנתונים אך לא נכתב ל-Sheets: " + e.getMessage());
-        }
         logger.info("Admin added new business: {}", phone);
-        return ResponseEntity.ok("✅ עסק נוסף בהצלחה למסד הנתונים ול-Google Sheets");
+        return ResponseEntity.ok("✅ עסק נוסף בהצלחה");
     }
 
+    @DeleteMapping("/businesses/{phone}")
+    public ResponseEntity<String> deleteBusiness(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @PathVariable String phone) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return businessRepo.findByPhone(phone).map(business -> {
+            businessRepo.delete(business);
+            logger.info("Admin deleted business {}", phone);
+            return ResponseEntity.ok("✅ עסק נמחק בהצלחה");
+        }).orElse(ResponseEntity.notFound().build());
+    }
+    
     @PostMapping("/sync-businesses")
     public ResponseEntity<String> syncBusinesses(
             @RequestHeader(value = "X-Admin-Key", required = false) String key) {

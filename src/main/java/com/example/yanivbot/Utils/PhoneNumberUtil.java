@@ -85,4 +85,16 @@ public class PhoneNumberUtil {
         // Israeli phone numbers: typically 10 digits or 972 + 9 digits
         return phoneNumber.matches("\\d{10}") || phoneNumber.matches("972\\d{9}");
     }
+
+    public static String normalizePhone(String phone) {
+        if (phone == null) return null;
+        phone = phone.replaceAll("[^0-9]", "");
+        if (phone.startsWith("0")) {
+            phone = "972" + phone.substring(1);
+        }
+        if (!phone.startsWith("972")) {
+            phone = "972" + phone;
+        }
+        return phone;
+    }
 }

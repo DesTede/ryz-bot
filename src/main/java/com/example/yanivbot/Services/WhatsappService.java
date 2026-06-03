@@ -113,20 +113,7 @@ public class WhatsappService {
      * Normalize phone number to international format
      */
     public String normalizePhone(String phone) {
-        // Remove all non-digits
-        phone = phone.replaceAll("[^0-9]", "");
-
-        // If starts with 0 (Israeli local format), replace with 972
-        if (phone.startsWith("0")) {
-            phone = "972" + phone.substring(1);
-        }
-
-        // Ensure it starts with 972 (Israeli country code)
-        if (!phone.startsWith("972")) {
-            phone = "972" + phone;
-        }
-
-        return phone;
+        return PhoneNumberUtil.normalizePhone(phone);
     }
 
     /**
