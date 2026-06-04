@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static com.example.yanivbot.Services.ConversationService.CONVERSATION_NUDGE_MINUTES;
+
 @Service
 public class OrderMonitorService {
 
@@ -39,9 +41,7 @@ public class OrderMonitorService {
 
     private static final int ADMIN_REPEAT_ALERT_MINUTES = 5;
 
-    public static final int CONVERSATION_NUDGE_MINUTES = 20;
 
-    public static final int CONVERSATION_TIMEOUT_MINUTES = 30; // hard reset after this many minutes idle
 
 
 
@@ -266,8 +266,8 @@ public class OrderMonitorService {
     @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
     public void checkAbandonedConversations() {
         long now = System.currentTimeMillis();
-        long nudgeFrom = now - (CONVERSATION_TIMEOUT_MINUTES * 60 * 1000); // 30 min ago
-        long nudgeTo   = now - (CONVERSATION_NUDGE_MINUTES * 60 * 1000L); // 20 min ago
+        long nudgeFrom = now - (ConversationService.CONVERSATION_TIMEOUT_MINUTES * 60 * 1000); // 30 min ago
+        long nudgeTo   = now - (ConversationService.CONVERSATION_NUDGE_MINUTES * 60 * 1000L); // 20 min ago
 
         List<ConversationState> midFlowStates = List.of(
                 ConversationState.TAXI_CAR_TYPE,

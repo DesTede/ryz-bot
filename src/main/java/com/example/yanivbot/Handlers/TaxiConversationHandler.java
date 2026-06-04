@@ -37,16 +37,16 @@ public class TaxiConversationHandler implements ConversationHandler {
         logger.info("TaxiConversationHandler | State: {} | Message: '{}'", state, txt);
 
         // Check for driver claiming taxi order: "מונית {id}"
-        if (txt.matches("^מונית\\s+\\d+$")) {
-            long orderId = Long.parseLong(txt.split("\\s+")[1]);
-            return taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
-        }
-
-        // Check for driver completing taxi order: "הסתיים {id}"
-        if (txt.matches("^הסתיים\\s+\\d+$")) {
-            long orderId = Long.parseLong(txt.split("\\s+")[1]);
-            return taxiOrderService.completeOrder(orderId, message.getPhone());
-        }
+//        if (txt.matches("^מונית\\s+\\d+$")) {
+//            long orderId = Long.parseLong(txt.split("\\s+")[1]);
+//            return taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
+//        }
+//
+//        // Check for driver completing taxi order: "הסתיים {id}"
+//        if (txt.matches("^הסתיים\\s+\\d+$")) {
+//            long orderId = Long.parseLong(txt.split("\\s+")[1]);
+//            return taxiOrderService.completeOrder(orderId, message.getPhone());
+//        }
 
         // Handle state-based flows
         switch (state) {

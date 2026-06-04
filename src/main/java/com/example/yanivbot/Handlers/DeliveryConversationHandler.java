@@ -31,15 +31,15 @@ public class DeliveryConversationHandler implements ConversationHandler {
         ConversationState state = convo.getState();
 
         // Handle pickup/delivery commands
-        if (txt.matches("^איסוף\\s+\\d+$")) {
-            long orderId = Long.parseLong(txt.split("\\s+")[1]);
-            return deliveryOrderService.markPickedUp(orderId, message.getPhone());
-        }
-
-        if (txt.matches("^נמסר\\s+\\d+$")) {
-            long orderId = Long.parseLong(txt.split("\\s+")[1]);
-            return deliveryOrderService.completeDelivery(orderId, message.getPhone());
-        }
+//        if (txt.matches("^איסוף\\s+\\d+$")) {
+//            long orderId = Long.parseLong(txt.split("\\s+")[1]);
+//            return deliveryOrderService.markPickedUp(orderId, message.getPhone());
+//        }
+//
+//        if (txt.matches("^נמסר\\s+\\d+$")) {
+//            long orderId = Long.parseLong(txt.split("\\s+")[1]);
+//            return deliveryOrderService.completeDelivery(orderId, message.getPhone());
+//        }
         
         // ===== DELIVERY FLOW LOG =====
         logger.info("[DELIVERY] Phone: {} | Input: '{}' | State: {} | TempData: '{}'",
@@ -387,6 +387,12 @@ public class DeliveryConversationHandler implements ConversationHandler {
 
                 logger.info("[DELIVERY] ✅ Order created successfully - DeliveryOrderService will send confirmation");
                 return null;
+            }else {
+                convoService.updateState(convo, ConversationState.START);
+                convoService.saveTempData(convo, "");
+                convo.setNudgedAt(0);
+                convoService.save(convo);
+                return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
             }
         } else if (txt.equals("delivery_confirm_no")) {
             // Cancel order
