@@ -65,14 +65,17 @@ public class MessageController {
         try {
             // Get or create conversation
             Conversation convo = convoService.getOrCreate(message.getPhone());
-            convoService.updateLastMessageTime(message.getPhone());
-            convo.setLastMessageTime(System.currentTimeMillis());
             customerService.updateLastMessageAt(message.getPhone());
-            
+
             logger.info("Handling message from {}: '{}' | State: {}", message.getPhone(), message.getText(), convo.getState());
 
             // Route to appropriate handler
             String reply = messageRouter.route(convo, message);
+
+            convoService.updateLastMessageTime(message.getPhone());
+            convo.setLastMessageTime(System.currentTimeMillis());
+            convo.setNudgedAt(0);
+            convoService.save(convo);
 
             // Send response only if handler returned something
             // Some handlers (like those sending interactive buttons) return null because

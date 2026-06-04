@@ -382,6 +382,8 @@ public class DeliveryConversationHandler implements ConversationHandler {
 
                 convoService.updateState(convo, ConversationState.START);
                 convoService.saveTempData(convo, "");
+                convo.setNudgedAt(0);
+                convoService.save(convo);
 
                 logger.info("[DELIVERY] ✅ Order created successfully - DeliveryOrderService will send confirmation");
                 return null;
@@ -391,6 +393,8 @@ public class DeliveryConversationHandler implements ConversationHandler {
             logger.info("[DELIVERY] ❌ User cancelled order");
             convoService.updateState(convo, ConversationState.START);
             convoService.saveTempData(convo, "");
+            convo.setNudgedAt(0);
+            convoService.save(convo);
             return """
                     ❌ ההזמנה בוטלה בהצלחה.
                     נשמח

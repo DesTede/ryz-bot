@@ -122,6 +122,8 @@ public class ConversationService {
         Conversation convo = getOrCreate(phone);
         updateState(convo, ConversationState.START);
         saveTempData(convo, "");
+        convo.setNudgedAt(0);
+        convoRepo.save(convo);
     }
 
     public void save(Conversation convo) {

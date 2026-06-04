@@ -166,6 +166,8 @@ public class TaxiConversationHandler implements ConversationHandler {
             convoService.updateState(convo, ConversationState.START);
             whatsappService.sendSafeText(message.getPhone(), "\n❌ ההזמנה בוטלה בהצלחה.\nנשמח לעמוד לשירותכם שוב ב־Movez💙\nלהתחלת הזמנה חדשה שלחו הודעה 🚀");
             convoService.saveTempData(convo,"");
+            convo.setNudgedAt(0);
+            convoService.save(convo);
             return null;
         }
 
@@ -187,11 +189,15 @@ public class TaxiConversationHandler implements ConversationHandler {
             convoService.updateState(convo, ConversationState.START);
             logger.info("Taxi order created successfully");
             convoService.saveTempData(convo,"");
+            convo.setNudgedAt(0);
+            convoService.save(convo);
             return "✅ ההזמנה אושרה! מחפשים נהג קרוב אליך";
         } catch (Exception e) {
             logger.error("Failed to create taxi order for {}: {}", message.getPhone(), e.getMessage(), e);
             convoService.updateState(convo, ConversationState.START);
-            convoService.saveTempData(convo,"");  
+            convoService.saveTempData(convo,"");
+            convo.setNudgedAt(0);
+            convoService.save(convo);
             return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
         }
     }

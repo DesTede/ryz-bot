@@ -150,7 +150,10 @@ public class MessageRouter {
                 convoService.saveTempData(convo, "");
                 convo.setNudgedAt(0);
                 convoService.save(convo);
-                return "⏰ ההזמנה פגה תוקף עקב חוסר פעילות.\nבואו נתחיל מחדש!";
+                return """
+                            ⏱️ עבר קצת זמן, אז איפסנו את השיחה
+                            שלח כל הודעה כדי להתחיל מחדש 🚀
+                            """;
             }
         }
 
