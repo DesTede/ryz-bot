@@ -156,11 +156,14 @@ public class DriverLocationController {
                         setStatus('❌', 'GPS לא נתמך', 'הדפדפן שלך אינו תומך ב-GPS', true);
                         return;
                       }
-
-                    const bgAudio = document.getElementById('bg-audio');
-                      if (bgAudio) {
-                        bgAudio.play().catch(e => console.log('Audio waiting for user interaction:', e));
-                      }
+                      
+                      document.addEventListener('click', function startAudio() {
+                        const bgAudio = document.getElementById('bg-audio');
+                        if (bgAudio) {
+                          bgAudio.play().catch(() => {});
+                          document.removeEventListener('click', startAudio);
+                        }
+                      }, { once: true });
                       
                       requestWakeLock();
 
