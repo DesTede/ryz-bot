@@ -47,7 +47,7 @@ public class DriverLocationController {
                   <meta name="apple-mobile-web-app-capable" content="yes"/>
                   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
                   <meta name="apple-mobile-web-app-title" content="Movez GPS"/>
-                  <link rel="manifest" href="/driver/manifest.json"/>
+                  <link rel="manifest" href="/driver/manifest.json/[DRIVER_TOKEN]"/>
                   <title>שידור מיקום | Movez</title>
                   <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -100,6 +100,7 @@ public class DriverLocationController {
                     let wakeLock = null;
                     let watchId = null;
                     let intervalId = null;
+                    let swIntervalId = null;
 
                     async function requestWakeLock() {
                       try {
@@ -203,7 +204,8 @@ public class DriverLocationController {
                       navigator.serviceWorker.register('/driver/sw.js', { scope: '/driver/' })
                         .then(reg => {
                           console.log('SW registered:', reg.scope);
-                          setInterval(() => {
+                          if (swIntervalId !== null) clearInterval(swIntervalId);
+                          swIntervalId = setInterval(() => {
                             if (navigator.serviceWorker.controller) {
                               const channel = new MessageChannel();
                               navigator.serviceWorker.controller.postMessage(
@@ -224,13 +226,13 @@ public class DriverLocationController {
     /**
      * Serves the PWA manifest so the driver page is installable on Android/iOS.
      */
-    @GetMapping(value = "/driver/manifest.json", produces = "application/manifest+json")
-    public ResponseEntity<String> driverManifest() {
+    @GetMapping(value = "/driver/manifest.json/{token}", produces = "application/manifest+json")
+    public ResponseEntity<String> driverManifest(@PathVariable String token) {
         String manifest = """
                 {
                   "name": "Movez - שידור מיקום",
                   "short_name": "Movez GPS",
-                  "start_url": "/driver/live/",
+                  "start_url": "/driver/live/[TOKEN]",
                   "display": "standalone",
                   "background_color": "#111111",
                   "theme_color": "#111111",
@@ -240,7 +242,7 @@ public class DriverLocationController {
                     { "src": "/images/Logo.png", "sizes": "512x512", "type": "image/png" }
                   ]
                 }
-                """;
+                """.replace("[TOKEN]", token);
         return ResponseEntity.ok(manifest);
     }
 
