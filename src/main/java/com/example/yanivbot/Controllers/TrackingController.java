@@ -133,7 +133,7 @@ public class TrackingController {
                               map.setView(pos, 15);
                               firstLoad = false;
                             }
-                            document.getElementById('status-bar').innerText = '📍 מיקום הנהג מתעדכן כל 10 שניות';
+                            document.getElementById('status-bar')';
                           }
                         })
                         .catch(() => {
@@ -142,7 +142,7 @@ public class TrackingController {
                     }
 
                     poll();
-                    pollInterval = setInterval(poll, 10000);
+                    pollInterval = setInterval(poll, 5000);
                   </script>
                 </body>
                 </html>
