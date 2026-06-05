@@ -43,6 +43,11 @@ public class DriverLocationController {
                 <head>
                   <meta charset="UTF-8"/>
                   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+                  <meta name="mobile-web-app-capable" content="yes"/>
+                  <meta name="apple-mobile-web-app-capable" content="yes"/>
+                  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+                  <meta name="apple-mobile-web-app-title" content="Movez GPS"/>
+                  <link rel="manifest" href="/driver/manifest.json"/>
                   <title>שידור מיקום | Movez</title>
                   <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -93,6 +98,8 @@ public class DriverLocationController {
                   <script>
                     const token = '[DRIVER_TOKEN]';
                     let wakeLock = null;
+                    let watchId = null;
+                    let intervalId = null;
 
                     async function requestWakeLock() {
                       try {
@@ -115,7 +122,8 @@ public class DriverLocationController {
                       fetch('/api/driver/location/' + token, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ lat: lat, lng: lng })
+                        body: JSON.stringify({ lat: lat, lng: lng }),
+                        keepalive: true
                       })
                       .then(r => {
                         if (r.ok) {
@@ -130,6 +138,16 @@ public class DriverLocationController {
                       });
                     }
 
+                    function getCurrentAndSend() {
+                      navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                          sendLocation(position.coords.latitude, position.coords.longitude, position.coords.accuracy);
+                        },
+                        () => {},
+                        { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+                      );
+                    }
+
                     function startTracking() {
                       if (!navigator.geolocation) {
                         setStatus('❌', 'GPS לא נתמך', 'הדפדפן שלך אינו תומך ב-GPS', true);
@@ -138,7 +156,10 @@ public class DriverLocationController {
 
                       requestWakeLock();
 
-                      navigator.geolocation.watchPosition(
+                      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+                      if (intervalId !== null) clearInterval(intervalId);
+
+                      watchId = navigator.geolocation.watchPosition(
                         (position) => {
                           sendLocation(
                             position.coords.latitude,
@@ -165,20 +186,89 @@ public class DriverLocationController {
                           timeout: 10000
                         }
                       );
+
+                      intervalId = setInterval(getCurrentAndSend, 15000);
                     }
 
                     document.addEventListener('visibilitychange', async () => {
-                      if (wakeLock !== null && document.visibilityState === 'visible') {
+                      if (document.visibilityState === 'visible') {
                         await requestWakeLock();
+                        startTracking();
                       }
                     });
 
                     startTracking();
+
+                    if ('serviceWorker' in navigator) {
+                      navigator.serviceWorker.register('/driver/sw.js', { scope: '/driver/' })
+                        .then(reg => {
+                          console.log('SW registered:', reg.scope);
+                          setInterval(() => {
+                            if (navigator.serviceWorker.controller) {
+                              const channel = new MessageChannel();
+                              navigator.serviceWorker.controller.postMessage(
+                                { type: 'KEEP_ALIVE' }, [channel.port2]
+                              );
+                            }
+                          }, 20000);
+                        })
+                        .catch(err => console.warn('SW registration failed:', err));
+                    }
                   </script>
                 </body>
                 </html>
                 """.replace("[DRIVER_TOKEN]", token);
         return ResponseEntity.ok(html);
+    }
+
+    /**
+     * Serves the PWA manifest so the driver page is installable on Android/iOS.
+     */
+    @GetMapping(value = "/driver/manifest.json", produces = "application/manifest+json")
+    public ResponseEntity<String> driverManifest() {
+        String manifest = """
+                {
+                  "name": "Movez - שידור מיקום",
+                  "short_name": "Movez GPS",
+                  "start_url": "/driver/live/",
+                  "display": "standalone",
+                  "background_color": "#111111",
+                  "theme_color": "#111111",
+                  "orientation": "portrait",
+                  "icons": [
+                    { "src": "/images/Logo.png", "sizes": "192x192", "type": "image/png" },
+                    { "src": "/images/Logo.png", "sizes": "512x512", "type": "image/png" }
+                  ]
+                }
+                """;
+        return ResponseEntity.ok(manifest);
+    }
+
+    /**
+     * Serves the service worker script for PWA background location support.
+     */
+    @GetMapping(value = "/driver/sw.js", produces = "application/javascript")
+    public ResponseEntity<String> driverServiceWorker() {
+        String sw = """
+                self.addEventListener('install', () => self.skipWaiting());
+                self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+
+                self.addEventListener('fetch', event => {
+                  const url = event.request.url;
+                  if (event.request.method === 'POST' && url.includes('/api/driver/location/')) {
+                    event.respondWith(
+                      fetch(event.request.clone()).catch(() => new Response('', { status: 503 }))
+                    );
+                  }
+                });
+
+                self.addEventListener('message', event => {
+                  if (event.data && event.data.type === 'KEEP_ALIVE') {
+                    event.ports[0] && event.ports[0].postMessage({ type: 'ACK' });
+                  }
+                });
+                """;
+        return ResponseEntity.ok(sw);
     }
 
     /**
@@ -210,4 +300,6 @@ public class DriverLocationController {
         logger.debug("Location updated for driver {} via browser: {}, {}", driver.getPhone(), lat, lng);
         return ResponseEntity.ok().build();
     }
+
+
 }
