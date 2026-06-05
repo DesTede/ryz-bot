@@ -157,15 +157,9 @@ public class DriverLocationController {
                         return;
                       }
                       
-                      document.addEventListener('click', function startAudio() {
-                        const bgAudio = document.getElementById('bg-audio');
-                        if (bgAudio) {
-                          bgAudio.play().catch(() => {});
-                          document.removeEventListener('click', startAudio);
-                        }
-                      }, { once: true });
-                      
+                     
                       requestWakeLock();
+
 
                       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
                       if (intervalId !== null) clearInterval(intervalId);
@@ -211,6 +205,14 @@ public class DriverLocationController {
                     });
 
                     startTracking();
+                    
+                    document.addEventListener('click', function startAudio() {
+                        const bgAudio = document.getElementById('bg-audio');
+                        if (bgAudio) {
+                          bgAudio.play().catch(() => {});
+                          document.removeEventListener('click', startAudio);
+                        }
+                      }, { once: true });
 
                     if ('serviceWorker' in navigator) {
                       navigator.serviceWorker.register('/driver/sw.js', { scope: '/driver/' })
