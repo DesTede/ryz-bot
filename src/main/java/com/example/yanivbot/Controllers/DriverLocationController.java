@@ -94,6 +94,8 @@ public class DriverLocationController {
                   <div style="font-size:13px; color:#cc7a16; text-align:center;">
                     השאר דף זה פתוח כדי לשדר את מיקומך ללקוח
                   </div>
+                
+                  <audio id="bg-audio" loop src="/audio/silent.mp3" preload="auto"></audio>
 
                   <script>
                     const token = '[DRIVER_TOKEN]';
@@ -155,6 +157,11 @@ public class DriverLocationController {
                         return;
                       }
 
+                    const bgAudio = document.getElementById('bg-audio');
+                      if (bgAudio) {
+                        bgAudio.play().catch(e => console.log('Audio waiting for user interaction:', e));
+                      }
+                      
                       requestWakeLock();
 
                       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
@@ -193,6 +200,8 @@ public class DriverLocationController {
 
                     document.addEventListener('visibilitychange', async () => {
                       if (document.visibilityState === 'visible') {
+                      const bgAudio = document.getElementById('bg-audio');
+                      if (bgAudio) bgAudio.play().catch(() => {});
                         await requestWakeLock();
                         startTracking();
                       }

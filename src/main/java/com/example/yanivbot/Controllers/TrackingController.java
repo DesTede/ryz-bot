@@ -133,7 +133,7 @@ public class TrackingController {
                               map.setView(pos, 15);
                               firstLoad = false;
                             }
-                            document.getElementById('status-bar')';
+                            document.getElementById('status-bar').innerText = '🛵 המיקום עודכן בזמן אמת';
                           }
                         })
                         .catch(() => {
