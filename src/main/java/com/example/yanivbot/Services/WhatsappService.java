@@ -579,6 +579,39 @@ public class WhatsappService {
             logger.error("Error sending location request to {}: {}", phone, e.getMessage());
         }
     }
-    
-    
+
+    /**
+     * Send WhatsApp authentication OTP template.
+     * Authentication templates use a button component, not body variables.
+     */
+    public void sendOtpTemplate(String phone, String code, String templateName) {
+        try {
+            Map<String, Object> buttonParam = new HashMap<>();
+            buttonParam.put("type", "payload");
+            buttonParam.put("payload", code);
+
+            Map<String, Object> buttonComponent = new HashMap<>();
+            buttonComponent.put("type", "button");
+            buttonComponent.put("sub_type", "url");
+            buttonComponent.put("index", "0");
+            buttonComponent.put("parameters", List.of(buttonParam));
+
+            Map<String, Object> template = new HashMap<>();
+            template.put("name", templateName);
+            template.put("language", Map.of("code", "he"));
+            template.put("components", List.of(buttonComponent));
+
+            Map<String, Object> message = new HashMap<>();
+            message.put("messaging_product", "whatsapp");
+            message.put("to", normalizePhone(phone));
+            message.put("type", "template");
+            message.put("template", template);
+
+            sendMessageToWhatsAppAPI(message);
+            logger.info("✅ OTP template sent to {}", PhoneNumberUtil.maskPhoneNumber(phone));
+        } catch (Exception e) {
+            logger.error("❌ Error sending OTP template to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage(), e);
+            throw new RuntimeException("Failed to send OTP template", e);
+        }
+    }
 }

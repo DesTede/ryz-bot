@@ -3,6 +3,7 @@ package com.example.yanivbot.Controllers;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.DriverOtp;
 import com.example.yanivbot.Repositories.DriverOtpRepository;
+import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.DriverService;
 import com.example.yanivbot.Services.JwtService;
 import com.example.yanivbot.Services.WhatsappService;
@@ -25,15 +26,17 @@ public class DriverAuthController {
     private final DriverOtpRepository otpRepo;
     private final JwtService jwtService;
     private final WhatsappService whatsappService;
+    private final ConversationService convoService;
 
     public DriverAuthController(DriverService driverService,
                                 DriverOtpRepository otpRepo,
                                 JwtService jwtService,
-                                WhatsappService whatsappService) {
+                                WhatsappService whatsappService, ConversationService convoService) {
         this.driverService = driverService;
         this.otpRepo = otpRepo;
         this.jwtService = jwtService;
         this.whatsappService = whatsappService;
+        this.convoService = convoService;
     }
 
     @PostMapping("/request-otp")
@@ -55,8 +58,13 @@ public class DriverAuthController {
         DriverOtp otp = new DriverOtp(phone, code, expiresAt);
         otpRepo.save(otp);
 
-        whatsappService.sendSafeText(phone,
-                "🔐 קוד האימות שלך למשגר הוא: *" + code + "*\nתקף ל-5 דקות.");
+        boolean inWindow = convoService.isWithin24HourWindow(phone);
+        if (inWindow) {
+            whatsappService.sendSafeText(phone,
+                    "🔐 קוד האימות שלך למשגר הוא: *" + code + "*\nתקף ל-5 דקות.");
+        } else {
+            whatsappService.sendOtpTemplate(phone, code, "driver_otp");
+        }
 
         logger.info("OTP sent to driver {}", phone);
         return ResponseEntity.ok(Map.of("message", "OTP sent"));
