@@ -315,20 +315,31 @@ public class DriverConversationHandler implements ConversationHandler {
     }
 
     private void showShiftStartConfirmation(String phone) {
-        String bodyText = """
-                📍 כדי להתחיל משמרת עליך לשלוח מיקום נוכחי.
-                לאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀
-                לחץ על הכפתור למטה לשיתוף מיקום""";
-//        String bodyText = "📍 כדי להתחיל משמרת עליך לשלוח מיקום נוכחי.\nלאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀\n\nלשליחת מיקום, לחץ על + בתפריט ובחר 📍 מיקום";
 
-        whatsappService.sendLocationRequestMessage(phone, bodyText);
+        String bodyText = """
+            🟢 להתחלת המשמרת, פתח את אפליקציית Movez Driver ולחץ על "התחל משמרת".
+            
+            📲 הורדת האפליקציה:
+            https://expo.dev/accounts/movezbot/projects/movez-driver/builds/e464c4d8-c4f7-4ce9-af98-38e9c519ea02
+            
+            לאחר שתתחיל שידור מיקום באפליקציה, תתחיל לקבל הזמנות 🚀""";
+
+        whatsappService.sendSafeText(phone, bodyText);
+    }
         
+//        String bodyText = """
+//                📍 כדי להתחיל משמרת עליך לשלוח מיקום נוכחי.
+//                לאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀
+//                לחץ על הכפתור למטה לשיתוף מיקום""";
+//        
+//        whatsappService.sendLocationRequestMessage(phone, bodyText);
+//        
 //        whatsappService.sendInteractiveButtonsSafe(
 //                phone,
 //                bodyText,
 //                new WhatsappService.InteractiveButton("driver_cancel_shift_start", "❌ ביטול")
 //        );
-    }
+//    }
 
     public boolean isDriver(String phone) {
         return driverService.findByPhone(phone) != null;

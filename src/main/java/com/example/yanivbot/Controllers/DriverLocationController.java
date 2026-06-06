@@ -360,4 +360,23 @@ public class DriverLocationController {
         logger.debug("Location updated for driver {} via app: {}, {}", phone, lat, lng);
         return ResponseEntity.ok().build();
     }
+
+    /**
+     * Called by the Expo driver app to clock in and start shift.
+     * Authenticated via JWT.
+     */
+    @PostMapping("/api/driver/shift/start")
+    public ResponseEntity<Void> startShift(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).build();
+        }
+        String token = authHeader.substring(7);
+        if (!jwtService.isValid(token)) {
+            return ResponseEntity.status(401).build();
+        }
+        String phone = jwtService.extractPhone(token);
+        driverService.clockIn(phone);
+        logger.info("Driver {} clocked in via app", phone);
+        return ResponseEntity.ok().build();
+    }
 }

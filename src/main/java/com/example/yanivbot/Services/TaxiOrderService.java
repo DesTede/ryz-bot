@@ -153,12 +153,9 @@ public class TaxiOrderService {
                     -------------------------
                     🚗 *סע בזהירות!* 🙌
                     
-                    🔗 שדר מיקום ללקוח:
-                    %s
                     """.formatted(
                             orderId,
-                            order.getPhone(),
-                            driverLiveLink
+                            order.getPhone()                           
                             );
 
 
