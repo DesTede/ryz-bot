@@ -167,4 +167,20 @@ public class DeliveryOrder {
     public void setAdminAlertedNoDrivers(boolean adminAlertedNoDrivers) {
         this.adminAlertedNoDrivers = adminAlertedNoDrivers;
     }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public String getTrackingToken() {
+        return trackingToken;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setTrackingToken(String trackingToken) {
+        this.trackingToken = trackingToken;
+    }
 }

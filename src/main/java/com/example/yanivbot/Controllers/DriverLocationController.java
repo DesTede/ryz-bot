@@ -3,6 +3,7 @@ package com.example.yanivbot.Controllers;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Repositories.DriverRepository;
 import com.example.yanivbot.Services.DriverService;
+import com.example.yanivbot.Services.JwtService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -19,10 +20,13 @@ public class DriverLocationController {
 
     private final DriverRepository driverRepo;
     private final DriverService driverService;
-
-    public DriverLocationController(DriverRepository driverRepo, DriverService driverService) {
+    private final JwtService jwtService;
+    
+    
+    public DriverLocationController(DriverRepository driverRepo, DriverService driverService, JwtService jwtService) {
         this.driverRepo = driverRepo;
         this.driverService = driverService;
+        this.jwtService = jwtService;
     }
 
     /**
@@ -317,5 +321,43 @@ public class DriverLocationController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * Receives GPS coordinates from the Expo driver app.
+     * Authenticated via JWT in Authorization header.
+     */
+    @PostMapping("/api/driver/location/app")
+    public ResponseEntity<Void> updateLocationFromApp(@RequestHeader("Authorization") String authHeader,
+                                                      @RequestBody Map<String, Double> body) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).build();
+        }
 
+        String token = authHeader.substring(7);
+        if (!jwtService.isValid(token)) {
+            return ResponseEntity.status(401).build();
+        }
+
+        String phone = jwtService.extractPhone(token);
+        Driver driver = driverRepo.findDriverByPhone(phone).orElse(null);
+
+        if (driver == null) {
+            logger.warn("App location update for unknown driver: {}", phone);
+            return ResponseEntity.notFound().build();
+        }
+
+        Double lat = body.get("lat");
+        Double lng = body.get("lng");
+
+        if (lat == null || lng == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        driver.setLatitude(lat);
+        driver.setLongitude(lng);
+        driver.setLocationUpdatedAt(LocalDateTime.now());
+        driverRepo.save(driver);
+
+        logger.debug("Location updated for driver {} via app: {}, {}", phone, lat, lng);
+        return ResponseEntity.ok().build();
+    }
 }

@@ -88,7 +88,8 @@ public class DriverConversationHandler implements ConversationHandler {
             }
 
             // Waiting for location
-            return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.\n לאחר מכן תוכל להתחיל לקבל הזמנות חדשות \uD83D\uDE80";
+            return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.\nלאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀";
+//            return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.\n לאחר מכן תוכל להתחיל לקבל הזמנות חדשות \uD83D\uDE80";
         }
 //        // Handle location in AWAITING_DRIVER_LOCATION state
 //        if (state == ConversationState.AWAITING_DRIVER_LOCATION) {
@@ -314,16 +315,19 @@ public class DriverConversationHandler implements ConversationHandler {
     }
 
     private void showShiftStartConfirmation(String phone) {
-//        String bodyText = "📍 כדי להתחיל משמרת עליך לשלוח מיקום נוכחי.\nלאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀\לחץ על הכפתור למטה לשיתוף מיקום";
-        String bodyText = "📍 כדי להתחיל משמרת עליך לשלוח מיקום נוכחי.\nלאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀\n\nלשליחת מיקום, לחץ על + בתפריט ובחר 📍 מיקום";
+        String bodyText = """
+                📍 כדי להתחיל משמרת עליך לשלוח מיקום נוכחי.
+                לאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀
+                לחץ על הכפתור למטה לשיתוף מיקום""";
+//        String bodyText = "📍 כדי להתחיל משמרת עליך לשלוח מיקום נוכחי.\nלאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀\n\nלשליחת מיקום, לחץ על + בתפריט ובחר 📍 מיקום";
 
-//        whatsappService.sendLocationRequestMessage(phone, bodyText);
+        whatsappService.sendLocationRequestMessage(phone, bodyText);
         
-        whatsappService.sendInteractiveButtonsSafe(
-                phone,
-                bodyText,
-                new WhatsappService.InteractiveButton("driver_cancel_shift_start", "❌ ביטול")
-        );
+//        whatsappService.sendInteractiveButtonsSafe(
+//                phone,
+//                bodyText,
+//                new WhatsappService.InteractiveButton("driver_cancel_shift_start", "❌ ביטול")
+//        );
     }
 
     public boolean isDriver(String phone) {

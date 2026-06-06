@@ -1,0 +1,95 @@
+package com.example.yanivbot.Controllers;
+
+import com.example.yanivbot.Entities.Driver;
+import com.example.yanivbot.Entities.DriverOtp;
+import com.example.yanivbot.Repositories.DriverOtpRepository;
+import com.example.yanivbot.Services.DriverService;
+import com.example.yanivbot.Services.JwtService;
+import com.example.yanivbot.Services.WhatsappService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Random;
+
+@RestController
+@RequestMapping("/api/auth/driver")
+public class DriverAuthController {
+
+    private static final Logger logger = LoggerFactory.getLogger(DriverAuthController.class);
+
+    private final DriverService driverService;
+    private final DriverOtpRepository otpRepo;
+    private final JwtService jwtService;
+    private final WhatsappService whatsappService;
+
+    public DriverAuthController(DriverService driverService,
+                                DriverOtpRepository otpRepo,
+                                JwtService jwtService,
+                                WhatsappService whatsappService) {
+        this.driverService = driverService;
+        this.otpRepo = otpRepo;
+        this.jwtService = jwtService;
+        this.whatsappService = whatsappService;
+    }
+
+    @PostMapping("/request-otp")
+    public ResponseEntity<Map<String, String>> requestOtp(@RequestBody Map<String, String> body) {
+        String phone = body.get("phone");
+        if (phone == null || phone.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Phone is required"));
+        }
+
+        Driver driver = driverService.findByPhone(phone);
+        if (driver == null) {
+            logger.warn("OTP requested for unknown driver phone: {}", phone);
+            return ResponseEntity.status(403).body(Map.of("error", "Phone not registered as a driver"));
+        }
+
+        String code = String.format("%06d", new Random().nextInt(999999));
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
+
+        DriverOtp otp = new DriverOtp(phone, code, expiresAt);
+        otpRepo.save(otp);
+
+        whatsappService.sendSafeText(phone,
+                "🔐 קוד האימות שלך למשגר הוא: *" + code + "*\nתקף ל-5 דקות.");
+
+        logger.info("OTP sent to driver {}", phone);
+        return ResponseEntity.ok(Map.of("message", "OTP sent"));
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<Map<String, String>> verifyOtp(@RequestBody Map<String, String> body) {
+        String phone = body.get("phone");
+        String code = body.get("code");
+
+        if (phone == null || code == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Phone and code are required"));
+        }
+
+        DriverOtp otp = otpRepo.findTopByPhoneOrderByExpiresAtDesc(phone).orElse(null);
+
+        if (otp == null || otp.isUsed()) {
+            return ResponseEntity.status(401).body(Map.of("error", "No active OTP found"));
+        }
+
+        if (LocalDateTime.now().isAfter(otp.getExpiresAt())) {
+            return ResponseEntity.status(401).body(Map.of("error", "OTP expired"));
+        }
+
+        if (!otp.getCode().equals(code)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid OTP"));
+        }
+
+        otp.setUsed(true);
+        otpRepo.save(otp);
+
+        String token = jwtService.generateToken(phone);
+        logger.info("Driver {} authenticated successfully", phone);
+        return ResponseEntity.ok(Map.of("token", token));
+    }
+}
