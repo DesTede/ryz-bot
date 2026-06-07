@@ -60,7 +60,7 @@ public class DriverService {
             driverRepo.save(driver);
             logger.info("Driver {} clocked in", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone));
         } else {
-            logger.warn("Driver {} not found for clock in", phone);
+            logger.warn("Driver {} not found for clock in", PhoneNumberUtil.maskPhoneNumber(phone));
         }
     }
 
@@ -74,7 +74,7 @@ public class DriverService {
             driverRepo.save(driver);
             logger.info("Driver {} clocked out", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone));
         } else {
-            logger.warn("Driver {} not found for clock out", phone);
+            logger.warn("Driver {} not found for clock out", PhoneNumberUtil.maskPhoneNumber(phone));
         }
     }
 
@@ -90,7 +90,7 @@ public class DriverService {
             driverRepo.save(driver);
             logger.info("Driver {} location updated to {}, {}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone), latitude, longitude);
         } else {
-            logger.warn("Driver {} not found for location update", phone);
+            logger.warn("Driver {} not found for location update", PhoneNumberUtil.maskPhoneNumber(phone));
         }
     }
 
@@ -164,7 +164,7 @@ public class DriverService {
                             .toList();
                     boolean isBusy = !activeOrders.isEmpty();
                     if (isBusy) {
-                        logger.debug("Driver {} skipped - already has active order", driver.getPhone());
+                        logger.debug("Driver {} skipped - already has active order", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()));
                     }
                     return !isBusy;
                 })
@@ -241,7 +241,7 @@ public class DriverService {
                             .toList();
                     boolean isBusy = !activeOrders.isEmpty();
                     if (isBusy) {
-                        logger.debug("Driver {} skipped - already has active order", driver.getPhone());
+                        logger.debug("Driver {} skipped - already has active order", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()));
                     }
                     return !isBusy;
                 })
@@ -260,7 +260,7 @@ public class DriverService {
             whatsappService.sendInteractiveButtonsSafe(
                     driver.getPhone(),
                     message,
-                    new WhatsappService.InteractiveButton("taxi_claim_" + orderId, "✅ \uD83D\uDE80 אני לוקח #" + orderId)
+                    new WhatsappService.InteractiveButton("taxi_claim_" + orderId, "✅ אני לוקח #" + orderId)
             );
         }
     }
@@ -296,7 +296,7 @@ public class DriverService {
                     // Check delivery order limit                                        // ← NEW
                     if (!canClaimMoreDeliveries(driver.getPhone())) {                   // ← NEW
                         int activeCount = getActiveDeliveryCount(driver.getPhone());    // ← NEW
-                        logger.debug("Driver {} skipped - reached delivery limit ({}/{})", driver.getPhone(), activeCount, maxActiveDeliveries);
+                        logger.debug("Driver {} skipped - reached delivery limit ({}/{})", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()), activeCount, maxActiveDeliveries);
                         return false;                                                   // ← NEW
                     }                                                                   // ← NEW
 
@@ -355,7 +355,7 @@ public class DriverService {
                     // For BOTH drivers: check if they have an active taxi order
                     if (driver.getType() == DriverType.BOTH) {                          // ← NEW
                         if (hasActiveTaxiOrder(driver.getPhone())) {                    // ← NEW
-                            logger.debug("Driver {} skipped - has active taxi order", driver.getPhone());
+                            logger.debug("Driver {} skipped - has active taxi order", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()));
                             return false;                                               // ← NEW
                         }                                                               // ← NEW
                     }                                                                   // ← NEW

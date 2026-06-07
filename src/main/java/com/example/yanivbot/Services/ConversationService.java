@@ -40,7 +40,7 @@ public class ConversationService {
 
         if (existing.isPresent()) {
             Conversation convo = existing.get();
-            logger.info("getOrCreate: Found existing conversation for {}", phone);
+            logger.info("getOrCreate: Found existing conversation for {}", PhoneNumberUtil.maskPhoneNumber(phone));
             logger.info("  State: {}", convo.getState());
             logger.info("  TempData: {}", convo.getTempData());
             return convo;
@@ -64,7 +64,7 @@ public class ConversationService {
         String phone = convo.getPhone();
         ConversationState oldState = convo.getState();
 
-        logger.info("updateState: {} -> {} (was: {})", phone, newState, oldState);
+        logger.info("updateState: {} -> {} (was: {})", PhoneNumberUtil.maskPhoneNumber(phone), newState, oldState);
 
         convo.setState(newState);
         Conversation saved = convoRepo.save(convo);

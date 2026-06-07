@@ -91,21 +91,7 @@ public class DriverConversationHandler implements ConversationHandler {
             return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.\nלאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀";
 //            return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.\n לאחר מכן תוכל להתחיל לקבל הזמנות חדשות \uD83D\uDE80";
         }
-//        // Handle location in AWAITING_DRIVER_LOCATION state
-//        if (state == ConversationState.AWAITING_DRIVER_LOCATION) {
-//            // Check if message has location data
-//            if (message.hasLocation()) {
-//                return handleLocationShare(convo, message);
-//            }
-//
-//            // Handle cancel button
-//            if (txt.equals("driver_cancel_shift_start")) {
-//                return handleCancelShiftStart(convo, message);
-//            }
-//
-//            // Waiting for location
-//            return "📍 אנא שתף את המיקום שלך כדי להתחיל משמרת.";
-//        }
+//        
 
         // Driver typed something else - treat as customer
         // This happens after סיים משמרת or if driver is somehow in START state
@@ -239,6 +225,8 @@ public class DriverConversationHandler implements ConversationHandler {
             return "❌ הטלפון שלך לא רשום במערכת כנהג. צור קשר עם תמיכה.";
         }
 
+        driverService.clockIn(message.getPhone());
+        convoService.saveTempData(convo, "DRIVER_ACTIVE");
         showShiftStartConfirmation(message.getPhone());
         return null;
     }

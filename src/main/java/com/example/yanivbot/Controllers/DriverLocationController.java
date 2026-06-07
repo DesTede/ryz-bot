@@ -2,8 +2,10 @@ package com.example.yanivbot.Controllers;
 
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Repositories.DriverRepository;
+import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.DriverService;
 import com.example.yanivbot.Services.JwtService;
+import com.example.yanivbot.Services.WhatsappService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -21,12 +23,17 @@ public class DriverLocationController {
     private final DriverRepository driverRepo;
     private final DriverService driverService;
     private final JwtService jwtService;
+    private final ConversationService convoService;
+    private final WhatsappService whatsappService; 
     
     
-    public DriverLocationController(DriverRepository driverRepo, DriverService driverService, JwtService jwtService) {
+    public DriverLocationController(DriverRepository driverRepo, DriverService driverService, JwtService jwtService, ConversationService convoService, WhatsappService whatsappService) {
         this.driverRepo = driverRepo;
         this.driverService = driverService;
         this.jwtService = jwtService;
+        this.convoService = convoService;
+
+        this.whatsappService = whatsappService;
     }
 
     /**
@@ -376,6 +383,10 @@ public class DriverLocationController {
         }
         String phone = jwtService.extractPhone(token);
         driverService.clockIn(phone);
+        Driver driver = driverRepo.findDriverByPhone(phone).orElse(null);
+        String driverName = (driver != null && driver.getName() != null) ? driver.getName() : "נהג";
+        boolean inWindow = convoService.isWithin24HourWindow(phone);
+        whatsappService.sendDriverShiftStartedTemplate(phone, driverName, inWindow);
         logger.info("Driver {} clocked in via app", phone);
         return ResponseEntity.ok().build();
     }

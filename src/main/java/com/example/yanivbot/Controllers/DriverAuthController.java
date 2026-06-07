@@ -7,6 +7,7 @@ import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.DriverService;
 import com.example.yanivbot.Services.JwtService;
 import com.example.yanivbot.Services.WhatsappService;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -48,7 +49,7 @@ public class DriverAuthController {
 
         Driver driver = driverService.findByPhone(phone);
         if (driver == null) {
-            logger.warn("OTP requested for unknown driver phone: {}", phone);
+            logger.warn("OTP requested for unknown driver phone: {}", PhoneNumberUtil.maskPhoneNumber(phone));
             return ResponseEntity.status(403).body(Map.of("error", "Phone not registered as a driver"));
         }
 
@@ -66,7 +67,7 @@ public class DriverAuthController {
             whatsappService.sendOtpTemplate(phone, code, "driver_otp");
         }
 
-        logger.info("OTP sent to driver {}", phone);
+        logger.info("OTP sent to driver {}", PhoneNumberUtil.maskPhoneNumber(phone));
         return ResponseEntity.ok(Map.of("message", "OTP sent"));
     }
 
@@ -97,7 +98,7 @@ public class DriverAuthController {
         otpRepo.save(otp);
 
         String token = jwtService.generateToken(phone);
-        logger.info("Driver {} authenticated successfully", phone);
+        logger.info("Driver {} authenticated successfully", PhoneNumberUtil.maskPhoneNumber(phone));
         return ResponseEntity.ok(Map.of("token", token));
     }
 }

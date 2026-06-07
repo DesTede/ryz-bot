@@ -2,6 +2,7 @@ package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Entities.Customer;
 import com.example.yanivbot.Repositories.CustomerRepository;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,7 +39,7 @@ public class CustomerService {
                 customer.setName(name);
             }
             customerRepo.save(customer);
-            logger.info("Updated customer: {} (total orders: {})", phone, customer.getTotalOrders());
+            logger.info("Updated customer: {} (total orders: {})", PhoneNumberUtil.maskPhoneNumber(phone), customer.getTotalOrders());
             return customer;
         } else {
             // New customer
@@ -46,7 +47,7 @@ public class CustomerService {
             newCustomer.incrementDeliveryOrders();
 //            newCustomer.setTotalDeliveryOrders(1);
             customerRepo.save(newCustomer);
-            logger.info("Saved new customer: {}", phone);
+            logger.info("Saved new customer: {}", PhoneNumberUtil.maskPhoneNumber(phone));
             return newCustomer;
         }
     }
@@ -59,7 +60,7 @@ public class CustomerService {
         if (customerRepo.findByPhone(phone).isEmpty()) {
             Customer newCustomer = new Customer(phone, name);
             customerRepo.save(newCustomer);
-            logger.info("Registered new customer on first chat: {}", phone);
+            logger.info("Registered new customer on first chat: {}", PhoneNumberUtil.maskPhoneNumber(phone));
         }
     }
 
@@ -117,9 +118,9 @@ public class CustomerService {
         Customer customer = getCustomer(phone);
         if (customer != null) {
             whatsappService.sendSafeText(phone, message);
-            logger.info("Sent message to customer: {}", phone);
+            logger.info("Sent message to customer: {}", PhoneNumberUtil.maskPhoneNumber(phone));
         } else {
-            logger.warn("Customer not found: {}", phone);
+            logger.warn("Customer not found: {}", PhoneNumberUtil.maskPhoneNumber(phone));
         }
     }
     

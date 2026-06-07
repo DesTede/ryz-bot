@@ -314,11 +314,11 @@ public class WhatsappService {
      */
     public void sendInteractiveButtonsSafe(String phone, String bodyText, InteractiveButton... buttons) {
         try {
-            logger.info("Sending interactive buttons to {}: {}", phone, bodyText);
+            logger.info("Sending interactive buttons to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), bodyText);
             sendInteractiveButtons(phone, bodyText, buttons);
-            logger.info("Interactive buttons sent successfully to {}", phone);
+            logger.info("Interactive buttons sent successfully to {}", PhoneNumberUtil.maskPhoneNumber(phone));
         } catch (Exception e) {
-            logger.error("Error sending interactive buttons to {}: {}", phone, e.getMessage(), e);
+            logger.error("Error sending interactive buttons to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage(), e);
             // Fall back to sending as regular text
             logger.warn("Falling back to text-only message");
             sendSafeText(phone, bodyText);
@@ -330,9 +330,9 @@ public class WhatsappService {
      */
     public void sendInteractiveButtonsSafe(String phone, String header, String body, String footer, InteractiveButton... buttons) {
         try {
-            logger.info("Sending interactive buttons (with header) to {}", phone);
+            logger.info("Sending interactive buttons (with header) to {}", PhoneNumberUtil.maskPhoneNumber(phone));
             sendInteractiveButtons(phone, header, body, footer, buttons);
-            logger.info("Interactive buttons sent successfully to {}", phone);
+            logger.info("Interactive buttons sent successfully to {}", PhoneNumberUtil.maskPhoneNumber(phone));
         } catch (Exception e) {
             logger.error("Error sending interactive buttons to {}: {}", phone, e.getMessage(), e);
             // Fall back to sending as regular text
@@ -620,6 +620,52 @@ public class WhatsappService {
         } catch (Exception e) {
             logger.error("❌ Error sending OTP template to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage(), e);
             throw new RuntimeException("Failed to send OTP template", e);
+        }
+    }
+
+    /**
+     * Sends shift started confirmation to driver via WhatsApp template.
+     * Uses smart routing - free text if within 24hr window, template otherwise.
+     */
+    public void sendDriverShiftStartedTemplate(String phone, String driverName, boolean inWindow) {
+        if (inWindow) {
+            sendSafeText(phone, "🟢 הכל מוכן " + driverName + "!\n🟢 המשמרת התחילה\n📍 המיקום התקבל בהצלחה\nנסיעות חדשות בדרך אליך 🚖");
+            return;
+        }
+
+        try {
+            Map<String, Object> headerParam = new HashMap<>();
+            headerParam.put("type", "text");
+            headerParam.put("text", driverName);
+
+            Map<String, Object> headerComponent = new HashMap<>();
+            headerComponent.put("type", "header");
+            headerComponent.put("parameters", List.of(headerParam));
+
+            Map<String, Object> bodyParam = new HashMap<>();
+            bodyParam.put("type", "text");
+            bodyParam.put("text", driverName);
+
+            Map<String, Object> bodyComponent = new HashMap<>();
+            bodyComponent.put("type", "body");
+            bodyComponent.put("parameters", List.of(bodyParam));
+
+            Map<String, Object> template = new HashMap<>();
+            template.put("name", "driver_shift_started");
+            template.put("language", Map.of("code", "he"));
+            template.put("components", List.of(headerComponent, bodyComponent));
+
+            Map<String, Object> message = new HashMap<>();
+            message.put("messaging_product", "whatsapp");
+            message.put("to", normalizePhone(phone));
+            message.put("type", "template");
+            message.put("template", template);
+
+            sendMessageToWhatsAppAPI(message);
+            logger.info("✅ Shift started template sent to {}", PhoneNumberUtil.maskPhoneNumber(phone));
+        } catch (Exception e) {
+            logger.error("❌ Error sending shift started template to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage(), e);
+            throw new RuntimeException("Failed to send shift started template", e);
         }
     }
 }

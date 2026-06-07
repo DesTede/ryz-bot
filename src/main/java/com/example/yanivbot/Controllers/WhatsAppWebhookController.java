@@ -2,6 +2,7 @@ package com.example.yanivbot.Controllers;
 
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.WhatsappService;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -95,7 +96,7 @@ public class WhatsAppWebhookController {
             String phoneNumber = incomingMessage.getPhone();
             String messageText = incomingMessage.getText();
 
-            logger.info("Message received from {}: {}", phoneNumber, messageText);
+            logger.info("Message received from {}: {}", PhoneNumberUtil.maskPhoneNumber(phoneNumber), messageText);
 
             // Route to MessageController to process the message
             // MessageController.processMessage handles all the bot logic

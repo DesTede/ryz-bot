@@ -5,6 +5,7 @@ import com.example.yanivbot.Entities.Business;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Repositories.DriverRepository;
 import com.example.yanivbot.Repositories.BusinessRepository;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
@@ -154,12 +155,12 @@ public class GoogleSheetsService {
                 existing.setName(name);
                 existing.setAddress(address);
                 businessRepo.save(existing);
-                logger.info("Updated business: {}", phone);
+                logger.info("Updated business: {}", PhoneNumberUtil.maskPhoneNumber(phone));
             } else {
                 Business business = new Business(name, phone, true);
                 business.setAddress(address);
                 businessRepo.save(business);
-                logger.info("Added new business: {}", phone);
+                logger.info("Added new business: {}", PhoneNumberUtil.maskPhoneNumber(phone));
             }
         }
 
@@ -167,7 +168,7 @@ public class GoogleSheetsService {
         businessRepo.findAll().forEach(business -> {
             if (!sheetPhones.contains(business.getPhone())) {
                 businessRepo.delete(business);
-                logger.info("Removed business (not in sheet): {}", business.getPhone());
+                logger.info("Removed business (not in sheet): {}", PhoneNumberUtil.maskPhoneNumber(business.getPhone()));
             }
         });
     }

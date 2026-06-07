@@ -7,6 +7,7 @@ import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import com.example.yanivbot.Services.BotConfigService;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.WhatsappService;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -90,7 +91,7 @@ public class AdminCommandHandler {
     private String handleBotOff(String phone, WhatsappService whatsappService) {
         if (!botConfigService.isBotActive()) {
             // Bot already off - send button to turn back on
-            logger.info("Admin {} tried to turn off bot, but it's already off", phone);
+            logger.info("Admin {} tried to turn off bot, but it's already off", PhoneNumberUtil.maskPhoneNumber(phone));
             whatsappService.sendInteractiveButtonsSafe(
                     phone,
                     "🔴 שכחת שהבוט לא פעיל חבר?",
@@ -101,7 +102,7 @@ public class AdminCommandHandler {
 
         // Turn off bot
         botConfigService.setBotActive(false);
-        logger.warn("Admin {} turned OFF the bot", phone);
+        logger.warn("Admin {} turned OFF the bot", PhoneNumberUtil.maskPhoneNumber(phone));
 
         // Notify all admins using smart method (instead of notifyAllAdmins)
         String adminMessage = """
@@ -124,13 +125,13 @@ public class AdminCommandHandler {
     private String handleBotOn(String phone, WhatsappService whatsappService) {
         if (botConfigService.isBotActive()) {
             // Bot already on
-            logger.info("Admin {} tried to turn on bot, but it's already on", phone);
+            logger.info("Admin {} tried to turn on bot, but it's already on", PhoneNumberUtil.maskPhoneNumber(phone));
             return "🟢 הבוט כבר פעיל חבר 😄";
         }
 
         // Turn on bot
         botConfigService.setBotActive(true);
-        logger.warn("Admin {} turned ON the bot", phone);
+        logger.warn("Admin {} turned ON the bot", PhoneNumberUtil.maskPhoneNumber(phone));
 
         // Notify all admins using smart method (instead of notifyAllAdmins)
         String adminMessage = """
