@@ -270,6 +270,7 @@ public class OrderMonitorService {
         long nudgeTo   = now - (ConversationService.CONVERSATION_NUDGE_MINUTES * 60 * 1000L); // 20 min ago
 
         List<ConversationState> midFlowStates = List.of(
+                ConversationState.BUSINESS_MENU,
                 ConversationState.TAXI_CAR_TYPE,
                 ConversationState.TAXI_PICKUP,
                 ConversationState.TAXI_DESTINATION,

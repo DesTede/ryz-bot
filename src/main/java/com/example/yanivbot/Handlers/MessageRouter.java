@@ -139,7 +139,6 @@ public class MessageRouter {
         // ===== TIMEOUT CHECK — reset mid-flow conversations idle for 30+ minutes =====
         boolean isMidFlow = state != ConversationState.START
                 && state != ConversationState.START_MENU
-                && state != ConversationState.BUSINESS_MENU
                 && state != ConversationState.AWAITING_DRIVER_LOCATION;
 
         if (isMidFlow) {
