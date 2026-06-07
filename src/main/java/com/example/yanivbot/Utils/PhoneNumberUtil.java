@@ -97,4 +97,13 @@ public class PhoneNumberUtil {
         }
         return phone;
     }
+
+    /**
+     * Convert 972XXXXXXXXX to 0XXXXXXXXX for display in messages
+     */
+    public static String toLocalFormat(String phone) {
+        if (phone == null) return "";
+        if (phone.startsWith("972")) return "0" + phone.substring(3);
+        return phone;
+    }
 }

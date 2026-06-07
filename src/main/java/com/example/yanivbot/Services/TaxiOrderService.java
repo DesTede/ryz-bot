@@ -147,7 +147,7 @@ public class TaxiOrderService {
                     -------------------------
                     🆔 *מספר הזמנה:* %s
                     -------------------------
-                    📞 טלפון נוסע: \\u200E%s\\u200E
+                    📞 טלפון נוסע: %s
                     -------------------------
                     🏁 *בסיום לחץ לסיום נסיעה*
                     -------------------------
@@ -155,30 +155,9 @@ public class TaxiOrderService {
                     
                     """.formatted(
                             orderId,
-                            order.getPhone()                           
+                            PhoneNumberUtil.toLocalFormat(order.getPhone())                           
                             );
 
-
-//        String confirmationMsg = """
-//                    
-//                    🔥 *נסיעה חדשה התקבלה!*
-//                    -------------------------
-//                    🆔 *מספר הזמנה:* %s
-//                    -------------------------
-//                    📞 טלפון נוסע: %s
-//                    -------------------------
-//                    🏁 *בסיום לחץ לסיום נסיעה*
-//                    -------------------------
-//                    🚗 *סע בזהירות!* 🙌
-//                    
-//                    🔗 שדר מיקום ללקוח:
-//                    %s
-//                    """.formatted(
-//                orderId,
-//                order.getPhone(),
-//                driverLiveLink
-//        );
-        
         whatsappService.sendInteractiveButtonsSafe(
                 driverPhone,
                 confirmationMsg,
@@ -224,7 +203,7 @@ public class TaxiOrderService {
 
             Driver driver = driverService.findByPhone(order.getDriverPhone());
             String driverName = driver != null ? driver.getName() : order.getDriverPhone();
-            String driverPhone = order.getDriverPhone();
+            String driverPhone = PhoneNumberUtil.toLocalFormat(order.getDriverPhone());
             
             String vehicleInfo = "";
             if (driver != null && driver.getCarType() != null && driver.getCarModel() != null && driver.getCarColor() != null) {
