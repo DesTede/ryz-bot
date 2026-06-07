@@ -594,10 +594,20 @@ public class WhatsappService {
             bodyComponent.put("type", "body");
             bodyComponent.put("parameters", List.of(bodyParam));
 
+            Map<String, Object> buttonParam = new HashMap<>();
+            buttonParam.put("type", "text");
+            buttonParam.put("text", code);
+
+            Map<String, Object> buttonComponent = new HashMap<>();
+            buttonComponent.put("type", "button");
+            buttonComponent.put("sub_type", "url");
+            buttonComponent.put("index", "0");
+            buttonComponent.put("parameters", List.of(buttonParam));
+
             Map<String, Object> template = new HashMap<>();
             template.put("name", templateName);
             template.put("language", Map.of("code", "he"));
-            template.put("components", List.of(bodyComponent));
+            template.put("components", List.of(bodyComponent, buttonComponent));
 
             Map<String, Object> message = new HashMap<>();
             message.put("messaging_product", "whatsapp");
