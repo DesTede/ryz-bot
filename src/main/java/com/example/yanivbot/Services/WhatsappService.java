@@ -586,20 +586,18 @@ public class WhatsappService {
      */
     public void sendOtpTemplate(String phone, String code, String templateName) {
         try {
-            Map<String, Object> buttonParam = new HashMap<>();
-            buttonParam.put("type", "payload");
-            buttonParam.put("payload", code);
+            Map<String, Object> bodyParam = new HashMap<>();
+            bodyParam.put("type", "text");
+            bodyParam.put("text", code);
 
-            Map<String, Object> buttonComponent = new HashMap<>();
-            buttonComponent.put("type", "button");
-            buttonComponent.put("sub_type", "url");
-            buttonComponent.put("index", "0");
-            buttonComponent.put("parameters", List.of(buttonParam));
+            Map<String, Object> bodyComponent = new HashMap<>();
+            bodyComponent.put("type", "body");
+            bodyComponent.put("parameters", List.of(bodyParam));
 
             Map<String, Object> template = new HashMap<>();
             template.put("name", templateName);
             template.put("language", Map.of("code", "he"));
-            template.put("components", List.of(buttonComponent));
+            template.put("components", List.of(bodyComponent));
 
             Map<String, Object> message = new HashMap<>();
             message.put("messaging_product", "whatsapp");
