@@ -30,8 +30,7 @@ public class GooglePlacesService {
                     + "?input=" + java.net.URLEncoder.encode(input, "UTF-8")
                     + "&key=" + apiKey
                     + "&language=he"
-                    + "&components=country:il"
-                    + "&types=address";
+                    + "&components=country:il";
 
             logger.info("Places API request for: {}", input);
             Map response = restTemplate.getForObject(url, Map.class);
