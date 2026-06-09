@@ -33,7 +33,6 @@ public class GooglePlacesService {
                     + "&components=country:il";
 
             logger.info("Places API request for: {}", input);
-            logger.info("Places API URL: {}", url);
             Map response = restTemplate.getForObject(url, Map.class);
             logger.info("Places API response: status={}, error_message={}",
                     response != null ? response.get("status") : "null",
