@@ -118,7 +118,7 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         List<WhatsappService.InteractiveButton> buttons = new ArrayList<>();
         StringBuilder tempData = new StringBuilder(carType + "|PICKUP_PENDING");
-        for (int i = 0; i < suggestions.size(); i++) {
+        for (int i = 0; i < Math.min(2, suggestions.size()); i++) {
             String shortDesc = suggestions.get(i).description.length() > 20
                     ? suggestions.get(i).description.substring(0, 20)
                     : suggestions.get(i).description;
