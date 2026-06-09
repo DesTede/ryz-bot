@@ -4,12 +4,7 @@ import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
-import com.example.yanivbot.Services.BotConfigService;
-import com.example.yanivbot.Services.ConversationService;
-import com.example.yanivbot.Services.BusinessOwnerService;
-import com.example.yanivbot.Services.DriverService;
-import com.example.yanivbot.Services.CustomerService;
-import com.example.yanivbot.Services.WhatsappService;
+import com.example.yanivbot.Services.*;
 import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +40,7 @@ public class MessageRouter {
     private final CustomerService customerService;
     private final WhatsappService whatsappService;
     private final BotConfigService botConfigService;
+    private final TaxiOrderService taxiOrderService; 
 
     private static final String WELCOME_MESSAGE = """
               ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡
@@ -70,7 +66,7 @@ public class MessageRouter {
                          DriverService driverService,
                          CustomerService customerService,
                          WhatsappService whatsappService,
-                         BotConfigService botConfigService) {
+                         BotConfigService botConfigService, TaxiOrderService taxiOrderService) {
         this.taxiHandler = taxiHandler;
         this.deliveryHandler = deliveryHandler;
         this.businessHandler = businessHandler;
@@ -82,6 +78,7 @@ public class MessageRouter {
         this.customerService = customerService;
         this.whatsappService = whatsappService;
         this.botConfigService = botConfigService;
+        this.taxiOrderService = taxiOrderService;
     }
 
     /**
@@ -127,6 +124,12 @@ public class MessageRouter {
             return adminCommandHandler.getBotInactiveMessage();
         }
 
+        // Customer cancelling an order
+        if (txt.startsWith("taxi_cancel_customer_")) {
+            long orderId = Long.parseLong(txt.replace("taxi_cancel_customer_", ""));
+            return taxiOrderService.cancelOrderByCustomer(orderId, phone);
+        }
+        
         // Reset conversation if user sends "00" or "התחל מחדש"
         if (txt.equals("00") || txt.equals("התחל מחדש")) {
             logger.info("Reset signal received: '{}'", txt);
@@ -178,7 +181,8 @@ public class MessageRouter {
 
                 // Check if this is an order-related command - route to DriverHandler regardless of shift state
                 if (txt.startsWith("taxi_claim_") || txt.startsWith("delivery_claim_") ||
-                        txt.startsWith("taxi_complete_") || txt.startsWith("איסוף ") || txt.startsWith("נמסר ") ||
+                        txt.startsWith("taxi_complete_") || txt.startsWith("taxi_cancel_driver_") ||
+                        txt.startsWith("איסוף ") || txt.startsWith("נמסר ") ||
                         txt.startsWith("בדרך ")) {
                     logger.info(">>> DRIVER ORDER COMMAND DETECTED <<<");
                     logger.info(">>> Message: '{}' starts with order prefix? checking:", txt);

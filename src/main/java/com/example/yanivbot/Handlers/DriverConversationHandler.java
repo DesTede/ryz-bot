@@ -55,6 +55,12 @@ public class DriverConversationHandler implements ConversationHandler {
             return handleTaxiOrderCompletion(message);
         }
 
+        // Handle taxi order cancellation by driver (taxi_cancel_driver_123)
+        if (txt.startsWith("taxi_cancel_driver_")) {
+            long orderId = Long.parseLong(txt.replace("taxi_cancel_driver_", ""));
+            return taxiOrderService.cancelOrderByDriver(orderId, message.getPhone());
+        }
+
         // Handle delivery claim button (delivery_claim_123)                
         if (txt.startsWith("delivery_claim_")) {                           
             return handleDeliveryOrderClaim(message);                       

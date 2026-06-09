@@ -171,7 +171,8 @@ public class TaxiOrderService {
         whatsappService.sendInteractiveButtonsSafe(
                 driverPhone,
                 confirmationMsg,
-                new WhatsappService.InteractiveButton("taxi_complete_" + orderId, "✅ נסיעה הסתיימה")
+                new WhatsappService.InteractiveButton("taxi_complete_" + orderId, "✅ נסיעה הסתיימה"),
+                new WhatsappService.InteractiveButton("taxi_cancel_driver_" + orderId, "🚫 בטל נסיעה")
         );
 
         return null; // Message already sent via button
@@ -205,6 +206,57 @@ public class TaxiOrderService {
         whatsappService.sendSafeText(order.getPhone(), customerMsg);
         
         return "🏁 נסיעה #" + orderId + " הסתיימה\nהמערכת סימנה אותך כפנוי לנסיעה הבאה 👍";
+    }
+
+    public String cancelOrderByCustomer(long orderId, String customerPhone) {
+        TaxiOrder order = taxiOrderRepo.findById(orderId).orElse(null);
+
+        if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
+        if (!order.getPhone().equals(customerPhone)) return "❌ הזמנה זו לא שייכת אליך.";
+        if (order.getStatus() == TaxiOrderStatus.COMPLETED || order.getStatus() == TaxiOrderStatus.CANCELLED) {
+            return "❌ לא ניתן לבטל הזמנה שכבר " + (order.getStatus() == TaxiOrderStatus.COMPLETED ? "הושלמה" : "בוטלה") + ".";
+        }
+
+        String driverPhone = order.getDriverPhone();
+        order.setStatus(TaxiOrderStatus.CANCELLED);
+        taxiOrderRepo.save(order);
+
+        // Notify driver if assigned
+        if (driverPhone != null) {
+            whatsappService.sendSafeText(driverPhone,
+                    "❌ הנסיעה #" + orderId + " בוטלה על ידי הלקוח.\nהמערכת מסמנת אותך כפנוי 🚀");
+        }
+
+        logger.info("Order #{} cancelled by customer {}", orderId, customerPhone);
+        return "✅ ההזמנה בוטלה בהצלחה.\nנשמח לשרת אותך שוב ב־Movez 💙";
+    }
+
+    public String cancelOrderByDriver(long orderId, String driverPhone) {
+        TaxiOrder order = taxiOrderRepo.findById(orderId).orElse(null);
+
+        if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
+        if (!driverPhone.equals(order.getDriverPhone())) return "❌ הזמנה זו לא שויכה אליך.";
+        if (order.getStatus() == TaxiOrderStatus.COMPLETED || order.getStatus() == TaxiOrderStatus.CANCELLED) {
+            return "❌ לא ניתן לבטל הזמנה שכבר " + (order.getStatus() == TaxiOrderStatus.COMPLETED ? "הושלמה" : "בוטלה") + ".";
+        }
+
+        String customerPhone = order.getPhone();
+
+        // Reset order and rebroadcast
+        order.setStatus(TaxiOrderStatus.CREATED);
+        order.setDriverPhone(null);
+        order.setTrackingToken(null);
+        taxiOrderRepo.save(order);
+
+        // Notify customer
+        whatsappService.sendSafeText(customerPhone,
+                "⚠️ הנהג ביטל את הנסיעה.\nאנו מחפשים נהג אחר עבורך... 🔄");
+
+        // Rebroadcast to other drivers
+        broadcastToDrivers(order);
+
+        logger.info("Order #{} cancelled by driver {}, rebroadcasting", orderId, driverPhone);
+        return "✅ הנסיעה בוטלה.\nההזמנה הועברה לנהג אחר.";
     }
 
     private void notifyTaxiCustomer(TaxiOrder order) {
@@ -248,11 +300,11 @@ public class TaxiOrderService {
                 msg += "🗺️ מעקב חי אחר הנהג:\n" + shortLinkService.createShortLink(baseUrl + "/track/" + order.getTrackingToken());
             }
 
-//            if (!locationLink.isEmpty()) {
-//                msg += "🗺️ צפייה במיקום הנהג:\n\n" + locationLink;
-//            }
-
-            whatsappService.sendSafeText(order.getPhone(), msg);
+            whatsappService.sendInteractiveButtonsSafe(
+                    order.getPhone(),
+                    msg,
+                    new WhatsappService.InteractiveButton("taxi_cancel_customer_" + order.getId(), "🚫 בטל הזמנה")
+            );
             logger.info("Customer notification sent for order #{}", order.getId());
         } catch (Exception e) {
             logger.error("Error notifying taxi customer for order #{}: {}", order.getId(), e.getMessage(), e);
