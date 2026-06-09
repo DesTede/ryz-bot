@@ -41,6 +41,7 @@ public class MessageRouter {
     private final WhatsappService whatsappService;
     private final BotConfigService botConfigService;
     private final TaxiOrderService taxiOrderService; 
+    private final DeliveryOrderService deliveryOrderService;
 
     private static final String WELCOME_MESSAGE = """
               ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡
@@ -66,7 +67,7 @@ public class MessageRouter {
                          DriverService driverService,
                          CustomerService customerService,
                          WhatsappService whatsappService,
-                         BotConfigService botConfigService, TaxiOrderService taxiOrderService) {
+                         BotConfigService botConfigService, TaxiOrderService taxiOrderService, DeliveryOrderService deliveryOrderService) {
         this.taxiHandler = taxiHandler;
         this.deliveryHandler = deliveryHandler;
         this.businessHandler = businessHandler;
@@ -79,6 +80,7 @@ public class MessageRouter {
         this.whatsappService = whatsappService;
         this.botConfigService = botConfigService;
         this.taxiOrderService = taxiOrderService;
+        this.deliveryOrderService = deliveryOrderService;
     }
 
     /**
@@ -128,6 +130,12 @@ public class MessageRouter {
         if (txt.startsWith("taxi_cancel_customer_")) {
             long orderId = Long.parseLong(txt.replace("taxi_cancel_customer_", ""));
             return taxiOrderService.cancelOrderByCustomer(orderId, phone);
+        }
+
+        // Business owner cancelling a delivery order
+        if (txt.startsWith("delivery_cancel_business_")) {
+            long orderId = Long.parseLong(txt.replace("delivery_cancel_business_", ""));
+            return deliveryOrderService.cancelDeliveryOrderByBusiness(orderId, phone);
         }
         
         // Reset conversation if user sends "00" or "התחל מחדש"

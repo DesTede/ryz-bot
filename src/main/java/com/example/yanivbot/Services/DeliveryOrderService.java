@@ -66,15 +66,35 @@ public class DeliveryOrderService {
         logger.info("Delivery order saved with ID: {}", order.getId());
 
         // Send confirmation to business owner with order details
-        whatsappService.sendSafeText(businessPhone,
+        whatsappService.sendInteractiveButtonsSafe(businessPhone,
                 "✅ ההזמנה נוצרה בהצלחה!\n\n📋 סיכום הזמנה מספר " + order.getId() + ":\n📞 שם לקוח: " + customerName + "\n📞 טלפון לקוח: " + customerPhone +
                         "\n📍 כתובת מסירה: " + address + "\n⏱️ זמן הכנה: " + readyInMinutes + " דקות\n💰 סכום לתשלום: ₪" + price +
-                        "\n📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n\n🚚 הודעה נשלחה לשליחים קרובים...");
+                        "\n📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n\n🚚 הודעה נשלחה לשליחים קרובים...",
+                new WhatsappService.InteractiveButton("delivery_cancel_business_" + order.getId(), "🚫 בטל הזמנה")
+        );
+        
 
         logger.info("Broadcasting order #{} to drivers...", order.getId());
         broadcastToDrivers(order);
         order.setDispatched(true);
         deliveryOrderRepo.save(order);
+    }
+
+    public String cancelDeliveryOrderByBusiness(long orderId, String businessPhone) {
+        DeliveryOrder order = deliveryOrderRepo.findById(orderId).orElse(null);
+
+        if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
+        if (!order.getBusinessPhone().equals(businessPhone)) return "❌ הזמנה זו לא שייכת לעסק שלך.";
+        if (order.getPickedUpBy() != null) return "❌ לא ניתן לבטל הזמנה שכבר נלקחה על ידי שליח.";
+        if (order.getDeliveryStatus() == DeliveryStatus.DELIVERED || order.getDeliveryStatus() == DeliveryStatus.CANCELLED) {
+            return "❌ לא ניתן לבטל הזמנה שכבר " + (order.getDeliveryStatus() == DeliveryStatus.DELIVERED ? "נמסרה" : "בוטלה") + ".";
+        }
+
+        order.setDeliveryStatus(DeliveryStatus.CANCELLED);
+        deliveryOrderRepo.save(order);
+
+        logger.info("Delivery order #{} cancelled by business {}", orderId, businessPhone);
+        return "✅ ההזמנה בוטלה בהצלחה.\nנשמח לשרת אותך שוב ב־Movez 💙";
     }
 
     public void broadcastToDrivers(DeliveryOrder order) {
