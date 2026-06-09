@@ -67,59 +67,7 @@ public class AdminController {
         response.sendRedirect("/dashboard/index.html");
     }
     
-    @GetMapping("/drivers")
-    public ResponseEntity<List<Driver>> getAllDrivers(
-            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
-        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        try {
-            logger.info("Fetching all drivers");
-            List<Driver> drivers = driverRepo.findAll();
-            logger.info("Retrieved {} drivers", drivers.size());
-            return ResponseEntity.ok(drivers);
-        } catch (Exception e) {
-            logger.error("Error fetching drivers: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).build();
-        }
-    }
-
-    @PostMapping("/drivers/add")
-    public ResponseEntity<String> addDriver(
-            @RequestHeader(value = "X-Admin-Key", required = false) String key,
-            @RequestBody Map<String, String> body) {
-        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        String name    = body.get("name");
-        String phone   = PhoneNumberUtil.normalizePhone(body.get("phone"));
-        String type    = body.getOrDefault("type", "TAXI");
-        String carType = body.getOrDefault("carType", "");
-        String carColor = body.getOrDefault("carColor", "");
-        String carModel = body.getOrDefault("carModel", "");
-        if (name == null || name.isBlank() || phone == null || phone.isBlank()) {
-            return ResponseEntity.badRequest().body("❌ שם וטלפון הם שדות חובה");
-        }
-        if (driverRepo.findByPhone(phone).isPresent()) {
-            return ResponseEntity.badRequest().body("❌ נהג עם מספר זה כבר קיים");
-        }
-        com.example.yanivbot.Models.DriverType driverType;
-        try {
-            driverType = com.example.yanivbot.Models.DriverType.valueOf(type.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("❌ סוג נהג לא תקין: " + type);
-        }
-        Driver driver = new Driver(phone, name, false, driverType);
-        driver.setCarColor(carColor.isBlank() ? null : carColor);
-        driver.setCarModel(carModel.isBlank() ? null : carModel);
-        driver.setLocationToken(java.util.UUID.randomUUID().toString());
-        if (!carType.isBlank()) {
-            try {
-                driver.setCarType(com.example.yanivbot.Models.CarType.valueOf(carType.toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                logger.warn("Unknown carType {}, leaving null", carType);
-            }
-        }
-        driverRepo.save(driver);
-        logger.info("Admin added new driver: {}", phone);
-        return ResponseEntity.ok("✅ נהג נוסף בהצלחה");
-    }
+    
 
     // =========================================================
     // BOT CONTROL
@@ -276,6 +224,92 @@ public class AdminController {
     // DRIVERS
     // =========================================================
 
+    @GetMapping("/drivers")
+    public ResponseEntity<List<Driver>> getAllDrivers(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        try {
+            logger.info("Fetching all drivers");
+            List<Driver> drivers = driverRepo.findAll();
+            logger.info("Retrieved {} drivers", drivers.size());
+            return ResponseEntity.ok(drivers);
+        } catch (Exception e) {
+            logger.error("Error fetching drivers: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @PostMapping("/drivers/add")
+    public ResponseEntity<String> addDriver(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @RequestBody Map<String, String> body) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        String name    = body.get("name");
+        String phone   = PhoneNumberUtil.normalizePhone(body.get("phone"));
+        String type    = body.getOrDefault("type", "TAXI");
+        String carType = body.getOrDefault("carType", "");
+        String carColor = body.getOrDefault("carColor", "");
+        String carModel = body.getOrDefault("carModel", "");
+        if (name == null || name.isBlank() || phone == null || phone.isBlank()) {
+            return ResponseEntity.badRequest().body("❌ שם וטלפון הם שדות חובה");
+        }
+        if (driverRepo.findByPhone(phone).isPresent()) {
+            return ResponseEntity.badRequest().body("❌ נהג עם מספר זה כבר קיים");
+        }
+        com.example.yanivbot.Models.DriverType driverType;
+        try {
+            driverType = com.example.yanivbot.Models.DriverType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("❌ סוג נהג לא תקין: " + type);
+        }
+        Driver driver = new Driver(phone, name, false, driverType);
+        driver.setCarColor(carColor.isBlank() ? null : carColor);
+        driver.setCarModel(carModel.isBlank() ? null : carModel);
+        driver.setLocationToken(java.util.UUID.randomUUID().toString());
+        if (!carType.isBlank()) {
+            try {
+                driver.setCarType(com.example.yanivbot.Models.CarType.valueOf(carType.toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                logger.warn("Unknown carType {}, leaving null", carType);
+            }
+        }
+        driverRepo.save(driver);
+        logger.info("Admin added new driver: {}", phone);
+        return ResponseEntity.ok("✅ נהג נוסף בהצלחה");
+    }
+
+    @PutMapping("/drivers/{phone}")
+    public ResponseEntity<String> editDriver(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @PathVariable String phone,
+            @RequestBody Map<String, String> body) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return driverRepo.findByPhone(phone).map(driver -> {
+            if (body.containsKey("name") && !body.get("name").isBlank())
+                driver.setName(body.get("name"));
+            if (body.containsKey("type") && !body.get("type").isBlank()) {
+                try {
+                    driver.setType(com.example.yanivbot.Models.DriverType.valueOf(body.get("type").toUpperCase()));
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest().body("❌ סוג נהג לא תקין: " + body.get("type"));
+                }
+            }
+            if (body.containsKey("carType") && !body.get("carType").isBlank()) {
+                try {
+                    driver.setCarType(com.example.yanivbot.Models.CarType.valueOf(body.get("carType").toUpperCase()));
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest().body("❌ סוג רכב לא תקין: " + body.get("carType"));
+                }
+            }
+            if (body.containsKey("carColor")) driver.setCarColor(body.get("carColor"));
+            if (body.containsKey("carModel")) driver.setCarModel(body.get("carModel"));
+            driverRepo.save(driver);
+            logger.info("Admin edited driver: {}", phone);
+            return ResponseEntity.ok("✅ פרטי הנהג עודכנו בהצלחה");
+        }).orElse(ResponseEntity.notFound().build());
+    }
+    
+    
     @PostMapping("/drivers/{phone}/toggle-active")
     public ResponseEntity<Map<String, Object>> toggleDriverActive(
             @RequestHeader(value = "X-Admin-Key", required = false) String key,
@@ -354,6 +388,30 @@ public class AdminController {
         return ResponseEntity.ok("✅ עסק נוסף בהצלחה");
     }
 
+    @PutMapping("/businesses/{phone}")
+    public ResponseEntity<String> editBusiness(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @PathVariable String phone,
+            @RequestBody Map<String, String> body) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return businessRepo.findByPhone(phone).map(business -> {
+            if (body.containsKey("name") && !body.get("name").isBlank())
+                business.setName(body.get("name"));
+            if (body.containsKey("address"))
+                business.setAddress(body.get("address"));
+            if (body.containsKey("phone") && !body.get("phone").isBlank()) {
+                String newPhone = PhoneNumberUtil.normalizePhone(body.get("phone"));
+                if (!newPhone.equals(phone) && businessRepo.findByPhone(newPhone).isPresent()) {
+                    return ResponseEntity.badRequest().body("❌ מספר טלפון זה כבר קיים במערכת");
+                }
+                business.setPhone(newPhone);
+            }
+            businessRepo.save(business);
+            logger.info("Admin edited business: {}", phone);
+            return ResponseEntity.ok("✅ פרטי העסק עודכנו בהצלחה");
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
     @DeleteMapping("/businesses/{phone}")
     public ResponseEntity<String> deleteBusiness(
             @RequestHeader(value = "X-Admin-Key", required = false) String key,
@@ -426,4 +484,5 @@ public class AdminController {
     private boolean isAuthorized(String key) {
         return adminApiKey != null && adminApiKey.equals(key);
     }
+    
 }

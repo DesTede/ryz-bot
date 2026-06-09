@@ -943,6 +943,53 @@
 
 </main>
 
+<!-- MODAL: Edit Driver -->
+<div class="modal-overlay" id="edit-driver-modal">
+    <div class="modal">
+        <h3>✏️ עריכת נהג</h3>
+        <div class="modal-label">שם</div>
+        <input class="modal-input" id="edit-driver-name" placeholder="שם הנהג"/>
+        <div class="modal-label">סוג נהג</div>
+        <select class="modal-input" id="edit-driver-type">
+            <option value="TAXI">מונית</option>
+            <option value="DELIVERY">משלוח</option>
+            <option value="BOTH">שניהם</option>
+        </select>
+        <div class="modal-label">סוג רכב</div>
+        <select class="modal-input" id="edit-driver-cartype">
+            <option value="">—</option>
+            <option value="MOTORCYCLE">אופנוע</option>
+            <option value="PRIVATE_CAR">מכונית פרטית</option>
+            <option value="MINIVAN">מינוואן</option>
+        </select>
+        <div class="modal-label">דגם רכב</div>
+        <input class="modal-input" id="edit-driver-carmodel" placeholder="טויוטה קורולה"/>
+        <div class="modal-label">צבע רכב</div>
+        <input class="modal-input" id="edit-driver-carcolor" placeholder="לבן"/>
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeEditDriver()">ביטול</button>
+            <button class="btn-primary" onclick="saveEditDriver()">שמור</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Edit Business -->
+<div class="modal-overlay" id="edit-business-modal">
+    <div class="modal">
+        <h3>✏️ עריכת עסק</h3>
+        <div class="modal-label">שם</div>
+        <input class="modal-input" id="edit-business-name" placeholder="שם העסק"/>
+        <div class="modal-label">טלפון</div>
+        <input class="modal-input" id="edit-business-phone" placeholder="0501234567" type="tel"/>
+        <div class="modal-label">כתובת</div>
+        <input class="modal-input" id="edit-business-address" placeholder="רחוב הרצל 1, רחובות"/>
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeEditBusiness()">ביטול</button>
+            <button class="btn-primary" onclick="saveEditBusiness()">שמור</button>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL: Reassign -->
 <div class="modal-overlay" id="reassign-modal">
     <div class="modal">
@@ -1468,6 +1515,7 @@
         <div class="driver-actions">
             <button class="action-btn" onclick="toggleDriver('${d.phone}')">${d.active?'כבה':'הפעל'}</button>
             <button class="action-btn" onclick="openDriverOrders('${d.phone}','${d.name||d.phone}')">היסטוריה</button>
+            <button class="action-btn" onclick="openEditDriver('${d.phone}','${d.name||''}','${d.type||''}','${d.carType||''}','${d.carModel||''}','${d.carColor||''}')">עריכה</button>
             <button class="action-btn danger" onclick="deleteDriver('${d.phone}','${d.name||d.phone}')">מחק</button>
         </div>
       </div>`;
@@ -1579,7 +1627,10 @@
           <td style="font-family:var(--mono);font-size:12px">${formatPhone(b.phone)}</td>
           <td style="font-size:13px;color:var(--muted)">${b.address||'—'}</td>
           <td>${b.active ? '<span class="badge badge-green">פעיל</span>' : '<span class="badge badge-muted">לא פעיל</span>'}</td>
-          <td><button class="action-btn danger" onclick="deleteBusiness('${b.phone}','${b.name||b.phone}')">מחק</button></td>
+          <td>
+            <button class="action-btn" onclick="openEditBusiness('${b.phone}','${b.name||''}','${b.address||''}')">עריכה</button>
+            <button class="action-btn danger" onclick="deleteBusiness('${b.phone}','${b.name||b.phone}')">מחק</button>
+          </td>
         </tr>`).join('') : '<tr><td colspan="5" class="empty">אין עסקים רשומים</td></tr>';
         } catch(e) { tb.innerHTML = `<tr><td colspan="5" class="empty">שגיאה</td></tr>`; }
     }
@@ -1592,6 +1643,84 @@
             loadBusinesses();
         } catch(e) { toast('שגיאה: ' + e.message, 'error'); }
     }
+
+    // ══════════════════════════════════════════════════════════════
+    // EDIT DRIVER
+    // ══════════════════════════════════════════════════════════════
+    let editDriverPhone = null;
+
+    function openEditDriver(phone, name, type, carType, carModel, carColor) {
+        editDriverPhone = phone;
+        document.getElementById('edit-driver-name').value = name;
+        document.getElementById('edit-driver-type').value = type;
+        document.getElementById('edit-driver-cartype').value = carType;
+        document.getElementById('edit-driver-carmodel').value = carModel;
+        document.getElementById('edit-driver-carcolor').value = carColor;
+        document.getElementById('edit-driver-modal').classList.add('open');
+    }
+
+    function closeEditDriver() {
+        document.getElementById('edit-driver-modal').classList.remove('open');
+        editDriverPhone = null;
+    }
+
+    async function saveEditDriver() {
+        if (!editDriverPhone) return;
+        const body = {};
+        const name = document.getElementById('edit-driver-name').value.trim();
+        const type = document.getElementById('edit-driver-type').value.trim();
+        const carType = document.getElementById('edit-driver-cartype').value.trim();
+        const carModel = document.getElementById('edit-driver-carmodel').value.trim();
+        const carColor = document.getElementById('edit-driver-carcolor').value.trim();
+        if (name) body.name = name;
+        if (type) body.type = type;
+        if (carType) body.carType = carType;
+        if (carModel) body.carModel = carModel;
+        if (carColor) body.carColor = carColor;
+        try {
+            await api(`/admin/drivers/${editDriverPhone}`, 'PUT', body);
+            toast('✅ פרטי הנהג עודכנו', 'success');
+            closeEditDriver();
+            loadDrivers();
+        } catch(e) { toast('שגיאה: ' + e.message, 'error'); }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // EDIT BUSINESS
+    // ══════════════════════════════════════════════════════════════
+    let editBusinessPhone = null;
+
+    function openEditBusiness(phone, name, address) {
+        editBusinessPhone = phone;
+        document.getElementById('edit-business-phone').value = phone;
+        document.getElementById('edit-business-name').value = name;
+        document.getElementById('edit-business-address').value = address;
+        document.getElementById('edit-business-modal').classList.add('open');
+    }
+
+    function closeEditBusiness() {
+        document.getElementById('edit-business-modal').classList.remove('open');
+        editBusinessPhone = null;
+    }
+
+    async function saveEditBusiness() {
+        if (!editBusinessPhone) return;
+        const body = {};
+        const phone = document.getElementById('edit-business-phone').value.trim();
+        const name = document.getElementById('edit-business-name').value.trim();
+        const address = document.getElementById('edit-business-address').value.trim();
+        if (phone) body.phone = phone;
+        if (name) body.name = name;
+        body.address = address;
+        try {
+            await api(`/admin/businesses/${editBusinessPhone}`, 'PUT', body);
+            toast('✅ פרטי העסק עודכנו', 'success');
+            closeEditBusiness();
+            loadBusinesses();
+        } catch(e) { toast('שגיאה: ' + e.message, 'error'); }
+    }
+    
+    
 
     // ══════════════════════════════════════════════════════════════
     // SETTINGS
