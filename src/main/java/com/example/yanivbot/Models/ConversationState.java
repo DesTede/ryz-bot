@@ -7,8 +7,10 @@ public enum ConversationState {
     // Taxi flow
     TAXI_SERVICE,                           // (deprecated - use START_MENU instead)
     TAXI_CAR_TYPE,                          // Choosing car type
-    TAXI_PICKUP,                            // Entering pickup location
-    TAXI_DESTINATION,                       // Entering destination
+    TAXI_PICKUP,
+    AWAITING_PICKUP_SELECTION,// Entering pickup location
+    TAXI_DESTINATION,
+    AWAITING_DESTINATION_SELECTION, // Entering destination
     TAXI_NOTES,                             // Optional notes
     AWAITING_TAXI_ORDER_CONFIRMATION,       // Awaiting yes/no confirmation
 

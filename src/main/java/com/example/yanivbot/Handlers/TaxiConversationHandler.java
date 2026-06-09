@@ -5,11 +5,15 @@ import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.ConversationService;
+import com.example.yanivbot.Services.GooglePlacesService;
 import com.example.yanivbot.Services.TaxiOrderService;
 import com.example.yanivbot.Services.WhatsappService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Handles all taxi order conversation flows with interactive buttons and updated messages.
@@ -22,11 +26,13 @@ public class TaxiConversationHandler implements ConversationHandler {
     private final TaxiOrderService taxiOrderService;
     private final ConversationService convoService;
     private final WhatsappService whatsappService;
+    private final GooglePlacesService placesService;
 
-    public TaxiConversationHandler(TaxiOrderService taxiOrderService, ConversationService convoService, WhatsappService whatsappService) {
+    public TaxiConversationHandler(TaxiOrderService taxiOrderService, ConversationService convoService, WhatsappService whatsappService, GooglePlacesService googlePlacesService) {
         this.taxiOrderService = taxiOrderService;
         this.convoService = convoService;
         this.whatsappService = whatsappService;
+        this.placesService = googlePlacesService;
     }
 
     @Override
@@ -36,18 +42,6 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         logger.info("TaxiConversationHandler | State: {} | Message: '{}'", state, txt);
 
-        // Check for driver claiming taxi order: "מונית {id}"
-//        if (txt.matches("^מונית\\s+\\d+$")) {
-//            long orderId = Long.parseLong(txt.split("\\s+")[1]);
-//            return taxiOrderService.claimTaxiOrder(orderId, message.getPhone());
-//        }
-//
-//        // Check for driver completing taxi order: "הסתיים {id}"
-//        if (txt.matches("^הסתיים\\s+\\d+$")) {
-//            long orderId = Long.parseLong(txt.split("\\s+")[1]);
-//            return taxiOrderService.completeOrder(orderId, message.getPhone());
-//        }
-
         // Handle state-based flows
         switch (state) {
             case TAXI_CAR_TYPE:
@@ -56,8 +50,14 @@ public class TaxiConversationHandler implements ConversationHandler {
             case TAXI_PICKUP:
                 return handleTaxiPickup(convo, message);
 
+            case AWAITING_PICKUP_SELECTION:
+                return handlePickupSelection(convo, message);
+
             case TAXI_DESTINATION:
                 return handleTaxiDestination(convo, message);
+
+            case AWAITING_DESTINATION_SELECTION:
+                return handleDestinationSelection(convo, message);
 
             case TAXI_NOTES:
                 return handleTaxiNotes(convo, message);
@@ -101,31 +101,118 @@ public class TaxiConversationHandler implements ConversationHandler {
     }
 
     private String handleTaxiPickup(Conversation convo, IncomingMessage message) {
-        String pickupLocation = message.getText().trim();
-
+        String input = message.getText().trim();
         String carType = convo.getTempData();
-        String orderData = carType + "|" + pickupLocation;
-        convoService.saveTempData(convo, orderData);
-        convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
 
-        return """
-                📍 נקודת האיסוף נקלטה בהצלחה ✅
-                שלחו יעד נסיעה 👇
-                (לא לשכוח עיר)\s""";
+        List<GooglePlacesService.PlaceSuggestion> suggestions = placesService.getSuggestions(input);
+
+        if (suggestions.isEmpty()) {
+            String orderData = carType + "|" + input;
+            convoService.saveTempData(convo, orderData);
+            convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
+            return """
+                    📍 נקודת האיסוף נקלטה ✅
+                    שלחו יעד נסיעה 👇
+                    (לא לשכוח עיר)""";
+        }
+
+        List<WhatsappService.InteractiveButton> buttons = new ArrayList<>();
+        StringBuilder tempData = new StringBuilder(carType + "|PICKUP_PENDING");
+        for (int i = 0; i < suggestions.size(); i++) {
+            String shortDesc = suggestions.get(i).description.length() > 20
+                    ? suggestions.get(i).description.substring(0, 20)
+                    : suggestions.get(i).description;
+            buttons.add(new WhatsappService.InteractiveButton("pickup_" + i, shortDesc));
+            tempData.append("|").append(suggestions.get(i).description);
+        }
+        buttons.add(new WhatsappService.InteractiveButton("pickup_manual", "✏️ הזן ידנית"));
+
+        convoService.saveTempData(convo, tempData.toString());
+        convoService.updateState(convo, ConversationState.AWAITING_PICKUP_SELECTION);
+
+        whatsappService.sendInteractiveButtonsSafe(message.getPhone(), "📍 בחר כתובת איסוף:", buttons.toArray(new WhatsappService.InteractiveButton[0]));
+        return null;
+    }
+
+    private String handlePickupSelection(Conversation convo, IncomingMessage message) {
+        String txt = message.getText().trim();
+        String[] parts = convo.getTempData().split("\\|", -1);
+        String carType = parts[0];
+
+        if (txt.equals("pickup_manual")) {
+            convoService.updateState(convo, ConversationState.TAXI_PICKUP);
+            return "📍 הזן כתובת איסוף ידנית:";
+        }
+
+        String pickupLocation;
+        if (txt.startsWith("pickup_")) {
+            int index = Integer.parseInt(txt.replace("pickup_", ""));
+            pickupLocation = parts[2 + index];
+        } else {
+            pickupLocation = txt;
+        }
+
+        convoService.saveTempData(convo, carType + "|" + pickupLocation);
+        convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
+        return "📍 נקודת האיסוף נקלטה ✅\nשלחו יעד נסיעה 👇\n(לא לשכוח עיר)";
     }
 
     private String handleTaxiDestination(Conversation convo, IncomingMessage message) {
-        String destination = message.getText().trim();
-
-        String orderData = convo.getTempData();
-        String[] parts = orderData.split("\\|");
+        String input = message.getText().trim();
+        String[] parts = convo.getTempData().split("\\|", -1);
         String carType = parts[0];
         String pickupLocation = parts[1];
 
-        orderData = carType + "|" + pickupLocation + "|" + destination;
-        convoService.saveTempData(convo, orderData);
-        convoService.updateState(convo, ConversationState.TAXI_NOTES);
+        List<GooglePlacesService.PlaceSuggestion> suggestions = placesService.getSuggestions(input);
 
+        if (suggestions.isEmpty()) {
+            convoService.saveTempData(convo, carType + "|" + pickupLocation + "|" + input);
+            convoService.updateState(convo, ConversationState.TAXI_NOTES);
+            return """
+                    💬 רוצים להוסיף משהו לנהג?
+                    כתבו את ההערה כאן 👇
+                    אם אין הערות, השיבו 'אין'""";
+        }
+
+        List<WhatsappService.InteractiveButton> buttons = new ArrayList<>();
+        StringBuilder tempData = new StringBuilder(carType + "|" + pickupLocation + "|DEST_PENDING");
+        for (int i = 0; i < suggestions.size(); i++) {
+            String shortDesc = suggestions.get(i).description.length() > 20
+                    ? suggestions.get(i).description.substring(0, 20)
+                    : suggestions.get(i).description;
+            buttons.add(new WhatsappService.InteractiveButton("dest_" + i, shortDesc));
+            tempData.append("|").append(suggestions.get(i).description);
+        }
+        buttons.add(new WhatsappService.InteractiveButton("dest_manual", "✏️ הזן ידנית"));
+
+        convoService.saveTempData(convo, tempData.toString());
+        convoService.updateState(convo, ConversationState.AWAITING_DESTINATION_SELECTION);
+
+        whatsappService.sendInteractiveButtonsSafe(message.getPhone(), "🎯 בחר יעד נסיעה:", buttons.toArray(new WhatsappService.InteractiveButton[0]));
+        return null;
+    }
+
+    private String handleDestinationSelection(Conversation convo, IncomingMessage message) {
+        String txt = message.getText().trim();
+        String[] parts = convo.getTempData().split("\\|", -1);
+        String carType = parts[0];
+        String pickupLocation = parts[1];
+
+        if (txt.equals("dest_manual")) {
+            convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
+            return "🎯 הזן יעד נסיעה ידנית:";
+        }
+
+        String destination;
+        if (txt.startsWith("dest_")) {
+            int index = Integer.parseInt(txt.replace("dest_", ""));
+            destination = parts[3 + index];
+        } else {
+            destination = txt;
+        }
+
+        convoService.saveTempData(convo, carType + "|" + pickupLocation + "|" + destination);
+        convoService.updateState(convo, ConversationState.TAXI_NOTES);
         return "💬 רוצים להוסיף משהו לנהג?\nכתבו את ההערה כאן 👇\nאם אין הערות, השיבו 'אין'";
     }
 
