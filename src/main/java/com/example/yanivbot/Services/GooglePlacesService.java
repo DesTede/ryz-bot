@@ -27,7 +27,7 @@ public class GooglePlacesService {
     public List<PlaceSuggestion> getSuggestions(String input) {
         try {
             String url = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
-                    + "?input=" + java.net.URLEncoder.encode(input, "UTF-8")
+                    + "?input=" + java.net.URLEncoder.encode(input, "UTF-8").replace("%20", "+")
                     + "&key=" + apiKey
                     + "&language=he"
                     + "&components=country:il";
