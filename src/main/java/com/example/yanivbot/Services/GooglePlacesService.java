@@ -33,7 +33,10 @@ public class GooglePlacesService {
                     + "&components=country:il"
                     + "&types=address";
 
+            logger.info("Places API request for: {}", input);
             Map response = restTemplate.getForObject(url, Map.class);
+            logger.info("Places API response status: {}", response != null ? response.get("status") : "null");
+            
             List<Map> predictions = (List<Map>) response.get("predictions");
 
             List<PlaceSuggestion> suggestions = new ArrayList<>();
