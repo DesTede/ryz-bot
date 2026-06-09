@@ -34,9 +34,7 @@ public class GooglePlacesService {
 
             logger.info("Places API request for: {}", input);
             Map response = restTemplate.getForObject(url, Map.class);
-            logger.info("Places API response: status={}, error_message={}",
-                    response != null ? response.get("status") : "null",
-                    response != null ? response.get("error_message") : "null");
+            logger.info("Places API full response: {}", response);
             
             List<Map> predictions = (List<Map>) response.get("predictions");
 
