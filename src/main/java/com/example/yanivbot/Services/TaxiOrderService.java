@@ -46,8 +46,18 @@ public class TaxiOrderService {
     }
 
     public void createTaxiOrder(String customerPhone, String pickUp, String destination, String notes, CarType carType) {
+
+        // Prevent duplicate orders
+        List<TaxiOrder> existing = taxiOrderRepo.findByPhoneAndStatus(customerPhone, TaxiOrderStatus.CREATED);
+        existing.addAll(taxiOrderRepo.findByPhoneAndStatus(customerPhone, TaxiOrderStatus.ASSIGNED));
+        existing.addAll(taxiOrderRepo.findByPhoneAndStatus(customerPhone, TaxiOrderStatus.CONFIRMED));
+        if (!existing.isEmpty()) {
+            logger.warn("Duplicate order attempt by {} — already has active order", customerPhone);
+            whatsappService.sendSafeText(customerPhone, "⚠️ יש לך הזמנה פעילה כבר במערכת. אנא המתן לנהג שיאסוף אותך.");
+            return;
+        }
+        
         // Save customer
-//        customerService.saveOrUpdateCustomer(customerPhone, "לקוח");
         customerService.recordTaxiOrder(customerPhone);
         
         TaxiOrder taxiOrder = new TaxiOrder(customerPhone, pickUp, destination, notes);
