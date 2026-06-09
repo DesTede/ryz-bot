@@ -10,6 +10,7 @@ import com.example.yanivbot.Services.BusinessOwnerService;
 import com.example.yanivbot.Services.DriverService;
 import com.example.yanivbot.Services.CustomerService;
 import com.example.yanivbot.Services.WhatsappService;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -109,7 +110,7 @@ public class MessageRouter {
         if (isAdminCommand) {
             // Check if user is actually an admin BEFORE processing the command
             if (!adminCommandHandler.isAdmin(phone)) {
-                logger.warn("Non-admin {} tried to use admin command: {}", phone, txt);
+                logger.warn("Non-admin {} tried to use admin command: {}", PhoneNumberUtil.maskPhoneNumber(phone), txt);
                 whatsappService.sendSafeText(phone, "❌ רק מנהלים יכולים להשתמש בפקודה זו");
                 return null;
             }
@@ -144,7 +145,7 @@ public class MessageRouter {
         if (isMidFlow) {
             long idleMs = System.currentTimeMillis() - convo.getLastMessageTime();
             if (idleMs > ConversationService.CONVERSATION_TIMEOUT_MINUTES * 60 * 1000) {
-                logger.info("Conversation timed out for {} (idle {}min, state {})", phone, idleMs / 60000, state);
+                logger.info("Conversation timed out for {} (idle {}min, state {})", PhoneNumberUtil.maskPhoneNumber(phone), idleMs / 60000, state);
                 convoService.updateState(convo, ConversationState.START);
                 convoService.saveTempData(convo, "");
                 convo.setNudgedAt(0);
@@ -171,7 +172,7 @@ public class MessageRouter {
 
             // Check if user is a driver (active or not)
             Driver driver = driverService.findByPhone(phone);
-            logger.info("Driver lookup for {}: {}", phone, (driver != null ? "FOUND" : "NOT FOUND"));
+            logger.info("Driver lookup for {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), (driver != null ? "FOUND" : "NOT FOUND"));
             if (driver != null) {
                 logger.info("User is a DRIVER (active={}, showing driver menu)", driver.isActive());
 
@@ -368,7 +369,7 @@ public class MessageRouter {
         String message = "מה בא לך " + displayName + "?";
 
         try {
-            logger.info("Sending service menu to {}: {}", phone, message);
+            logger.info("Sending service menu to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), message);
             whatsappService.sendInteractiveButtonsSafe(
                     phone,
                     message,

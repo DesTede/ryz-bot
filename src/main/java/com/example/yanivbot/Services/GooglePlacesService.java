@@ -26,19 +26,30 @@ public class GooglePlacesService {
      */
     public List<PlaceSuggestion> getSuggestions(String input) {
         try {
+            // 1. Define the URL template with clean placeholders {variable}
             String url = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
-                    + "?input=" + java.net.URLEncoder.encode(input, "UTF-8").replace("%20", "+")
-                    + "&key=" + apiKey
-                    + "&language=he"
-                    + "&components=country:il";
+                    + "?input={input}"
+                    + "&key={key}"
+                    + "&language={language}"
+                    + "&components={components}";
+
+            // 2. Put the raw, UNENCODED values into a map
+            Map<String, String> params = Map.of(
+                    "input", input,            // Pass the raw string "הרצל 1 רחובות" directly
+                    "key", apiKey,
+                    "language", "he",
+                    "components", "country:il"
+            );
 
             logger.info("Places API request for: {}", input);
-            Map response = restTemplate.getForObject(url, Map.class);
-            logger.info("Places API full response: {}", response);
-            
-            List<Map> predictions = (List<Map>) response.get("predictions");
 
+            // 3. Pass the template URL and the parameter map together
+            Map response = restTemplate.getForObject(url, Map.class, params);
+            logger.info("Places API full response: {}", response);
+
+            List<Map> predictions = (List<Map>) response.get("predictions");
             List<PlaceSuggestion> suggestions = new ArrayList<>();
+
             if (predictions != null) {
                 for (int i = 0; i < Math.min(4, predictions.size()); i++) {
                     Map prediction = predictions.get(i);
@@ -49,7 +60,7 @@ public class GooglePlacesService {
             }
             return suggestions;
         } catch (Exception e) {
-            logger.error("Google Places API error: {}", e.getMessage());
+            logger.error("Google Places API error: {}", e.getMessage(), e);
             return new ArrayList<>();
         }
     }
