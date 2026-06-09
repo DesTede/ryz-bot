@@ -36,16 +36,14 @@ public class DriverService {
     private final TaxiOrderRepository taxiOrderRepo;
     private final DeliveryOrderRepository deliveryOrderRepo;
     private final WhatsappService whatsappService;
-    private final GoogleSheetsService googleSheetsService;
     private final ConversationService convoService;
 
     public DriverService(DriverRepository driverRepo, TaxiOrderRepository taxiOrderRepo, DeliveryOrderRepository deliveryOrderRepo,
-                         WhatsappService whatsappService, GoogleSheetsService googleSheetsService, ConversationService convoService) {
+                         WhatsappService whatsappService, ConversationService convoService) {
         this.driverRepo = driverRepo;
         this.taxiOrderRepo = taxiOrderRepo;
         this.deliveryOrderRepo = deliveryOrderRepo;
         this.whatsappService = whatsappService;
-        this.googleSheetsService = googleSheetsService;
         this.convoService = convoService;
     }
 
@@ -469,15 +467,6 @@ public class DriverService {
 //        taxiOrderRepo.save(order);
 //    }
 
-   
-
-    /**
-     * Sync drivers from Google Sheets (called by GoogleSheetsService)
-     */
-    public void syncDriversFromSheets(List<Driver> drivers) {
-        logger.info("Syncing {} drivers from Google Sheets", drivers.size());
-        driverRepo.saveAll(drivers);
-    }
 
     /**
      * Calculate distance between two coordinates using Haversine formula

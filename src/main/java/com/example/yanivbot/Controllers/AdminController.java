@@ -32,7 +32,7 @@ public class AdminController {
     private static final int TAXI_STUCK_MINUTES = 5;
     private static final int DELIVERY_STUCK_MINUTES = 10;
 
-    private final GoogleSheetsService googleSheetsService;
+    
     private final DriverService driverService;
     private final BotConfigService botConfigService;
     private final TaxiOrderRepository taxiOrderRepo;
@@ -41,15 +41,13 @@ public class AdminController {
     private final CustomerRepository customerRepo;
     private final BusinessRepository businessRepo;
 
-    public AdminController(GoogleSheetsService googleSheetsService,
-                           DriverService driverService,
+    public AdminController(DriverService driverService,
                            BotConfigService botConfigService,
                            TaxiOrderRepository taxiOrderRepo,
                            DeliveryOrderRepository deliveryOrderRepo,
                            DriverRepository driverRepo,
                            CustomerRepository customerRepo,
                            BusinessRepository businessRepo) {
-        this.googleSheetsService = googleSheetsService;
         this.driverService = driverService;
         this.botConfigService = botConfigService;
         this.taxiOrderRepo = taxiOrderRepo;
@@ -81,53 +79,6 @@ public class AdminController {
         } catch (Exception e) {
             logger.error("Error fetching drivers: {}", e.getMessage(), e);
             return ResponseEntity.status(500).build();
-        }
-    }
-
-    @PostMapping("/sync-sheets")
-    public ResponseEntity<String> syncSheetsManually(
-            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
-        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        try {
-            logger.info("=== MANUAL GOOGLE SHEETS SYNC INITIATED ===");
-            logger.info("Syncing drivers from Google Sheets (נהגים)...");
-            googleSheetsService.syncDriversFromSheets();
-            logger.info("✅ Drivers synced successfully");
-            logger.info("Syncing businesses from Google Sheets (עסקים)...");
-            googleSheetsService.syncBusinessesFromSheets();
-            logger.info("✅ Businesses synced successfully");
-            logger.info("=== MANUAL SYNC COMPLETED SUCCESSFULLY ===");
-            return ResponseEntity.ok("✅ Google Sheets synced successfully!\n- Drivers (נהגים) updated\n- Businesses (עסקים) updated\n- Ready to dispatch");
-        } catch (Exception e) {
-            logger.error("Manual sync failed: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body("❌ Sync failed: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/sync-status")
-    public ResponseEntity<String> getSyncStatus(
-            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
-        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        try {
-            return ResponseEntity.ok("✅ Admin panel is operational\nManual sync available at POST /admin/sync-sheets\nSyncs: נהגים (drivers) + עסקים (businesses)");
-        } catch (Exception e) {
-            logger.error("Error getting sync status: {}", e.getMessage());
-            return ResponseEntity.status(500).body("❌ Error: " + e.getMessage());
-        }
-    }
-
-    @PostMapping("/sync-drivers")
-    public ResponseEntity<String> syncDrivers(
-            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
-        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        try {
-            logger.info("Syncing drivers from Google Sheets");
-            googleSheetsService.syncDriversFromSheets();
-            logger.info("Driver sync completed successfully");
-            return ResponseEntity.ok("✅ Driver sync initiated");
-        } catch (Exception e) {
-            logger.error("Driver sync failed: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body("❌ Sync failed: " + e.getMessage());
         }
     }
 
@@ -415,21 +366,6 @@ public class AdminController {
         }).orElse(ResponseEntity.notFound().build());
     }
     
-    @PostMapping("/sync-businesses")
-    public ResponseEntity<String> syncBusinesses(
-            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
-        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        try {
-            logger.info("Syncing businesses from Google Sheets");
-            googleSheetsService.syncBusinessesFromSheets();
-            logger.info("Business sync completed successfully");
-            return ResponseEntity.ok("✅ Business sync initiated");
-        } catch (Exception e) {
-            logger.error("Business sync failed: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body("❌ Sync failed: " + e.getMessage());
-        }
-    }
-
     // =========================================================
     // STATS
     // =========================================================
