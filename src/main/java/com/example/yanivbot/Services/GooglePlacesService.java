@@ -45,7 +45,6 @@ public class GooglePlacesService {
 
             // 3. Pass the template URL and the parameter map together
             Map response = restTemplate.getForObject(url, Map.class, params);
-            logger.info("Places API full response: {}", response);
 
             List<Map> predictions = (List<Map>) response.get("predictions");
             List<PlaceSuggestion> suggestions = new ArrayList<>();

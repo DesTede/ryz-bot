@@ -325,7 +325,9 @@ public class MessageRouter {
         // ===== TAXI STATES =====
         if (state == ConversationState.TAXI_CAR_TYPE ||
                 state == ConversationState.TAXI_PICKUP ||
+                state == ConversationState.AWAITING_PICKUP_SELECTION ||
                 state == ConversationState.TAXI_DESTINATION ||
+                state == ConversationState.AWAITING_DESTINATION_SELECTION ||
                 state == ConversationState.TAXI_NOTES ||
                 state == ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION) {
 
