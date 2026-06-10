@@ -1626,8 +1626,7 @@
           <td style="font-weight:600">${b.name||'—'}</td>
           <td style="font-family:var(--mono);font-size:12px">${formatPhone(b.phone)}</td>
           <td style="font-size:13px;color:var(--muted)">${b.address||'—'}</td>
-          <td>${b.active ? '<span class="badge badge-green">פעיל</span>' : '<span class="badge badge-muted">לא פעיל</span>'}</td>
-          <td>
+          <td><span class="badge ${b.active ? 'badge-green' : 'badge-muted'}" style="cursor:pointer" onclick="toggleBusinessActive('${b.phone}', this)">${b.active ? 'פעיל' : 'לא פעיל'}</span></td>          <td>
             <button class="action-btn" onclick="openEditBusiness('${b.phone}','${b.name||''}','${b.address||''}')">עריכה</button>
             <button class="action-btn danger" onclick="deleteBusiness('${b.phone}','${b.name||b.phone}')">מחק</button>
           </td>
@@ -1636,6 +1635,17 @@
     }
 
     async function deleteBusiness(phone, name) {
+        async function toggleBusinessActive(phone, el) {
+            try {
+                const res = await api(`/admin/businesses/${phone}/toggle-active`, 'POST');
+                const isActive = res.active;
+                el.textContent = isActive ? 'פעיל' : 'לא פעיל';
+                el.className = `badge ${isActive ? 'badge-green' : 'badge-muted'}`;
+                toast(isActive ? '✅ עסק הופעל' : '⏸️ עסק הושבת', 'success');
+            } catch(e) {
+                toast('❌ שגיאה בעדכון סטטוס', 'error');
+            }
+        }
         if (!confirm(`למחוק את העסק ${name}? פעולה זו אינה הפיכה.`)) return;
         try {
             await api(`/admin/businesses/${phone}`, 'DELETE');

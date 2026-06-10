@@ -412,6 +412,23 @@ public class AdminController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    @PostMapping("/businesses/{phone}/toggle-active")
+    public ResponseEntity<Map<String, Object>> toggleBusinessActive(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @PathVariable String phone) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return businessRepo.findByPhone(phone).map(business -> {
+            boolean newState = !Boolean.TRUE.equals(business.getActive());
+            business.setActive(newState);
+            businessRepo.save(business);
+            logger.info("Admin toggled business {} active={}", phone, newState);
+            Map<String, Object> result = new HashMap<>();
+            result.put("phone", phone);
+            result.put("active", newState);
+            return ResponseEntity.ok(result);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+    
     @DeleteMapping("/businesses/{phone}")
     public ResponseEntity<String> deleteBusiness(
             @RequestHeader(value = "X-Admin-Key", required = false) String key,
