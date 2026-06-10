@@ -1703,7 +1703,7 @@
 
     function openEditBusiness(phone, name, address) {
         editBusinessPhone = phone;
-        document.getElementById('edit-business-phone').value = phone;
+        document.getElementById('edit-business-phone').value = formatPhone(phone);
         document.getElementById('edit-business-name').value = name;
         document.getElementById('edit-business-address').value = address;
         document.getElementById('edit-business-modal').classList.add('open');
