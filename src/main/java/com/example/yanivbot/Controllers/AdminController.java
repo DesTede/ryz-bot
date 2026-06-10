@@ -303,7 +303,13 @@ public class AdminController {
             }
             if (body.containsKey("carColor")) driver.setCarColor(body.get("carColor"));
             if (body.containsKey("carModel")) driver.setCarModel(body.get("carModel"));
-            driverRepo.save(driver);
+            if (body.containsKey("phone") && !body.get("phone").isBlank()) {
+                String newPhone = PhoneNumberUtil.normalizePhone(body.get("phone"));
+                if (!newPhone.equals(phone) && driverRepo.findByPhone(newPhone).isPresent()) {
+                    return ResponseEntity.badRequest().body("❌ מספר טלפון זה כבר קיים במערכת");
+                }
+                driver.setPhone(newPhone);
+            }            driverRepo.save(driver);
             logger.info("Admin edited driver: {}", phone);
             return ResponseEntity.ok("✅ פרטי הנהג עודכנו בהצלחה");
         }).orElse(ResponseEntity.notFound().build());
