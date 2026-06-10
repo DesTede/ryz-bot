@@ -949,6 +949,8 @@
         <h3>✏️ עריכת נהג</h3>
         <div class="modal-label">שם</div>
         <input class="modal-input" id="edit-driver-name" placeholder="שם הנהג"/>
+        <div class="modal-label">טלפון</div>
+        <input class="modal-input" id="edit-driver-phone" placeholder="05XXXXXXXX" type="tel"/>
         <div class="modal-label">סוג נהג</div>
         <select class="modal-input" id="edit-driver-type">
             <option value="TAXI">מונית</option>
@@ -1212,6 +1214,10 @@
         if (!phone) return '—';
         if (phone.startsWith('972') && phone.length === 12) return '0' + phone.substring(3);
         return phone;
+    }
+
+    function isValidPhone(phone) {
+        return /^(05\d{8}|972\d{9})$/.test(phone.replace(/\s/g, ''));
     }
 
     function formatPhone972(phone) {
@@ -1663,6 +1669,7 @@
     function openEditDriver(phone, name, type, carType, carModel, carColor) {
         editDriverPhone = phone;
         document.getElementById('edit-driver-name').value = name;
+        document.getElementById('edit-driver-phone').value = formatPhone(phone);
         document.getElementById('edit-driver-type').value = type;
         document.getElementById('edit-driver-cartype').value = carType;
         document.getElementById('edit-driver-carmodel').value = carModel;
@@ -1679,10 +1686,15 @@
         if (!editDriverPhone) return;
         const body = {};
         const name = document.getElementById('edit-driver-name').value.trim();
+        const phone = document.getElementById('edit-driver-phone').value.trim();
         const type = document.getElementById('edit-driver-type').value.trim();
         const carType = document.getElementById('edit-driver-cartype').value.trim();
         const carModel = document.getElementById('edit-driver-carmodel').value.trim();
         const carColor = document.getElementById('edit-driver-carcolor').value.trim();
+        if (phone) {
+            if (!isValidPhone(phone)) { toast('❌ מספר טלפון לא תקין. יש להזין מספר בפורמט 05XXXXXXXX', 'error'); return; }
+            body.phone = phone;
+        }
         if (name) body.name = name;
         if (type) body.type = type;
         if (carType) body.carType = carType;
@@ -1720,7 +1732,10 @@
         const phone = document.getElementById('edit-business-phone').value.trim();
         const name = document.getElementById('edit-business-name').value.trim();
         const address = document.getElementById('edit-business-address').value.trim();
-        if (phone) body.phone = phone;
+        if (phone) {
+            if (!isValidPhone(phone)) { toast('❌ מספר טלפון לא תקין. יש להזין מספר בפורמט 05XXXXXXXX', 'error'); return; }
+            body.phone = phone;
+        }
         if (name) body.name = name;
         body.address = address;
         try {
@@ -1783,28 +1798,6 @@
         loadOverview();
     }
 
-    // function changeFavicon(event) {
-    //     const file = event.target.files[0];
-    //     if (!file) return;
-    //     const url = URL.createObjectURL(file);
-    //     document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(el => el.href = url);
-    //     const preview = document.getElementById('favicon-preview');
-    //     if (preview) { preview.src = url; preview.style.display = 'block'; }
-    //     toast('✅ Favicon עודכן (בלשונית הנוכחית בלבד)', 'success');
-    // }
-
-    // function changeLogo(event) {
-    //     const file = event.target.files[0];
-    //     if (!file) return;
-    //     const url = URL.createObjectURL(file);
-    //     document.getElementById('sidebar-logo-img').src = url;
-    //     const loginLogo = document.getElementById('login-logo-img');
-    //     if (loginLogo) loginLogo.src = url;
-    //     const preview = document.getElementById('logo-preview');
-    //     if (preview) { preview.src = url; preview.style.display = 'block'; }
-    //     toast('✅ לוגו עודכן (בלשונית הנוכחית בלבד)', 'success');
-    // }
-
     function openModal(id) {
         document.getElementById(id).classList.add('open');
     }
@@ -1817,6 +1810,8 @@
         const carColor = document.getElementById('add-driver-carcolor').value.trim();
         const carModel = document.getElementById('add-driver-carmodel').value.trim();
         if (!name || !phone) { toast('שם וטלפון הם שדות חובה', 'error'); return; }
+        if (!isValidPhone(phone)) { toast('❌ מספר טלפון לא תקין. יש להזין מספר בפורמט 05XXXXXXXX', 'error'); return; }
+
         try {
             const result = await api('/admin/drivers/add', 'POST', { name, phone, type, carType, carColor, carModel });
             toast(result, 'success');
@@ -1832,6 +1827,8 @@
         const phone   = document.getElementById('add-business-phone').value.trim();
         const address = document.getElementById('add-business-address').value.trim();
         if (!name || !phone) { toast('שם וטלפון הם שדות חובה', 'error'); return; }
+        if (!isValidPhone(phone)) { toast('❌ מספר טלפון לא תקין. יש להזין מספר בפורמט 05XXXXXXXX', 'error'); return; }
+
         try {
             const result = await api('/admin/businesses/add', 'POST', { name, phone, address });
             toast(result, 'success');
