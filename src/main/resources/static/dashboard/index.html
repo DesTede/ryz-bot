@@ -1634,18 +1634,19 @@
         } catch(e) { tb.innerHTML = `<tr><td colspan="5" class="empty">שגיאה</td></tr>`; }
     }
 
-    async function deleteBusiness(phone, name) {
-        async function toggleBusinessActive(phone, el) {
-            try {
-                const res = await api(`/admin/businesses/${phone}/toggle-active`, 'POST');
-                const isActive = res.active;
-                el.textContent = isActive ? 'פעיל' : 'לא פעיל';
-                el.className = `badge ${isActive ? 'badge-green' : 'badge-muted'}`;
-                toast(isActive ? '✅ עסק הופעל' : '⏸️ עסק הושבת', 'success');
-            } catch(e) {
-                toast('❌ שגיאה בעדכון סטטוס', 'error');
-            }
+    async function toggleBusinessActive(phone, el) {
+        try {
+            const res = await api(`/admin/businesses/${phone}/toggle-active`, 'POST');
+            const isActive = res.active;
+            el.textContent = isActive ? 'פעיל' : 'לא פעיל';
+            el.className = `badge ${isActive ? 'badge-green' : 'badge-muted'}`;
+            toast(isActive ? '✅ עסק הופעל' : '⏸️ עסק הושבת', 'success');
+        } catch(e) {
+            toast('❌ שגיאה בעדכון סטטוס', 'error');
         }
+    }
+    
+    async function deleteBusiness(phone, name) {
         if (!confirm(`למחוק את העסק ${name}? פעולה זו אינה הפיכה.`)) return;
         try {
             await api(`/admin/businesses/${phone}`, 'DELETE');
