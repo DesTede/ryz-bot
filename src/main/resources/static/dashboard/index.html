@@ -1595,7 +1595,7 @@
         const tb = document.getElementById('customers-tbody');
         tb.innerHTML = customers.length ? customers.map(c => `<tr>
     <td>${c.name||'—'}</td>
-    <td style="font-family:var(--mono);font-size:12px">${c.phone}</td>
+    <td style="font-family:var(--mono);font-size:12px">${formatPhone(c.phone)}</td>
     <td style="text-align:center;font-weight:700">${c.totalOrders||0}</td>
     <td style="text-align:center">${c.totalTaxiOrders||0}</td>
     <td style="text-align:center">${c.totalDeliveryOrders||0}</td>
@@ -1609,7 +1609,7 @@
         const q = document.getElementById('cust-search').value.trim().toLowerCase();
         if (!q) { renderCustomers(allCustomers); return; }
         const results = allCustomers.filter(c =>
-            (c.name||'').toLowerCase().includes(q) || (c.phone||'').includes(q)
+            (c.name||'').toLowerCase().includes(q) || (formatPhone(c.phone)||'').includes(q)
         );
         renderCustomers(results);
     }
