@@ -107,14 +107,8 @@ public class TaxiConversationHandler implements ConversationHandler {
         List<GooglePlacesService.PlaceSuggestion> suggestions = placesService.getSuggestions(input);
 
         if (suggestions.isEmpty()) {
-            String orderData = carType + "|" + input;
-            convoService.saveTempData(convo, orderData);
-            convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
-            return """
-                    📍 נקודת האיסוף נקלטה ✅
-                    שלחו יעד נסיעה 👇
-                    (לא לשכוח עיר)""";
-        }
+                return "🔍 לא נמצאה כתובת תואמת, נסו לכתוב בצורה אחרת (לא לשכוח עיר)";
+            }
 
         List<WhatsappService.InteractiveButton> buttons = new ArrayList<>();
         StringBuilder tempData = new StringBuilder(carType + "|PICKUP_PENDING");
@@ -165,15 +159,10 @@ public class TaxiConversationHandler implements ConversationHandler {
         List<GooglePlacesService.PlaceSuggestion> suggestions = placesService.getSuggestions(input);
 
         if (suggestions.isEmpty()) {
-            convoService.saveTempData(convo, carType + "|" + pickupLocation + "|" + input);
-            convoService.updateState(convo, ConversationState.TAXI_NOTES);
-            return """
-                    💬 רוצים להוסיף משהו לנהג?
-                    כתבו את ההערה כאן 👇
-                    אם אין הערות, השיבו 'אין'""";
+            return "🔍 לא נמצאה כתובת תואמת, נסו לכתוב בצורה אחרת (לא לשכוח עיר)";
         }
 
-        List<WhatsappService.InteractiveButton> buttons = new ArrayList<>();
+            List<WhatsappService.InteractiveButton> buttons = new ArrayList<>();
         StringBuilder tempData = new StringBuilder(carType + "|" + pickupLocation + "|DEST_PENDING");
         for (int i = 0; i < Math.min(2, suggestions.size()); i++) {
             String shortDesc = suggestions.get(i).description.length() > 20
