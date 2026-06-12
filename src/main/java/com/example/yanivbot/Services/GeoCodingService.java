@@ -40,5 +40,34 @@ public class GeoCodingService {
             return null;
         }
     }
+
+    public Double getDistanceKm(String origin, String destination) {
+        try {
+            String encodedOrigin = URLEncoder.encode(origin, StandardCharsets.UTF_8);
+            String encodedDest = URLEncoder.encode(destination, StandardCharsets.UTF_8);
+            String url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins="
+                    + encodedOrigin + "&destinations=" + encodedDest
+                    + "&mode=driving&key=" + apiKey;
+
+            Map response = restTemplate.getForObject(url, Map.class);
+
+            List rows = (List) response.get("rows");
+            if (rows == null || rows.isEmpty()) return null;
+
+            List elements = (List) ((Map) rows.get(0)).get("elements");
+            if (elements == null || elements.isEmpty()) return null;
+
+            Map element = (Map) elements.get(0);
+            if (!"OK".equals(element.get("status"))) return null;
+
+            Map distanceMap = (Map) element.get("distance");
+            double meters = ((Number) distanceMap.get("value")).doubleValue();
+            return meters / 1000.0;
+
+        } catch (Exception e) {
+            System.err.println("Distance Matrix failed: " + origin + " → " + destination + " — " + e.getMessage());
+            return null;
+        }
+    }
 }
 

@@ -904,6 +904,29 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="section-title" style="margin-top:20px">💰 תעריפי מונית</div>
+                <div class="table-wrap" style="padding:24px">
+                    <div style="display:flex;flex-direction:column;gap:16px">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                            <div>
+                                <div style="font-size:15px;font-weight:700">מחיר בסיס</div>
+                                <div style="font-size:12px;color:var(--muted);margin-top:4px">עלות קבועה לכל נסיעה (₪)</div>
+                            </div>
+                            <input class="modal-input" id="pricing-base" type="number" min="0" step="0.5" style="width:100px;text-align:center" placeholder="₪"/>
+                        </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                            <div>
+                                <div style="font-size:15px;font-weight:700">מחיר לק"מ</div>
+                                <div style="font-size:12px;color:var(--muted);margin-top:4px">עלות לכל קילומטר (₪)</div>
+                            </div>
+                            <input class="modal-input" id="pricing-per-km" type="number" min="0" step="0.5" style="width:100px;text-align:center" placeholder="₪"/>
+                        </div>
+                        <button class="btn-primary" onclick="savePricing()" style="align-self:flex-end">שמור תעריפים</button>
+                    </div>
+                </div>
+
+                <!--                <div class="section-title" style="margin-top:20px">🏷️ לוגו</div>-->
 <!--                <div class="section-title" style="margin-top:20px">🏷️ לוגו</div>-->
 <!--                <div class="table-wrap" style="padding:24px">-->
 <!--                    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">-->
@@ -940,6 +963,8 @@
             </div>
         </div>
     </div>
+    
+    
 
 </main>
 
@@ -1252,6 +1277,27 @@
         } catch(e) { toast('שגיאה: ' + e.message, 'error'); }
     }
 
+    async function loadPricing() {
+        try {
+            const data = await api('/admin/pricing');
+            document.getElementById('pricing-base').value = data.basePrice;
+            document.getElementById('pricing-per-km').value = data.pricePerKm;
+        } catch(e) { console.error('pricing load:', e); }
+    }
+    loadSettings()
+    async function savePricing() {
+        const basePrice = parseFloat(document.getElementById('pricing-base').value);
+        const pricePerKm = parseFloat(document.getElementById('pricing-per-km').value);
+        if (isNaN(basePrice) || isNaN(pricePerKm) || basePrice < 0 || pricePerKm < 0) {
+            toast('❌ אנא הכנס ערכים תקינים', 'error');
+            return;
+        }
+        try {
+            await api('/admin/pricing', 'POST', { basePrice, pricePerKm });
+            toast('✅ תעריפים עודכנו בהצלחה', 'success');
+        } catch(e) { toast('שגיאה: ' + e.message, 'error'); }
+    }
+    
     // ══════════════════════════════════════════════════════════════
     // OVERVIEW
     // ══════════════════════════════════════════════════════════════
@@ -1751,8 +1797,7 @@
     // ══════════════════════════════════════════════════════════════
     // SETTINGS
     // ══════════════════════════════════════════════════════════════
-    function loadSettings() { loadBotStatus(); }
-
+    function loadSettings() { loadBotStatus(); loadPricing(); }
     async function syncSheets() {
         toast('מסנכרן...', 'success');
         try {

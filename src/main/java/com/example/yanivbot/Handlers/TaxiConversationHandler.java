@@ -4,10 +4,7 @@ import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
-import com.example.yanivbot.Services.ConversationService;
-import com.example.yanivbot.Services.GooglePlacesService;
-import com.example.yanivbot.Services.TaxiOrderService;
-import com.example.yanivbot.Services.WhatsappService;
+import com.example.yanivbot.Services.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -27,12 +24,16 @@ public class TaxiConversationHandler implements ConversationHandler {
     private final ConversationService convoService;
     private final WhatsappService whatsappService;
     private final GooglePlacesService placesService;
+    private final GeoCodingService geoCodingService;
+    private final BotConfigService botConfigService;
 
-    public TaxiConversationHandler(TaxiOrderService taxiOrderService, ConversationService convoService, WhatsappService whatsappService, GooglePlacesService googlePlacesService) {
+    public TaxiConversationHandler(TaxiOrderService taxiOrderService, ConversationService convoService, WhatsappService whatsappService, GooglePlacesService googlePlacesService, GeoCodingService geoCodingService, BotConfigService botConfigService) {
         this.taxiOrderService = taxiOrderService;
         this.convoService = convoService;
         this.whatsappService = whatsappService;
         this.placesService = googlePlacesService;
+        this.geoCodingService = geoCodingService;
+        this.botConfigService = botConfigService;
     }
 
     @Override
@@ -216,18 +217,35 @@ public class TaxiConversationHandler implements ConversationHandler {
         String pickupLocation = parts[1];
         String destination = parts[2];
 
-        convoService.saveTempData(convo, orderData + "|" + notes);
+        // Calculate fare
+        Double estimatedFare = null;
+        try {
+            Double distanceKm = geoCodingService.getDistanceKm(pickupLocation, destination);
+            if (distanceKm != null) {
+                double basePrice = botConfigService.getTaxiBasePrice();
+                double pricePerKm = botConfigService.getTaxiPricePerKm();
+                estimatedFare = basePrice + (distanceKm * pricePerKm);
+                logger.info("Fare calculated: ₪{} ({} km)", String.format("%.0f", estimatedFare), String.format("%.1f", distanceKm));
+            } else {
+                logger.warn("Distance Matrix returned null for pickup='{}' dest='{}'", pickupLocation, destination);
+            }
+        } catch (Exception e) {
+            logger.error("Fare calculation failed: {}", e.getMessage(), e);
+        }
+
+        // Store notes + fare in tempData (fare as last segment, empty string if null)
+        String fareStr = estimatedFare != null ? String.format("%.2f", estimatedFare) : "";
+        convoService.saveTempData(convo, orderData + "|" + notes + "|" + fareStr);
         convoService.updateState(convo, ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION);
 
         try {
             logger.info("Showing confirmation buttons for customer {}", message.getPhone());
-            showConfirmationButtons(message.getPhone(), carType, pickupLocation, destination, notes);
+            showConfirmationButtons(message.getPhone(), carType, pickupLocation, destination, notes, estimatedFare);
             logger.info("Confirmation buttons sent successfully");
-            return null; // Return null - we already sent the message via WhatsApp
+            return null;
         } catch (Exception e) {
             logger.error("Error sending confirmation buttons: {}", e.getMessage(), e);
-            // If buttons fail, send as text
-            return buildConfirmationText(carType, pickupLocation, destination, notes);
+            return buildConfirmationText(carType, pickupLocation, destination, notes, estimatedFare);
         }
     }
 
@@ -251,15 +269,16 @@ public class TaxiConversationHandler implements ConversationHandler {
         }
 
         String orderData = convo.getTempData();
-        String[] parts = orderData.split("\\|");
+        String[] parts = orderData.split("\\|", -1);
         String carType = parts[0];
         String pickupLocation = parts[1];
         String destination = parts[2];
         String notes = parts.length > 3 ? parts[3] : "";
-
+        Double estimatedFare = (parts.length > 4 && !parts[4].isEmpty()) ? Double.parseDouble(parts[4]) : null;
+        
         try {
             logger.info("Creating taxi order for customer {}", message.getPhone());
-            taxiOrderService.createTaxiOrder(message.getPhone(), pickupLocation, destination, notes, CarType.valueOf(carType));
+            taxiOrderService.createTaxiOrder(message.getPhone(), pickupLocation, destination, notes, CarType.valueOf(carType), estimatedFare);
             convoService.updateState(convo, ConversationState.START);
             logger.info("Taxi order created successfully");
             convoService.saveTempData(convo,"");
@@ -279,8 +298,8 @@ public class TaxiConversationHandler implements ConversationHandler {
     /**
      * Send confirmation buttons with order summary
      */
-    private void showConfirmationButtons(String phone, String carType, String pickupLocation, String destination, String notes) {
-        String bodyText = buildConfirmationText(carType, pickupLocation, destination, notes);
+    private void showConfirmationButtons(String phone, String carType, String pickupLocation, String destination, String notes, Double estimatedFare) {
+        String bodyText = buildConfirmationText(carType, pickupLocation, destination, notes, estimatedFare);
 
         logger.info("Sending confirmation buttons to {}", phone);
 
@@ -296,12 +315,16 @@ public class TaxiConversationHandler implements ConversationHandler {
     /**
      * Build confirmation summary text
      */
-    private String buildConfirmationText(String carType, String pickupLocation, String destination, String notes) {
+    private String buildConfirmationText(String carType, String pickupLocation, String destination, String notes, Double estimatedFare) {
+        String fareText = (estimatedFare != null)
+                ? String.format("₪%.0f", estimatedFare)
+                : "מחיר לא זמין כרגע";
         return "🚀 הנה סיכום הנסיעה שלכם:\n" +
                 "🚘 רכב: " + CarType.valueOf(carType).getHebrewName() + "\n" +
                 "📍 איסוף: " + pickupLocation + "\n" +
                 "🎯 יעד: " + destination + "\n" +
-                "📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n\n" +
+                "📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n" +
+                "💰 מחיר: " + fareText + "\n\n" +
                 "אם הכל נראה טוב — בחרו כן ✅";
     }
 }

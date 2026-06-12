@@ -501,6 +501,36 @@ public class AdminController {
     }
 
     // =========================================================
+    // PRICING
+    // =========================================================
+
+    @GetMapping("/pricing")
+    public ResponseEntity<Map<String, Object>> getPricing(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        Map<String, Object> result = new HashMap<>();
+        result.put("basePrice", botConfigService.getTaxiBasePrice());
+        result.put("pricePerKm", botConfigService.getTaxiPricePerKm());
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/pricing")
+    public ResponseEntity<String> updatePricing(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @RequestBody Map<String, Double> body) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        if (body.containsKey("basePrice")) {
+            botConfigService.setTaxiBasePrice(body.get("basePrice"));
+            logger.info("Admin updated taxi base price to {}", body.get("basePrice"));
+        }
+        if (body.containsKey("pricePerKm")) {
+            botConfigService.setTaxiPricePerKm(body.get("pricePerKm"));
+            logger.info("Admin updated taxi price per km to {}", body.get("pricePerKm"));
+        }
+        return ResponseEntity.ok("✅ תעריפים עודכנו בהצלחה");
+    }
+    
+    // =========================================================
     // AUTH
     // =========================================================
 

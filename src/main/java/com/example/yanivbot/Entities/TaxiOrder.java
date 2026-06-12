@@ -52,6 +52,9 @@ public class TaxiOrder {
     @Column(name = "tracking_token")
     private String trackingToken;
 
+    @Column(name = "estimated_fare")
+    private Double estimatedFare;
+
     // Constructors
     public TaxiOrder() {
         this.createdAt = LocalDateTime.now();
@@ -170,5 +173,13 @@ public class TaxiOrder {
 
     public void setTrackingToken(String trackingToken) {
         this.trackingToken = trackingToken;
+    }
+
+    public Double getEstimatedFare() {
+        return estimatedFare;
+    }
+
+    public void setEstimatedFare(Double estimatedFare) {
+        this.estimatedFare = estimatedFare;
     }
 }
