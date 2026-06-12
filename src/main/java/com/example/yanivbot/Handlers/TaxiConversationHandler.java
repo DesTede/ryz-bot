@@ -176,7 +176,7 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         List<WhatsappService.InteractiveButton> buttons = new ArrayList<>();
         StringBuilder tempData = new StringBuilder(carType + "|" + pickupLocation + "|DEST_PENDING");
-        for (int i = 0; i < suggestions.size(); i++) {
+        for (int i = 0; i < Math.min(2, suggestions.size()); i++) {
             String shortDesc = suggestions.get(i).description.length() > 20
                     ? suggestions.get(i).description.substring(0, 20)
                     : suggestions.get(i).description;
@@ -224,7 +224,7 @@ public class TaxiConversationHandler implements ConversationHandler {
         }
 
         String orderData = convo.getTempData();
-        String[] parts = orderData.split("\\|");
+        String[] parts = orderData.split("\\|", -1);
         String carType = parts[0];
         String pickupLocation = parts[1];
         String destination = parts[2];
