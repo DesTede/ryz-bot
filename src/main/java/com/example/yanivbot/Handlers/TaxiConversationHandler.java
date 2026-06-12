@@ -144,13 +144,12 @@ public class TaxiConversationHandler implements ConversationHandler {
             return "📍 הזן כתובת איסוף ידנית:";
         }
 
-        String pickupLocation;
-        if (txt.startsWith("pickup_")) {
-            int index = Integer.parseInt(txt.replace("pickup_", ""));
-            pickupLocation = parts[2 + index];
-        } else {
-            pickupLocation = txt;
+        if (!txt.startsWith("pickup_")) {
+            return "📍 אנא בחר כתובת מהרשימה, או לחץ על ✏️ הזן ידנית";
         }
+
+        int index = Integer.parseInt(txt.replace("pickup_", ""));
+        String pickupLocation = parts[2 + index];
 
         convoService.saveTempData(convo, carType + "|" + pickupLocation);
         convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
@@ -203,13 +202,12 @@ public class TaxiConversationHandler implements ConversationHandler {
             return "🎯 הזן יעד נסיעה ידנית:";
         }
 
-        String destination;
-        if (txt.startsWith("dest_")) {
-            int index = Integer.parseInt(txt.replace("dest_", ""));
-            destination = parts[3 + index];
-        } else {
-            destination = txt;
+        if (!txt.startsWith("dest_")) {
+            return "🎯 אנא בחר יעד מהרשימה, או לחץ על ✏️ הזן ידנית";
         }
+
+        int index = Integer.parseInt(txt.replace("dest_", ""));
+        String destination = parts[3 + index];
 
         convoService.saveTempData(convo, carType + "|" + pickupLocation + "|" + destination);
         convoService.updateState(convo, ConversationState.TAXI_NOTES);
