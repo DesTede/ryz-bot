@@ -1284,7 +1284,7 @@
             document.getElementById('pricing-per-km').value = data.pricePerKm;
         } catch(e) { console.error('pricing load:', e); }
     }
-    loadSettings()
+    
     async function savePricing() {
         const basePrice = parseFloat(document.getElementById('pricing-base').value);
         const pricePerKm = parseFloat(document.getElementById('pricing-per-km').value);
