@@ -104,7 +104,7 @@ public class TaxiConversationHandler implements ConversationHandler {
 
     private String handleTaxiPickup(Conversation convo, IncomingMessage message) {
         String input = message.getText().trim();
-        String carType = convo.getTempData();
+        String carType = convo.getTempData().split("\\|", -1)[0];
 
         List<GooglePlacesService.PlaceSuggestion> suggestions = placesService.getSuggestions(input);
 
