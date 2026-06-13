@@ -60,9 +60,9 @@ public class GeoCodingService {
 
             // 4. ביצוע הקריאה וקבלת התשובה
             Map<?, ?> response = restTemplate.getForObject(url, Map.class);
+            System.err.println("Full Distance Matrix response: " + response);
             if (response == null || !"OK".equals(response.get("status"))) {
                 System.err.println("Distance Matrix API response status: " + (response != null ? response.get("status") : "null"));
-                System.err.println("Full Distance Matrix response: " + response);
                 return null;
             }
 
