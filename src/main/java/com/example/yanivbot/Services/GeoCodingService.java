@@ -50,6 +50,7 @@ public class GeoCodingService {
                     + "&mode=driving&key=" + apiKey;
 
             Map response = restTemplate.getForObject(url, Map.class);
+            System.err.println("Distance Matrix top-level status: " + response.get("status"));
 
             List rows = (List) response.get("rows");
             if (rows == null || rows.isEmpty()) return null;
@@ -58,14 +59,19 @@ public class GeoCodingService {
             if (elements == null || elements.isEmpty()) return null;
 
             Map element = (Map) elements.get(0);
-            if (!"OK".equals(element.get("status"))) return null;
+            String elementStatus = (String) element.get("status");
+            if (!"OK".equals(elementStatus)) {
+                System.err.println("Distance Matrix element status: " + elementStatus + " for " + origin + " → " + destination);
+                return null;
+            }
 
             Map distanceMap = (Map) element.get("distance");
             double meters = ((Number) distanceMap.get("value")).doubleValue();
             return meters / 1000.0;
 
         } catch (Exception e) {
-            System.err.println("Distance Matrix failed: " + origin + " → " + destination + " — " + e.getMessage());
+            System.err.println("Distance Matrix exception: " + origin + " → " + destination + " — " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }
