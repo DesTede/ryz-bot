@@ -60,6 +60,7 @@ public class GeoCodingService {
 
             // 4. ביצוע הקריאה וקבלת התשובה
             System.out.println("DEBUG: Sending URL to Google: " + url);
+            System.out.println("DEBUG: Using API Key: " + apiKey);
             Map<?, ?> response = restTemplate.getForObject(url, Map.class);
             if (response == null || !"OK".equals(response.get("status"))) {
                 System.err.println("Distance Matrix API response status: " + (response != null ? response.get("status") : "null"));
@@ -85,6 +86,7 @@ public class GeoCodingService {
             Object valueObj = distanceMap.get("value");
             if (valueObj instanceof Number) {
                 double meters = ((Number) valueObj).doubleValue();
+                System.err.println("Distance raw value: " + valueObj + " type: " + valueObj.getClass().getName());
                 return meters / 1000.0; // המרה לקילומטרים
             }
 
