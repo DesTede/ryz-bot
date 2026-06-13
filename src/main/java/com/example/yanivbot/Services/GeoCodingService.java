@@ -55,6 +55,7 @@ public class GeoCodingService {
                 return null;
             }
 
+            
             List<?> rows = (List<?>) response.get("rows");
             if (rows == null || rows.isEmpty()) return null;
 

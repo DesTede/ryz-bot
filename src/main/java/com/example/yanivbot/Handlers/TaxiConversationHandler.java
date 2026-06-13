@@ -217,6 +217,7 @@ public class TaxiConversationHandler implements ConversationHandler {
         String pickupLocation = parts[1];
         String destination = parts[2];
 
+        
         // Calculate fare
         Double estimatedFare = null;
         try {
