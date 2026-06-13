@@ -50,10 +50,8 @@ public class GeoCodingService {
             }
 
             // 2. קידוד קריטי של הכתובות בעברית כדי למנוע תווים לא חוקיים ב-URL
-            String cleanOrigin = origin.trim().replace(", ישראל", "");
-            String cleanDest = destination.trim().replace(", ישראל", "");
-            String encodedOrigin = URLEncoder.encode(cleanOrigin, StandardCharsets.UTF_8.toString());
-            String encodedDest = URLEncoder.encode(cleanDest, StandardCharsets.UTF_8.toString());
+            String encodedOrigin = URLEncoder.encode(origin.trim(), StandardCharsets.UTF_8.toString());
+            String encodedDest = URLEncoder.encode(destination.trim(), StandardCharsets.UTF_8.toString());
 
             // 3. בניית ה-URL בצורה מאובטחת ומדויקת עבור גוגל
             String url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins="
