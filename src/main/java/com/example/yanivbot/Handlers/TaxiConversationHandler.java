@@ -5,6 +5,7 @@ import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.*;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -217,55 +218,61 @@ public class TaxiConversationHandler implements ConversationHandler {
         String pickupLocation = parts[1];
         String destination = parts[2];
 
-        
-        // Calculate fare
+        // הדפסת לוג כדי לוודא שהכתובות לא התהפכו או נשמרו בצורה שגויה
+        logger.info("Taxi Fare Calculation | Pickup: '{}' | Destination: '{}' | CarType: '{}'", pickupLocation, destination, carType);
+
         Double estimatedFare = null;
         try {
-            String cleanPickup = pickupLocation.replace(", ישראל", "").trim();
-            String cleanDestination = destination.replace(", ישראל", "").trim();
-            Double distanceKm = geoCodingService.getDistanceKm(cleanPickup, cleanDestination);
+            // שליחת הכתובות המקוריות ישירות ל-Service
+            Double distanceKm = geoCodingService.getDistanceKm(pickupLocation, destination);
 
-            if (distanceKm != null) {
-                double basePrice = botConfigService.getTaxiBasePrice();
-                if (basePrice <= 0) basePrice = 15.0;
+            // שליחת הגדרות המחיר
+            double basePrice = botConfigService.getTaxiBasePrice();
+            if (basePrice <= 0) basePrice = 15.0; // DEFAULT_TAXI_BASE_PRICE
 
-                double pricePerKm = botConfigService.getTaxiPricePerKm();
-                if (pricePerKm <= 0) pricePerKm = 4.5;
+            double pricePerKm = botConfigService.getTaxiPricePerKm();
+            if (pricePerKm <= 0) pricePerKm = 4.5; // DEFAULT_TAXI_PRICE_PER_KM
 
-                double carTypeModifier = 1.0;
-                switch (carType) {
-                    case "PRIVATE_CAR":
-                        carTypeModifier = 1.0;
-                        break;
-                    case "MOTORCYCLE":
-                        carTypeModifier = 0.8;
-                        break;
-                    case "MINIVAN":
-                        carTypeModifier = 1.4;
-                        break;
-                    default:
-                        logger.warn("Unknown car type '{}', defaulting modifier to 1.0", carType);
-                        carTypeModifier = 1.0;
-                        break;
-                }
+            double carTypeModifier = 1.0;
+            switch (carType) {
+                case "PRIVATE_CAR":
+                    carTypeModifier = 1.0;
+                    break;
+                case "MOTORCYCLE":
+                    carTypeModifier = 0.8;
+                    break;
+                case "MINIVAN":
+                    carTypeModifier = 1.4;
+                    break;
+                default:
+                    logger.warn("Unknown car type '{}', defaulting modifier to 1.0", carType);
+                    carTypeModifier = 1.0;
+                    break;
+            }
 
+            // בדיקה: אם המרחק תקין וגדול מ-0, נחשב לפי הנוסחה המלאה
+            if (distanceKm != null && distanceKm > 0) {
                 estimatedFare = (basePrice + (distanceKm * pricePerKm)) * carTypeModifier;
                 logger.info("Fare calculated successfully: ₪{} for {} km (Vehicle Type: {})",
                         String.format("%.2f", estimatedFare), String.format("%.1f", distanceKm), carType);
             } else {
-                logger.warn("Distance Matrix returned null for pickup='{}' dest='{}'", pickupLocation, destination);
+                // אם גוגל החזיר null או 0, נבצע חישוב לפי מרחק מינימלי מוגדר כברירת מחדל (למשל 3 ק"מ) כדי שלא יציג תמיד 15
+                logger.warn("Distance Matrix returned 0 or null (Distance: {}). Using fallback calculation.", distanceKm);
+                double fallbackDistance = 4.0; // מרחק ברירת מחדל קצר לפקקים/נסיעה עירונית ממוצעת
+                estimatedFare = (basePrice + (fallbackDistance * pricePerKm)) * carTypeModifier;
             }
         } catch (Exception e) {
             logger.error("Fare calculation failed: {}", e.getMessage(), e);
+            estimatedFare = 15.0; // מחיר גיבוי מוחלט למניעת קריסה
         }
 
-        // Store notes + fare in tempData (fare as last segment, empty string if null)
-        String fareStr = estimatedFare != null ? String.format("%.2f", estimatedFare) : "";
+        // שמירת הנתונים והמשך זרימת השיחה הרגילה שלך
+        String fareStr = String.format("%.2f", estimatedFare);
         convoService.saveTempData(convo, orderData + "|" + notes + "|" + fareStr);
         convoService.updateState(convo, ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION);
 
         try {
-            logger.info("Showing confirmation buttons for customer {}", message.getPhone());
+            logger.info("Showing confirmation buttons for customer {}", PhoneNumberUtil.maskPhoneNumber(message.getPhone()));
             showConfirmationButtons(message.getPhone(), carType, pickupLocation, destination, notes, estimatedFare);
             logger.info("Confirmation buttons sent successfully");
             return null;
