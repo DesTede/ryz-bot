@@ -60,7 +60,7 @@ public class GeoCodingService {
             // 3. בניית ה-URL בצורה מאובטחת ומדויקת עבור גוגל
             String url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins="
                     + encodedOrigin + "&destinations=" + encodedDest
-                    + "&mode=driving&language=he&region=il&key=" + apiKey;
+                    + "&mode=driving&language=he&region=il&bounds=29.4533796%2C34.2674994%7C33.3356537%2C35.8950234&key=" + apiKey;
 
             // 4. ביצוע הקריאה וקבלת התשובה
             System.err.println("Origin sent to Google: " + origin);
