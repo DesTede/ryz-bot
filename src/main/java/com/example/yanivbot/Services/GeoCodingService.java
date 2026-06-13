@@ -47,33 +47,42 @@ public class GeoCodingService {
             String encodedDest = URLEncoder.encode(destination, StandardCharsets.UTF_8);
             String url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins="
                     + encodedOrigin + "&destinations=" + encodedDest
-                    + "&mode=driving&key=" + apiKey;
+                    + "&mode=driving&language=he&region=il&key=" + apiKey;
 
-            Map response = restTemplate.getForObject(url, Map.class);
-            System.err.println("Distance Matrix top-level status: " + response.get("status"));
-
-            List rows = (List) response.get("rows");
-            if (rows == null || rows.isEmpty()) return null;
-
-            List elements = (List) ((Map) rows.get(0)).get("elements");
-            if (elements == null || elements.isEmpty()) return null;
-
-            Map element = (Map) elements.get(0);
-            String elementStatus = (String) element.get("status");
-            if (!"OK".equals(elementStatus)) {
-                System.err.println("Distance Matrix element status: " + elementStatus + " for " + origin + " → " + destination);
+            Map<?, ?> response = restTemplate.getForObject(url, Map.class);
+            if (response == null || !"OK".equals(response.get("status"))) {
+                System.err.println("Distance Matrix API response status: " + (response != null ? response.get("status") : "null"));
                 return null;
             }
 
-            Map distanceMap = (Map) element.get("distance");
-            double meters = ((Number) distanceMap.get("value")).doubleValue();
-            return meters / 1000.0;
+            List<?> rows = (List<?>) response.get("rows");
+            if (rows == null || rows.isEmpty()) return null;
+
+            List<?> elements = (List<?>) ((Map<?, ?>) rows.get(0)).get("elements");
+            if (elements == null || elements.isEmpty()) return null;
+
+            Map<?, ?> element = (Map<?, ?>) elements.get(0);
+            if (!"OK".equals(element.get("status"))) {
+                System.err.println("Element status is not OK: " + element.get("status"));
+                return null;
+            }
+
+            Map<?, ?> distanceMap = (Map<?, ?>) element.get("distance");
+            if (distanceMap == null) return null;
+
+            Object valueObj = distanceMap.get("value");
+            if (valueObj instanceof Number) {
+                double meters = ((Number) valueObj).doubleValue();
+                return meters / 1000.0;
+            }
+
+            return null;
 
         } catch (Exception e) {
-            System.err.println("Distance Matrix exception: " + origin + " → " + destination + " — " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Distance Matrix failed: " + origin + " → " + destination + " — " + e.getMessage());
             return null;
         }
     }
+
 }
 

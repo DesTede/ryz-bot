@@ -221,11 +221,31 @@ public class TaxiConversationHandler implements ConversationHandler {
         Double estimatedFare = null;
         try {
             Double distanceKm = geoCodingService.getDistanceKm(pickupLocation, destination);
+
             if (distanceKm != null) {
                 double basePrice = botConfigService.getTaxiBasePrice();
+                if (basePrice <= 0) basePrice = 15.0;
+
                 double pricePerKm = botConfigService.getTaxiPricePerKm();
-                estimatedFare = basePrice + (distanceKm * pricePerKm);
-                logger.info("Fare calculated: ₪{} ({} km)", String.format("%.0f", estimatedFare), String.format("%.1f", distanceKm));
+                if (pricePerKm <= 0) pricePerKm = 4.5;
+
+                double carTypeModifier = 1.0;
+                switch (carType) {
+                    case "MOTORCYCLE":
+                        carTypeModifier = 0.8;
+                        break;
+                    case "MINIVAN":
+                        carTypeModifier = 1.4;
+                        break;
+                    default:
+                        logger.warn("Unknown car type '{}', defaulting modifier to 1.0", carType);
+                        carTypeModifier = 1.0;
+                        break;
+                }
+
+                estimatedFare = (basePrice + (distanceKm * pricePerKm)) * carTypeModifier;
+                logger.info("Fare calculated successfully: ₪{} for {} km (Vehicle Type: {})",
+                        String.format("%.2f", estimatedFare), String.format("%.1f", distanceKm), carType);
             } else {
                 logger.warn("Distance Matrix returned null for pickup='{}' dest='{}'", pickupLocation, destination);
             }
