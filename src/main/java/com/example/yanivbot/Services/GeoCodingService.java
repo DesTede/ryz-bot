@@ -59,11 +59,10 @@ public class GeoCodingService {
                     + "&mode=driving&language=he&region=il&key=" + apiKey;
 
             // 4. ביצוע הקריאה וקבלת התשובה
-            System.out.println("DEBUG: Sending URL to Google: " + url);
-            System.out.println("DEBUG: Using API Key: " + apiKey);
             Map<?, ?> response = restTemplate.getForObject(url, Map.class);
             if (response == null || !"OK".equals(response.get("status"))) {
                 System.err.println("Distance Matrix API response status: " + (response != null ? response.get("status") : "null"));
+                System.err.println("Full Distance Matrix response: " + response);
                 return null;
             }
 
