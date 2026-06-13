@@ -79,7 +79,7 @@ public class TaxiOrderService {
         📍 נקודת איסוף: %s
         🎯 יעד הנסיעה: %s
         📝 פרטים נוספים: %s
-        💰 מחיר: %s
+        💰 מחיר משוער: %s
         """.formatted(
                 order.getId(),
                 order.getPickUpLocation(),

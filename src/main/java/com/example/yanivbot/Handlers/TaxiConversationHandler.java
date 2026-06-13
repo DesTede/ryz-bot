@@ -250,7 +250,7 @@ public class TaxiConversationHandler implements ConversationHandler {
                     break;
             }
 
-            // בדיקה: אם המרחק תקין וגדול מ-0, נחשב לפי הנוסחה המלאה
+//             בדיקה: אם המרחק תקין וגדול מ-0, נחשב לפי הנוסחה המלאה
             if (distanceKm != null && distanceKm > 0) {
                 estimatedFare = (basePrice + (distanceKm * pricePerKm)) * carTypeModifier * 1.18;
                 logger.info("Fare calculated successfully: ₪{} for {} km (Vehicle Type: {})",
@@ -357,7 +357,7 @@ public class TaxiConversationHandler implements ConversationHandler {
                 "📍 איסוף: " + pickupLocation + "\n" +
                 "🎯 יעד: " + destination + "\n" +
                 "📝 הערות: " + (notes.isEmpty() ? "אין" : notes) + "\n" +
-                "💰 מחיר: " + fareText + "\n\n" +
+                "💰 מחיר משוער: " + fareText + "\n\n" +
                 "אם הכל נראה טוב — בחרו כן ✅";
     }
 }
