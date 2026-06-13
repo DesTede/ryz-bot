@@ -221,7 +221,9 @@ public class TaxiConversationHandler implements ConversationHandler {
         // Calculate fare
         Double estimatedFare = null;
         try {
-            Double distanceKm = geoCodingService.getDistanceKm(pickupLocation, destination);
+            String cleanPickup = pickupLocation.replace(", ישראל", "").trim();
+            String cleanDestination = destination.replace(", ישראל", "").trim();
+            Double distanceKm = geoCodingService.getDistanceKm(cleanPickup, cleanDestination);
 
             if (distanceKm != null) {
                 double basePrice = botConfigService.getTaxiBasePrice();
@@ -232,6 +234,9 @@ public class TaxiConversationHandler implements ConversationHandler {
 
                 double carTypeModifier = 1.0;
                 switch (carType) {
+                    case "PRIVATE_CAR":
+                        carTypeModifier = 1.0;
+                        break;
                     case "MOTORCYCLE":
                         carTypeModifier = 0.8;
                         break;
