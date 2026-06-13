@@ -43,8 +43,10 @@ public class GeoCodingService {
 
     public Double getDistanceKm(String origin, String destination) {
         try {
-            String encodedOrigin = URLEncoder.encode(origin, StandardCharsets.UTF_8);
-            String encodedDest = URLEncoder.encode(destination, StandardCharsets.UTF_8);
+            // תיקון קריטי: המרה מפורשת של ה-Charset למחרוזת עבור הקידוד בעברית
+            String encodedOrigin = URLEncoder.encode(origin, StandardCharsets.UTF_8.toString());
+            String encodedDest = URLEncoder.encode(destination, StandardCharsets.UTF_8.toString());
+
             String url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins="
                     + encodedOrigin + "&destinations=" + encodedDest
                     + "&mode=driving&language=he&region=il&key=" + apiKey;
@@ -55,7 +57,6 @@ public class GeoCodingService {
                 return null;
             }
 
-            
             List<?> rows = (List<?>) response.get("rows");
             if (rows == null || rows.isEmpty()) return null;
 
@@ -84,6 +85,5 @@ public class GeoCodingService {
             return null;
         }
     }
-
 }
 
