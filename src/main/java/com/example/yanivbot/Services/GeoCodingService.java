@@ -42,6 +42,9 @@ public class GeoCodingService {
     }
 
     public Double getDistanceKm(String origin, String destination) {
+        System.err.println("ORIGIN ARG = " + origin);
+        System.err.println("DEST ARG   = " + destination);
+        
         try {
             // 1. וידוא הגנה בסיסית מפני ערכים ריקים
             if (origin == null || destination == null) {
@@ -59,6 +62,9 @@ public class GeoCodingService {
                     + "&mode=driving&language=he&region=il&key=" + apiKey;
 
             // 4. ביצוע הקריאה וקבלת התשובה
+            System.err.println("Origin sent to Google: " + origin);
+            System.err.println("Destination sent to Google: " + destination);
+            System.err.println("Distance Matrix URL: " + url);
             Map<?, ?> response = restTemplate.getForObject(url, Map.class);
             System.err.println("Full Distance Matrix response: " + response);
             System.err.println("Distance Matrix API response status: " + (response != null ? response.get("status") : "null"));

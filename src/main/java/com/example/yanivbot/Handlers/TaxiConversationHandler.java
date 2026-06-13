@@ -144,6 +144,7 @@ public class TaxiConversationHandler implements ConversationHandler {
             return "📍 אנא בחר כתובת מהרשימה, או לחץ על ✏️ הזן ידנית";
         }
 
+        logger.info("TempData: {}", convo.getTempData());
         int index = Integer.parseInt(txt.replace("pickup_", ""));
         String pickupLocation = parts[2 + index];
 
@@ -197,6 +198,7 @@ public class TaxiConversationHandler implements ConversationHandler {
             return "🎯 אנא בחר יעד מהרשימה, או לחץ על ✏️ הזן ידנית";
         }
 
+        logger.info("TempData: {}", convo.getTempData());
         int index = Integer.parseInt(txt.replace("dest_", ""));
         String destination = parts[3 + index];
 
