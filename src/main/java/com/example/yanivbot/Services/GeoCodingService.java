@@ -50,8 +50,6 @@ public class GeoCodingService {
             }
 
             // 2. קידוד קריטי של הכתובות בעברית כדי למנוע תווים לא חוקיים ב-URL
-//            String encodedOrigin = URLEncoder.encode(origin.trim(), StandardCharsets.UTF_8.toString());
-//            String encodedDest = URLEncoder.encode(destination.trim(), StandardCharsets.UTF_8.toString());
             String encodedOrigin = URLEncoder.encode(origin.trim(), StandardCharsets.UTF_8.toString()).replace("+", "%20");
             String encodedDest = URLEncoder.encode(destination.trim(), StandardCharsets.UTF_8.toString()).replace("+", "%20");
             
