@@ -43,20 +43,29 @@ public class GeoCodingService {
 
     public Double getDistanceKm(String origin, String destination) {
         try {
-            // תיקון קריטי: המרה מפורשת של ה-Charset למחרוזת עבור הקידוד בעברית
-            String encodedOrigin = URLEncoder.encode(origin, StandardCharsets.UTF_8.toString());
-            String encodedDest = URLEncoder.encode(destination, StandardCharsets.UTF_8.toString());
+            // 1. וידוא הגנה בסיסית מפני ערכים ריקים
+            if (origin == null || destination == null) {
+                System.err.println("Distance Matrix error: origin or destination is null");
+                return null;
+            }
 
+            // 2. קידוד קריטי של הכתובות בעברית כדי למנוע תווים לא חוקיים ב-URL
+            String encodedOrigin = URLEncoder.encode(origin.trim(), StandardCharsets.UTF_8.toString());
+            String encodedDest = URLEncoder.encode(destination.trim(), StandardCharsets.UTF_8.toString());
+
+            // 3. בניית ה-URL בצורה מאובטחת ומדויקת עבור גוגל
             String url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins="
                     + encodedOrigin + "&destinations=" + encodedDest
                     + "&mode=driving&language=he&region=il&key=" + apiKey;
 
+            // 4. ביצוע הקריאה וקבלת התשובה
             Map<?, ?> response = restTemplate.getForObject(url, Map.class);
             if (response == null || !"OK".equals(response.get("status"))) {
                 System.err.println("Distance Matrix API response status: " + (response != null ? response.get("status") : "null"));
                 return null;
             }
 
+            // 5. חילוץ בטוח של המרחק מתוך מבנה ה-JSON
             List<?> rows = (List<?>) response.get("rows");
             if (rows == null || rows.isEmpty()) return null;
 
@@ -75,13 +84,13 @@ public class GeoCodingService {
             Object valueObj = distanceMap.get("value");
             if (valueObj instanceof Number) {
                 double meters = ((Number) valueObj).doubleValue();
-                return meters / 1000.0;
+                return meters / 1000.0; // המרה לקילומטרים
             }
 
             return null;
 
         } catch (Exception e) {
-            System.err.println("Distance Matrix failed: " + origin + " → " + destination + " — " + e.getMessage());
+            System.err.println("Distance Matrix failed for: " + origin + " -> " + destination + " | Error: " + e.getMessage());
             return null;
         }
     }
