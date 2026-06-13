@@ -50,9 +50,11 @@ public class GeoCodingService {
             }
 
             // 2. קידוד קריטי של הכתובות בעברית כדי למנוע תווים לא חוקיים ב-URL
-            String encodedOrigin = URLEncoder.encode(origin.trim(), StandardCharsets.UTF_8.toString());
-            String encodedDest = URLEncoder.encode(destination.trim(), StandardCharsets.UTF_8.toString());
-
+//            String encodedOrigin = URLEncoder.encode(origin.trim(), StandardCharsets.UTF_8.toString());
+//            String encodedDest = URLEncoder.encode(destination.trim(), StandardCharsets.UTF_8.toString());
+            String encodedOrigin = URLEncoder.encode(origin.trim(), StandardCharsets.UTF_8.toString()).replace("+", "%20");
+            String encodedDest = URLEncoder.encode(destination.trim(), StandardCharsets.UTF_8.toString()).replace("+", "%20");
+            
             // 3. בניית ה-URL בצורה מאובטחת ומדויקת עבור גוגל
             String url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins="
                     + encodedOrigin + "&destinations=" + encodedDest
@@ -61,8 +63,8 @@ public class GeoCodingService {
             // 4. ביצוע הקריאה וקבלת התשובה
             Map<?, ?> response = restTemplate.getForObject(url, Map.class);
             System.err.println("Full Distance Matrix response: " + response);
+            System.err.println("Distance Matrix API response status: " + (response != null ? response.get("status") : "null"));
             if (response == null || !"OK".equals(response.get("status"))) {
-                System.err.println("Distance Matrix API response status: " + (response != null ? response.get("status") : "null"));
                 return null;
             }
 
