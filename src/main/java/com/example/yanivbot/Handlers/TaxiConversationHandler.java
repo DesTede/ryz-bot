@@ -252,14 +252,14 @@ public class TaxiConversationHandler implements ConversationHandler {
 
             // בדיקה: אם המרחק תקין וגדול מ-0, נחשב לפי הנוסחה המלאה
             if (distanceKm != null && distanceKm > 0) {
-                estimatedFare = (basePrice + (distanceKm * pricePerKm)) * carTypeModifier;
+                estimatedFare = (basePrice + (distanceKm * pricePerKm)) * carTypeModifier * 1.18;
                 logger.info("Fare calculated successfully: ₪{} for {} km (Vehicle Type: {})",
                         String.format("%.2f", estimatedFare), String.format("%.1f", distanceKm), carType);
             } else {
                 // אם גוגל החזיר null או 0, נבצע חישוב לפי מרחק מינימלי מוגדר כברירת מחדל (למשל 3 ק"מ) כדי שלא יציג תמיד 15
                 logger.warn("Distance Matrix returned 0 or null (Distance: {}). Using fallback calculation.", distanceKm);
                 double fallbackDistance = 4.0; // מרחק ברירת מחדל קצר לפקקים/נסיעה עירונית ממוצעת
-                estimatedFare = (basePrice + (fallbackDistance * pricePerKm)) * carTypeModifier;
+                estimatedFare = (basePrice + (fallbackDistance * pricePerKm)) * carTypeModifier * 1.18;
             }
         } catch (Exception e) {
             logger.error("Fare calculation failed: {}", e.getMessage(), e);
