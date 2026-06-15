@@ -119,7 +119,7 @@ public class TaxiConversationHandler implements ConversationHandler {
                     ? suggestions.get(i).description.substring(0, 20)
                     : suggestions.get(i).description;
             buttons.add(new WhatsappService.InteractiveButton("pickup_" + i, shortDesc));
-            tempData.append("|").append(suggestions.get(i).description);
+            tempData.append("|").append(suggestions.get(i).description).append("|").append(suggestions.get(i).placeId);
         }
         buttons.add(new WhatsappService.InteractiveButton("pickup_manual", "✏️ הזן ידנית"));
 
@@ -146,9 +146,10 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         logger.info("TempData: {}", convo.getTempData());
         int index = Integer.parseInt(txt.replace("pickup_", ""));
-        String pickupLocation = parts[2 + index];
+        String pickupLocation = parts[2 + (index * 2)];
+        String pickupPlaceId = parts[3 + (index * 2)];
 
-        convoService.saveTempData(convo, carType + "|" + pickupLocation);
+        convoService.saveTempData(convo, carType + "|" + pickupLocation + "|" + pickupPlaceId);
         convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
         return "📍 נקודת האיסוף נקלטה ✅\nשלחו יעד נסיעה 👇\n(לא לשכוח עיר)";
     }
@@ -172,7 +173,8 @@ public class TaxiConversationHandler implements ConversationHandler {
                     ? suggestions.get(i).description.substring(0, 20)
                     : suggestions.get(i).description;
             buttons.add(new WhatsappService.InteractiveButton("dest_" + i, shortDesc));
-            tempData.append("|").append(suggestions.get(i).description);
+            tempData.append("|").append(suggestions.get(i).description)
+                    .append("|").append(suggestions.get(i).placeId);
         }
         buttons.add(new WhatsappService.InteractiveButton("dest_manual", "✏️ הזן ידנית"));
 
@@ -188,6 +190,7 @@ public class TaxiConversationHandler implements ConversationHandler {
         String[] parts = convo.getTempData().split("\\|", -1);
         String carType = parts[0];
         String pickupLocation = parts[1];
+        String pickupPlaceId = parts[2];
 
         if (txt.equals("dest_manual")) {
             convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
@@ -200,9 +203,10 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         logger.info("TempData: {}", convo.getTempData());
         int index = Integer.parseInt(txt.replace("dest_", ""));
-        String destination = parts[3 + index];
+        String destination = parts[4 + (index * 2)];
+        String destinationPlaceId = parts[5 + (index * 2)];
 
-        convoService.saveTempData(convo, carType + "|" + pickupLocation + "|" + destination);
+        convoService.saveTempData(convo, carType + "|" + pickupLocation + "|" + pickupPlaceId + "|" + destination + "|" + destinationPlaceId);
         convoService.updateState(convo, ConversationState.TAXI_NOTES);
         return "💬 רוצים להוסיף משהו לנהג?\nכתבו את ההערה כאן 👇\nאם אין הערות, השיבו 'אין'";
     }
@@ -218,17 +222,18 @@ public class TaxiConversationHandler implements ConversationHandler {
         String[] parts = orderData.split("\\|", -1);
         String carType = parts[0];
         String pickupLocation = parts[1];
-        String destination = parts[2];
+        String pickupPlaceId = parts[2];
+        String destination = parts[3];
+        String destinationPlaceId = parts[4];
 
-        // הדפסת לוג כדי לוודא שהכתובות לא התהפכו או נשמרו בצורה שגויה
+        
         logger.info("Taxi Fare Calculation | Pickup: '{}' | Destination: '{}' | CarType: '{}'", pickupLocation, destination, carType);
 
-        Double estimatedFare = null;
+        double estimatedFare;
         try {
-            // שליחת הכתובות המקוריות ישירות ל-Service
-            Double distanceKm = geoCodingService.getDistanceKm(pickupLocation, destination);
 
-            // שליחת הגדרות המחיר
+            Double distanceKm = geoCodingService.getDistanceKm(pickupPlaceId, destinationPlaceId);
+
             double basePrice = botConfigService.getTaxiBasePrice();
             if (basePrice <= 0) basePrice = 15.0; // DEFAULT_TAXI_BASE_PRICE
 
@@ -270,7 +275,8 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         // שמירת הנתונים והמשך זרימת השיחה הרגילה שלך
         String fareStr = String.format("%.2f", estimatedFare);
-        convoService.saveTempData(convo, orderData + "|" + notes + "|" + fareStr);
+        convoService.saveTempData(convo, carType + "|" + pickupLocation + "|" + pickupPlaceId + 
+                "|" + destination + "|" + destinationPlaceId + "|" + notes + "|" + fareStr);
         convoService.updateState(convo, ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION);
 
         try {
@@ -308,8 +314,8 @@ public class TaxiConversationHandler implements ConversationHandler {
         String carType = parts[0];
         String pickupLocation = parts[1];
         String destination = parts[2];
-        String notes = parts.length > 3 ? parts[3] : "";
-        Double estimatedFare = (parts.length > 4 && !parts[4].isEmpty()) ? Double.parseDouble(parts[4]) : null;
+        String notes = parts.length > 5 ? parts[5] : "";
+        Double estimatedFare = (parts.length > 6 && !parts[6].isEmpty()) ? Double.parseDouble(parts[6]) : null;
         
         try {
             logger.info("Creating taxi order for customer {}", message.getPhone());

@@ -47,22 +47,19 @@ public class GeoCodingService {
         System.err.println("GeoCodingService build: TEST-123");
         
         try {
-            // 1. וידוא הגנה בסיסית מפני ערכים ריקים
             if (origin == null || destination == null) {
                 System.err.println("Distance Matrix error: origin or destination is null");
                 return null;
             }
 
-            // 2. קידוד קריטי של הכתובות בעברית כדי למנוע תווים לא חוקיים ב-URL
             String encodedOrigin = URLEncoder.encode(origin.trim(), StandardCharsets.UTF_8.toString()).replace("+", "%20");
             String encodedDest = URLEncoder.encode(destination.trim(), StandardCharsets.UTF_8.toString()).replace("+", "%20");
-            
-            // 3. בניית ה-URL בצורה מאובטחת ומדויקת עבור גוגל
-            String url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins="
-                    + encodedOrigin + "&destinations=" + encodedDest
-                    + "&mode=driving&language=he&region=il&bounds=29.4533796%2C34.2674994%7C33.3356537%2C35.8950234&key=" + apiKey;
 
-            // 4. ביצוע הקריאה וקבלת התשובה
+            String url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins=place_id:"
+                    + origin.trim()
+                    + "&destinations=place_id:" + destination.trim()
+                    + "&mode=driving&language=he&region=il&key=" + apiKey;
+            
             System.err.println("Origin sent to Google: " + origin);
             System.err.println("Destination sent to Google: " + destination);
             System.err.println("Distance Matrix URL: " + url);
@@ -77,7 +74,6 @@ public class GeoCodingService {
                 return null;
             }
 
-            // 5. חילוץ בטוח של המרחק מתוך מבנה ה-JSON
             List<?> rows = (List<?>) response.get("rows");
             if (rows == null || rows.isEmpty()) return null;
 
@@ -97,7 +93,7 @@ public class GeoCodingService {
             if (valueObj instanceof Number) {
                 double meters = ((Number) valueObj).doubleValue();
                 System.err.println("Distance raw value: " + valueObj + " type: " + valueObj.getClass().getName());
-                return meters / 1000.0; // המרה לקילומטרים
+                return meters / 1000.0; 
             }
 
             return null;
