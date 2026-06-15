@@ -232,45 +232,6 @@ public class WhatsappService {
     }
 
     /**
-     * Notify admins about important events
-     * Single source of truth for admin notifications
-     */
-    public void notifyAdmins(String message) {
-        String adminPhonesStr = System.getenv("ADMIN_PHONES");
-        if (adminPhonesStr == null || adminPhonesStr.isEmpty()) {
-            logger.warn("No admin phones configured (ADMIN_PHONES environment variable not set)");
-            return;
-        }
-
-        String[] phones = adminPhonesStr.split(",");
-        for (String phone : phones) {
-            phone = phone.trim();
-            if (!phone.isEmpty()) {
-                logger.info("Sending admin alert to: {}",
-                        PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone));
-                sendSafeText(phone, message);
-            }
-        }
-    }
-
-    public void notifyAdminsWithButton(String message, InteractiveButton button) {
-        String adminPhonesStr = System.getenv("ADMIN_PHONES");
-        if (adminPhonesStr == null || adminPhonesStr.isEmpty()) {
-            logger.warn("No admin phones configured (ADMIN_PHONES environment variable not set)");
-            return;
-        }
-        String[] phones = adminPhonesStr.split(",");
-        for (String phone : phones) {
-            phone = phone.trim();
-            if (!phone.isEmpty()) {
-                logger.info("Sending admin alert with button to: {}",
-                        PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone));
-                sendInteractiveButtonsSafe(phone, message, button);
-            }
-        }
-    }
-    
-    /**
      * Send request to WhatsApp API
      */
     private void sendRequest(JSONObject payload) throws Exception {
@@ -322,25 +283,6 @@ public class WhatsappService {
             // Fall back to sending as regular text
             logger.warn("Falling back to text-only message");
             sendSafeText(phone, bodyText);
-        }
-    }
-
-    /**
-     * Send interactive buttons with header and footer safely
-     */
-    public void sendInteractiveButtonsSafe(String phone, String header, String body, String footer, InteractiveButton... buttons) {
-        try {
-            logger.info("Sending interactive buttons (with header) to {}", PhoneNumberUtil.maskPhoneNumber(phone));
-            sendInteractiveButtons(phone, header, body, footer, buttons);
-            logger.info("Interactive buttons sent successfully to {}", PhoneNumberUtil.maskPhoneNumber(phone));
-        } catch (Exception e) {
-            logger.error("Error sending interactive buttons to {}: {}", phone, e.getMessage(), e);
-            // Fall back to sending as regular text
-            String fullText = (header != null ? header + "\n" : "") +
-                    body +
-                    (footer != null ? "\n" + footer : "");
-            logger.warn("Falling back to text-only message");
-            sendSafeText(phone, fullText);
         }
     }
 

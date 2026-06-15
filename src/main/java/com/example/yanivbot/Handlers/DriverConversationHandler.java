@@ -327,11 +327,7 @@ public class DriverConversationHandler implements ConversationHandler {
 //        
 //        whatsappService.sendLocationRequestMessage(phone, bodyText);
 //        
-//        whatsappService.sendInteractiveButtonsSafe(
-//                phone,
-//                bodyText,
-//                new WhatsappService.InteractiveButton("driver_cancel_shift_start", "❌ ביטול")
-//        );
+//        
 //    }
 
     public boolean isDriver(String phone) {
