@@ -230,16 +230,26 @@ public class TaxiConversationHandler implements ConversationHandler {
         
         logger.info("Taxi Fare Calculation | Pickup: '{}' | Destination: '{}' | CarType: '{}'", pickupLocation, destination, carType);
 
-        double estimatedFare = 0;
+        Double estimatedFare = null;
         try {
 
-            Double distanceKm = geoCodingService.getDistanceKm(pickupPlaceId, destinationPlaceId);
+
+            GeoCodingService.TripInfo tripInfo = geoCodingService.getTripInfo(pickupPlaceId, destinationPlaceId);
 
             double basePrice = botConfigService.getTaxiBasePrice();
-            if (basePrice <= 0) basePrice = 15.0; // DEFAULT_TAXI_BASE_PRICE
+            if (basePrice <= 0) 
+                basePrice = BotConfigService.DEFAULT_TAXI_BASE_PRICE;
+            double pricePerKm = 
+                    botConfigService.getTaxiPricePerKm();
+            if (pricePerKm <= 0)
+                pricePerKm = BotConfigService.DEFAULT_TAXI_PRICE_PER_KM;
 
-            double pricePerKm = botConfigService.getTaxiPricePerKm();
-            if (pricePerKm <= 0) pricePerKm = 4.5; // DEFAULT_TAXI_PRICE_PER_KM
+            double pricePerMinute = botConfigService.getTaxiPricePerMinute();
+            if (pricePerMinute <= 0)
+                pricePerMinute = BotConfigService.DEFAULT_TAXI_PRICE_PER_MINUTE;
+            
+            double vat = botConfigService.getTaxiVat();
+            if (vat <= 0) vat = BotConfigService.DEFAULT_TAXI_VAT;
 
             double carTypeModifier = 1.0;
             switch (carType) {
@@ -258,18 +268,21 @@ public class TaxiConversationHandler implements ConversationHandler {
                     break;
             }
 
-            if (distanceKm != null && distanceKm > 0) {
-                estimatedFare = (basePrice + (distanceKm * pricePerKm)) * carTypeModifier * 1.18;
-                logger.info("Fare calculated successfully: ₪{} for {} km (Vehicle Type: {})",
-                        String.format("%.2f", estimatedFare), String.format("%.1f", distanceKm), carType);
+            if (tripInfo != null && tripInfo.distanceKm > 0) {
+                estimatedFare = (basePrice + (tripInfo.distanceKm * pricePerKm) + (tripInfo.durationMinutes * pricePerMinute)) * carTypeModifier * (1 + vat);
+                logger.info("Fare calculated: ₪{} for {}km / {}min (Vehicle Type: {})",
+                        String.format("%.2f", estimatedFare),
+                        String.format("%.1f", tripInfo.distanceKm),
+                        String.format("%.1f", tripInfo.durationMinutes),
+                        carType);
             } else {
-                logger.warn("Distance Matrix returned 0 or null (Distance: {}). Using fallback calculation.", distanceKm);
+                logger.warn("TripInfo returned null or 0 distance. Fare unavailable.");
             }
         } catch (Exception e) {
             logger.error("Fare calculation failed: {}", e.getMessage(), e);
         }
 
-        String fareStr = String.format("%.2f", estimatedFare);
+        String fareStr = estimatedFare != null ? String.format("%.2f", estimatedFare) : "";
         convoService.saveTempData(convo, carType + "|" + pickupLocation + "|" + pickupPlaceId + 
                 "|" + destination + "|" + destinationPlaceId + "|" + notes + "|" + fareStr);
         convoService.updateState(convo, ConversationState.AWAITING_TAXI_ORDER_CONFIRMATION);

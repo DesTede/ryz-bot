@@ -511,6 +511,8 @@ public class AdminController {
         Map<String, Object> result = new HashMap<>();
         result.put("basePrice", botConfigService.getTaxiBasePrice());
         result.put("pricePerKm", botConfigService.getTaxiPricePerKm());
+        result.put("pricePerMinute", botConfigService.getTaxiPricePerMinute());
+        result.put("vat", botConfigService.getTaxiVat());
         return ResponseEntity.ok(result);
     }
 
@@ -526,6 +528,14 @@ public class AdminController {
         if (body.containsKey("pricePerKm")) {
             botConfigService.setTaxiPricePerKm(body.get("pricePerKm"));
             logger.info("Admin updated taxi price per km to {}", body.get("pricePerKm"));
+        }
+        if (body.containsKey("pricePerMinute")) {
+            botConfigService.setTaxiPricePerMinute(body.get("pricePerMinute"));
+            logger.info("Admin updated taxi price per minute to {}", body.get("pricePerMinute"));
+        }
+        if (body.containsKey("vat")) {
+            botConfigService.setTaxiVat(body.get("vat"));
+            logger.info("Admin updated taxi VAT to {}", body.get("vat"));
         }
         return ResponseEntity.ok("✅ תעריפים עודכנו בהצלחה");
     }

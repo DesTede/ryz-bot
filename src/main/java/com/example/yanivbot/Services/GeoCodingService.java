@@ -36,16 +36,11 @@ public class GeoCodingService {
             return new double[]{lat, lng};
 
         } catch (Exception e) {
-            System.err.println("Geocoding failed for address: " + address + " — " + e.getMessage());
             return null;
         }
     }
 
-    public Double getDistanceKm(String origin, String destination) {
-        System.err.println("ORIGIN ARG = " + origin);
-        System.err.println("DEST ARG   = " + destination);
-        System.err.println("GeoCodingService build: TEST-123");
-        
+    public TripInfo getTripInfo(String origin, String destination) {
         try {
             if (origin == null || destination == null) {
                 System.err.println("Distance Matrix error: origin or destination is null");
@@ -57,16 +52,10 @@ public class GeoCodingService {
                     + "&destinations=place_id:" + destination.trim()
                     + "&mode=driving&language=he&region=il&key=" + apiKey;
             
-            System.err.println("Origin sent to Google: " + origin);
-            System.err.println("Destination sent to Google: " + destination);
-            System.err.println("Distance Matrix URL: " + url);
-            
             Map<?, ?> response = restTemplate.getForObject(url, Map.class);
 
             
             
-            System.err.println("Full Distance Matrix response: " + response);
-            System.err.println("Distance Matrix API response status: " + (response != null ? response.get("status") : "null"));
             if (response == null || !"OK".equals(response.get("status"))) {
                 return null;
             }
@@ -79,25 +68,40 @@ public class GeoCodingService {
 
             Map<?, ?> element = (Map<?, ?>) elements.get(0);
             if (!"OK".equals(element.get("status"))) {
-                System.err.println("Element status is not OK: " + element.get("status"));
                 return null;
             }
 
             Map<?, ?> distanceMap = (Map<?, ?>) element.get("distance");
             if (distanceMap == null) return null;
 
-            Object valueObj = distanceMap.get("value");
-            if (valueObj instanceof Number) {
-                double meters = ((Number) valueObj).doubleValue();
-                System.err.println("Distance raw value: " + valueObj + " type: " + valueObj.getClass().getName());
-                return meters / 1000.0; 
+            Map<?, ?> durationMap = (Map<?, ?>) element.get("duration");
+            if (distanceMap == null || durationMap == null) 
+                return null;
+
+            Object distanceValue = distanceMap.get("value");
+            Object durationValue = durationMap.get("value");
+
+            if (distanceValue instanceof Number && durationValue instanceof Number) {
+                double distanceKm = ((Number) distanceValue).doubleValue() / 1000.0;
+                double durationMinutes = ((Number) durationValue).doubleValue() / 60.0;
+                System.err.println("Distance: " + distanceKm + "km | Duration: " + durationMinutes + "min");
+                return new TripInfo(distanceKm, durationMinutes);
             }
 
             return null;
 
         } catch (Exception e) {
-            System.err.println("Distance Matrix failed for: " + origin + " -> " + destination + " | Error: " + e.getMessage());
             return null;
+        }
+    }
+
+    public static class TripInfo {
+        public final double distanceKm;
+        public final double durationMinutes;
+
+        public TripInfo(double distanceKm, double durationMinutes) {
+            this.distanceKm = distanceKm;
+            this.durationMinutes = durationMinutes;
         }
     }
 }

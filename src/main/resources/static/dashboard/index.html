@@ -922,44 +922,23 @@
                             </div>
                             <input class="modal-input" id="pricing-per-km" type="number" min="0" step="0.5" style="width:100px;text-align:center" placeholder="₪"/>
                         </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                            <div>
+                                <div style="font-size:15px;font-weight:700">מחיר לדקה</div>
+                                <div style="font-size:12px;color:var(--muted);margin-top:4px">עלות לכל דקת נסיעה (₪)</div>
+                            </div>
+                            <input class="modal-input" id="pricing-per-minute" type="number" min="0" step="0.5" style="width:100px;text-align:center" placeholder="₪"/>
+                        </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                            <div>
+                                <div style="font-size:15px;font-weight:700">מע"מ</div>
+                                <div style="font-size:12px;color:var(--muted);margin-top:4px">אחוז המע"מ (0.18 = 18%)</div>
+                            </div>
+                            <input class="modal-input" id="pricing-vat" type="number" min="0" step="0.01" style="width:100px;text-align:center" placeholder="0.18"/>
+                        </div>
                         <button class="btn-primary" onclick="savePricing()" style="align-self:flex-end">שמור תעריפים</button>
                     </div>
                 </div>
-
-                <!--                <div class="section-title" style="margin-top:20px">🏷️ לוגו</div>-->
-<!--                <div class="section-title" style="margin-top:20px">🏷️ לוגו</div>-->
-<!--                <div class="table-wrap" style="padding:24px">-->
-<!--                    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">-->
-<!--                        <div>-->
-<!--                            <div style="font-size:15px;font-weight:700">החלף לוגו</div>-->
-<!--                            <div style="font-size:12px;color:var(&#45;&#45;muted);margin-top:4px">העלה קובץ PNG להחלפת הלוגו בסרגל הצד ובמסך הכניסה</div>-->
-<!--                        </div>-->
-<!--                        <div style="display:flex;align-items:center;gap:10px">-->
-<!--                            <img id="logo-preview" src="/dashboard/logo.png" style="height:32px;width:auto;border-radius:4px" onerror="this.style.display='none'"/>-->
-<!--                            <label class="btn-primary" style="cursor:pointer;padding:9px 20px">-->
-<!--                                בחר קובץ-->
-<!--                                <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none" onchange="changeLogo(event)"/>-->
-<!--                            </label>-->
-<!--                        </div>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--                <div class="section-title" style="margin-top:20px">🖼️ Favicon</div>-->
-<!--                <div class="table-wrap" style="padding:24px">-->
-<!--                    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">-->
-<!--                        <div>-->
-<!--                            <div style="font-size:15px;font-weight:700">החלף Favicon</div>-->
-<!--                            <div style="font-size:12px;color:var(&#45;&#45;muted);margin-top:4px">העלה קובץ PNG או ICO להחלפת האייקון בלשונית הדפדפן</div>-->
-<!--                        </div>-->
-<!--                        <div style="display:flex;align-items:center;gap:10px">-->
-<!--                            <img id="favicon-preview" src="/dashboard/favicon-32.png" style="width:32px;height:32px;border-radius:4px;border:1px solid var(&#45;&#45;border)" onerror="this.style.display='none'"/>-->
-<!--                            <label class="btn-primary" style="cursor:pointer;padding:9px 20px">-->
-<!--                                בחר קובץ-->
-<!--                                <input type="file" accept="image/png,image/x-icon,image/svg+xml" style="display:none" onchange="changeFavicon(event)"/>-->
-<!--                            </label>-->
-<!--                        </div>-->
-<!--                    </div>-->
-<!--                </div>-->
-                
             </div>
         </div>
     </div>
@@ -1282,18 +1261,22 @@
             const data = await api('/admin/pricing');
             document.getElementById('pricing-base').value = data.basePrice;
             document.getElementById('pricing-per-km').value = data.pricePerKm;
+            document.getElementById('pricing-per-minute').value = data.pricePerMinute;
+            document.getElementById('pricing-vat').value = data.vat;
         } catch(e) { console.error('pricing load:', e); }
     }
     
     async function savePricing() {
         const basePrice = parseFloat(document.getElementById('pricing-base').value);
         const pricePerKm = parseFloat(document.getElementById('pricing-per-km').value);
-        if (isNaN(basePrice) || isNaN(pricePerKm) || basePrice < 0 || pricePerKm < 0) {
+        const pricePerMinute = parseFloat(document.getElementById('pricing-per-minute').value);
+        const vat = parseFloat(document.getElementById('pricing-vat').value);
+        if (isNaN(basePrice) || isNaN(pricePerKm) || isNaN(pricePerMinute) || isNaN(vat) || basePrice < 0 || pricePerKm < 0 || pricePerMinute < 0 || vat < 0) {
             toast('❌ אנא הכנס ערכים תקינים', 'error');
             return;
         }
         try {
-            await api('/admin/pricing', 'POST', { basePrice, pricePerKm });
+            await api('/admin/pricing', 'POST', { basePrice, pricePerKm, pricePerMinute, vat });
             toast('✅ תעריפים עודכנו בהצלחה', 'success');
         } catch(e) { toast('שגיאה: ' + e.message, 'error'); }
     }
