@@ -89,14 +89,27 @@ public class TaxiConversationHandler implements ConversationHandler {
         List<GooglePlacesService.PlaceSuggestion> suggestions = placesService.getSuggestions(input);
 
         if (suggestions.isEmpty()) {
-                return "🔍 לא נמצאה כתובת תואמת, נסו לכתוב בצורה אחרת (לא לשכוח עיר)";
-            }
+            return "🔍 לא נמצאה כתובת תואמת, נסו לכתוב בצורה אחרת (לא לשכוח עיר)";
+        }
 
         List<WhatsappService.InteractiveButton> items = new ArrayList<>();
         StringBuilder tempData = new StringBuilder(carType + "|PICKUP_PENDING");
-        for (int i = 0; i < Math.min(2, suggestions.size()); i++) {
-            items.add(new WhatsappService.InteractiveButton("pickup_" + i, suggestions.get(i).description));
-            tempData.append("|").append(suggestions.get(i).description).append("|").append(suggestions.get(i).placeId);
+        for (int i = 0; i < Math.min(9, suggestions.size()); i++) {
+            String fullAddress = suggestions.get(i).description;
+
+            // Try splitting by comma to extract only the street for the title line
+            String titleText = fullAddress.contains(",") ? fullAddress.split(",")[0].trim() : fullAddress;
+
+            // If the street name itself is still > 24 characters, cleanly substring it
+            if (titleText.length() > 24) {
+                titleText = titleText.substring(0, 21) + "...";
+            }
+            // Provide row: id, display title (max 24), city subtitle description (max 72)
+            String descriptionText = fullAddress.contains(",")
+                    ? fullAddress.substring(fullAddress.indexOf(',') + 1).trim()
+                    : null;
+            items.add(new WhatsappService.InteractiveButton("pickup_" + i, titleText, descriptionText));
+            tempData.append("|").append(fullAddress).append("|").append(suggestions.get(i).placeId);
         }
         items.add(new WhatsappService.InteractiveButton("pickup_manual", "✏️ הזן ידנית"));
 
@@ -146,9 +159,22 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         List<WhatsappService.InteractiveButton> items = new ArrayList<>();
         StringBuilder tempData = new StringBuilder(carType + "|" + pickupLocation + "|" + pickupPlaceId + "|DEST_PENDING");
-        for (int i = 0; i < Math.min(2, suggestions.size()); i++) {
-            items.add(new WhatsappService.InteractiveButton("dest_" + i, suggestions.get(i).description));
-            tempData.append("|").append(suggestions.get(i).description)
+        for (int i = 0; i < Math.min(9, suggestions.size()); i++) {
+            String fullAddress = suggestions.get(i).description;
+
+            // Try splitting by comma to extract only the street for the title line
+            String titleText = fullAddress.contains(",") ? fullAddress.split(",")[0].trim() : fullAddress;
+
+            // If the street name itself is still > 24 characters, cleanly substring it
+            if (titleText.length() > 24) {
+                titleText = titleText.substring(0, 21) + "...";
+            }
+            // Provide row: id, display title (max 24), city subtitle description (max 72)
+            String descriptionText = fullAddress.contains(",")
+                    ? fullAddress.substring(fullAddress.indexOf(',') + 1).trim()
+                    : null;
+            items.add(new WhatsappService.InteractiveButton("dest_" + i, titleText, descriptionText));
+            tempData.append("|").append(fullAddress)
                     .append("|").append(suggestions.get(i).placeId);
         }
         items.add(new WhatsappService.InteractiveButton("dest_manual", "✏️ הזן ידנית"));

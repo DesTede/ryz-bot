@@ -21,7 +21,7 @@ public class GooglePlacesService {
     private final RestTemplate restTemplate = new RestTemplate();
 
     /**
-     * Returns up to 4 place suggestions for a given input text.
+     * Returns up to nine place suggestions for a given input text.
      * Biased toward Israel.
      */
     public List<PlaceSuggestion> getSuggestions(String input) {
@@ -50,7 +50,7 @@ public class GooglePlacesService {
             List<PlaceSuggestion> suggestions = new ArrayList<>();
 
             if (predictions != null) {
-                for (int i = 0; i < Math.min(4, predictions.size()); i++) {
+                for (int i = 0; i < Math.min(9, predictions.size()); i++) {
                     Map prediction = predictions.get(i);
                     String placeId = (String) prediction.get("place_id");
                     String description = (String) prediction.get("description");

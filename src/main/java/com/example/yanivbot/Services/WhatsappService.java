@@ -255,17 +255,27 @@ public class WhatsappService {
 
         conn.disconnect();
     }
-
+    
     /**
-     * Helper class for interactive buttons
+     * Helper class for interactive items (Buttons or List Rows)
      */
     public static class InteractiveButton {
         public String id;
         public String title;
+        public String description; // Added field
 
+        // Keep your original constructor so your buttons don't break
         public InteractiveButton(String id, String title) {
             this.id = id;
             this.title = title;
+            this.description = null;
+        }
+
+        // Overloaded constructor specifically for list rows with descriptions
+        public InteractiveButton(String id, String title, String description) {
+            this.id = id;
+            this.title = title;
+            this.description = description;
         }
     }
 
@@ -288,13 +298,7 @@ public class WhatsappService {
 
     /**
      * Send an interactive list message (dropdown picker).
-     * Supports up to 10 items. Better UX than buttons for address selection.
-     *
-     * @param phone      Recipient phone
-     * @param bodyText   Message body text
-     * @param buttonText Label on the button that opens the list (max 20 chars)
-     * @param sectionTitle Title of the list section
-     * @param items      List of [id, title] pairs (title max 24 chars)
+     * Now supports up to 72 characters via the row description field.
      */
     public void sendInteractiveList(String phone, String bodyText, String buttonText, String sectionTitle, List<InteractiveButton> items) {
         try {
@@ -315,7 +319,15 @@ public class WhatsappService {
             for (InteractiveButton item : items) {
                 JSONObject row = new JSONObject();
                 row.put("id", item.id);
+
+                // Title is hard-capped at 24 chars by WhatsApp
                 row.put("title", item.title.length() > 24 ? item.title.substring(0, 24) : item.title);
+
+                // Append the description if it exists (WhatsApp description field caps at 72 chars)
+                if (item.description != null && !item.description.isEmpty()) {
+                    row.put("description", item.description.length() > 72 ? item.description.substring(0, 72) : item.description);
+                }
+
                 rowsArray.put(row);
             }
 
