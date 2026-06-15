@@ -230,7 +230,7 @@ public class TaxiConversationHandler implements ConversationHandler {
         
         logger.info("Taxi Fare Calculation | Pickup: '{}' | Destination: '{}' | CarType: '{}'", pickupLocation, destination, carType);
 
-        double estimatedFare;
+        double estimatedFare = 0;
         try {
 
             Double distanceKm = geoCodingService.getDistanceKm(pickupPlaceId, destinationPlaceId);
@@ -258,23 +258,17 @@ public class TaxiConversationHandler implements ConversationHandler {
                     break;
             }
 
-//             בדיקה: אם המרחק תקין וגדול מ-0, נחשב לפי הנוסחה המלאה
             if (distanceKm != null && distanceKm > 0) {
                 estimatedFare = (basePrice + (distanceKm * pricePerKm)) * carTypeModifier * 1.18;
                 logger.info("Fare calculated successfully: ₪{} for {} km (Vehicle Type: {})",
                         String.format("%.2f", estimatedFare), String.format("%.1f", distanceKm), carType);
             } else {
-                // אם גוגל החזיר null או 0, נבצע חישוב לפי מרחק מינימלי מוגדר כברירת מחדל (למשל 3 ק"מ) כדי שלא יציג תמיד 15
                 logger.warn("Distance Matrix returned 0 or null (Distance: {}). Using fallback calculation.", distanceKm);
-                double fallbackDistance = 4.0; // מרחק ברירת מחדל קצר לפקקים/נסיעה עירונית ממוצעת
-                estimatedFare = (basePrice + (fallbackDistance * pricePerKm)) * carTypeModifier * 1.18;
             }
         } catch (Exception e) {
             logger.error("Fare calculation failed: {}", e.getMessage(), e);
-            estimatedFare = 15.0; // מחיר גיבוי מוחלט למניעת קריסה
         }
 
-        // שמירת הנתונים והמשך זרימת השיחה הרגילה שלך
         String fareStr = String.format("%.2f", estimatedFare);
         convoService.saveTempData(convo, carType + "|" + pickupLocation + "|" + pickupPlaceId + 
                 "|" + destination + "|" + destinationPlaceId + "|" + notes + "|" + fareStr);
