@@ -52,9 +52,6 @@ public class GeoCodingService {
                 return null;
             }
 
-            String encodedOrigin = URLEncoder.encode(origin.trim(), StandardCharsets.UTF_8.toString()).replace("+", "%20");
-            String encodedDest = URLEncoder.encode(destination.trim(), StandardCharsets.UTF_8.toString()).replace("+", "%20");
-
             String url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins=place_id:"
                     + origin.trim()
                     + "&destinations=place_id:" + destination.trim()
