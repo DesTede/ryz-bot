@@ -45,52 +45,32 @@ public class TaxiConversationHandler implements ConversationHandler {
         logger.info("TaxiConversationHandler | State: {} | Message: '{}'", state, txt);
 
         // Handle state-based flows
-        switch (state) {
-            case TAXI_CAR_TYPE:
-                return handleTaxiCarType(convo, message);
-
-            case TAXI_PICKUP:
-                return handleTaxiPickup(convo, message);
-
-            case AWAITING_PICKUP_SELECTION:
-                return handlePickupSelection(convo, message);
-
-            case TAXI_DESTINATION:
-                return handleTaxiDestination(convo, message);
-
-            case AWAITING_DESTINATION_SELECTION:
-                return handleDestinationSelection(convo, message);
-
-            case TAXI_NOTES:
-                return handleTaxiNotes(convo, message);
-
-            case AWAITING_TAXI_ORDER_CONFIRMATION:
-                return handleTaxiConfirmation(convo, message);
-
-            default:
+        return switch (state) {
+            case TAXI_CAR_TYPE -> handleTaxiCarType(convo, message);
+            case TAXI_PICKUP -> handleTaxiPickup(convo, message);
+            case AWAITING_PICKUP_SELECTION -> handlePickupSelection(convo, message);
+            case TAXI_DESTINATION -> handleTaxiDestination(convo, message);
+            case AWAITING_DESTINATION_SELECTION -> handleDestinationSelection(convo, message);
+            case TAXI_NOTES -> handleTaxiNotes(convo, message);
+            case AWAITING_TAXI_ORDER_CONFIRMATION -> handleTaxiConfirmation(convo, message);
+            default -> {
                 logger.debug("No handler for state: {}", state);
-                return null;
-        }
+                yield null;
+            }
+        };
     }
 
     private String handleTaxiCarType(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
-        CarType selectedCarType = null;
+        CarType selectedCarType;
 
-        if (txt.equals("taxi_car_type_motorcycle")) {
-            selectedCarType = CarType.MOTORCYCLE;
-        } else if (txt.equals("taxi_car_type_private_car")) {
-            selectedCarType = CarType.PRIVATE_CAR;
-        } else if (txt.equals("taxi_car_type_minivan")) {
-            selectedCarType = CarType.MINIVAN;
-        } else if (txt.equals("1")) {
-            selectedCarType = CarType.MOTORCYCLE;
-        } else if (txt.equals("2")) {
-            selectedCarType = CarType.PRIVATE_CAR;
-        } else if (txt.equals("3")) {
-            selectedCarType = CarType.MINIVAN;
-        } else {
-            return "🚫 אופס… נראה שנבחרה אפשרות שלא קיימת\nבחרו אפשרות מהרשימה כדי להמשיך 🚀";
+        switch (txt) {
+            case "taxi_car_type_motorcycle", "1" -> selectedCarType = CarType.MOTORCYCLE;
+            case "taxi_car_type_private_car", "2" -> selectedCarType = CarType.PRIVATE_CAR;
+            case "taxi_car_type_minivan", "3" -> selectedCarType = CarType.MINIVAN;
+            default -> {
+                return "🚫 אופס… נראה שנבחרה אפשרות שלא קיימת\nבחרו אפשרות מהרשימה כדי להמשיך 🚀";
+            }
         }
 
         convoService.saveTempData(convo, selectedCarType.name());
@@ -112,21 +92,18 @@ public class TaxiConversationHandler implements ConversationHandler {
                 return "🔍 לא נמצאה כתובת תואמת, נסו לכתוב בצורה אחרת (לא לשכוח עיר)";
             }
 
-        List<WhatsappService.InteractiveButton> buttons = new ArrayList<>();
+        List<WhatsappService.InteractiveButton> items = new ArrayList<>();
         StringBuilder tempData = new StringBuilder(carType + "|PICKUP_PENDING");
         for (int i = 0; i < Math.min(2, suggestions.size()); i++) {
-            String shortDesc = suggestions.get(i).description.length() > 20
-                    ? suggestions.get(i).description.substring(0, 20)
-                    : suggestions.get(i).description;
-            buttons.add(new WhatsappService.InteractiveButton("pickup_" + i, shortDesc));
+            items.add(new WhatsappService.InteractiveButton("pickup_" + i, suggestions.get(i).description));
             tempData.append("|").append(suggestions.get(i).description).append("|").append(suggestions.get(i).placeId);
         }
-        buttons.add(new WhatsappService.InteractiveButton("pickup_manual", "✏️ הזן ידנית"));
+        items.add(new WhatsappService.InteractiveButton("pickup_manual", "✏️ הזן ידנית"));
 
         convoService.saveTempData(convo, tempData.toString());
         convoService.updateState(convo, ConversationState.AWAITING_PICKUP_SELECTION);
 
-        whatsappService.sendInteractiveButtonsSafe(message.getPhone(), "📍 בחר כתובת איסוף:", buttons.toArray(new WhatsappService.InteractiveButton[0]));
+        whatsappService.sendInteractiveList(message.getPhone(), "📍 בחר כתובת איסוף:", "בחר כתובת", "תוצאות חיפוש", items);
         return null;
     }
 
@@ -167,22 +144,19 @@ public class TaxiConversationHandler implements ConversationHandler {
             return "🔍 לא נמצאה כתובת תואמת, נסו לכתוב בצורה אחרת (לא לשכוח עיר)";
         }
 
-            List<WhatsappService.InteractiveButton> buttons = new ArrayList<>();
+        List<WhatsappService.InteractiveButton> items = new ArrayList<>();
         StringBuilder tempData = new StringBuilder(carType + "|" + pickupLocation + "|" + pickupPlaceId + "|DEST_PENDING");
         for (int i = 0; i < Math.min(2, suggestions.size()); i++) {
-            String shortDesc = suggestions.get(i).description.length() > 20
-                    ? suggestions.get(i).description.substring(0, 20)
-                    : suggestions.get(i).description;
-            buttons.add(new WhatsappService.InteractiveButton("dest_" + i, shortDesc));
+            items.add(new WhatsappService.InteractiveButton("dest_" + i, suggestions.get(i).description));
             tempData.append("|").append(suggestions.get(i).description)
                     .append("|").append(suggestions.get(i).placeId);
         }
-        buttons.add(new WhatsappService.InteractiveButton("dest_manual", "✏️ הזן ידנית"));
+        items.add(new WhatsappService.InteractiveButton("dest_manual", "✏️ הזן ידנית"));
 
         convoService.saveTempData(convo, tempData.toString());
         convoService.updateState(convo, ConversationState.AWAITING_DESTINATION_SELECTION);
 
-        whatsappService.sendInteractiveButtonsSafe(message.getPhone(), "🎯 בחר יעד נסיעה:", buttons.toArray(new WhatsappService.InteractiveButton[0]));
+        whatsappService.sendInteractiveList(message.getPhone(), "🎯 בחר יעד נסיעה:", "בחר יעד", "תוצאות חיפוש", items);
         return null;
     }
 
@@ -202,7 +176,6 @@ public class TaxiConversationHandler implements ConversationHandler {
             return "🎯 אנא בחר יעד מהרשימה, או לחץ על ✏️ הזן ידנית";
         }
 
-        logger.info("TempData: {}", convo.getTempData());
         int index = Integer.parseInt(txt.replace("dest_", ""));
         String destination = parts[4 + (index * 2)];
         String destinationPlaceId = parts[5 + (index * 2)];
@@ -241,22 +214,15 @@ public class TaxiConversationHandler implements ConversationHandler {
             double pricePerMinute = botConfigService.getTaxiPricePerMinute();
             double vat = botConfigService.getTaxiVat();
 
-            double carTypeModifier = 1.0;
-            switch (carType) {
-                case "PRIVATE_CAR":
-                    carTypeModifier = 1.0;
-                    break;
-                case "MOTORCYCLE":
-                    carTypeModifier = 0.8;
-                    break;
-                case "MINIVAN":
-                    carTypeModifier = 1.4;
-                    break;
-                default:
+            double carTypeModifier = switch (carType) {
+                case "PRIVATE_CAR" -> 1.0;
+                case "MOTORCYCLE" -> 0.8;
+                case "MINIVAN" -> 1.4;
+                default -> {
                     logger.warn("Unknown car type '{}', defaulting modifier to 1.0", carType);
-                    carTypeModifier = 1.0;
-                    break;
-            }
+                    yield 1.0;
+                }
+            };
 
             if (tripInfo != null && tripInfo.distanceKm > 0) {
                 estimatedFare = (basePrice + (tripInfo.distanceKm * pricePerKm) + (tripInfo.durationMinutes * pricePerMinute)) * carTypeModifier * (1 + vat);

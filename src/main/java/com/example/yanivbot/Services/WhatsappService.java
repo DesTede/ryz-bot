@@ -343,6 +343,60 @@ public class WhatsappService {
             sendSafeText(phone, fullText);
         }
     }
+
+    /**
+     * Send an interactive list message (dropdown picker).
+     * Supports up to 10 items. Better UX than buttons for address selection.
+     *
+     * @param phone      Recipient phone
+     * @param bodyText   Message body text
+     * @param buttonText Label on the button that opens the list (max 20 chars)
+     * @param sectionTitle Title of the list section
+     * @param items      List of [id, title] pairs (title max 24 chars)
+     */
+    public void sendInteractiveList(String phone, String bodyText, String buttonText, String sectionTitle, List<InteractiveButton> items) {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("messaging_product", "whatsapp");
+            payload.put("recipient_type", "individual");
+            payload.put("to", phone);
+            payload.put("type", "interactive");
+
+            JSONObject interactive = new JSONObject();
+            interactive.put("type", "list");
+
+            JSONObject body = new JSONObject();
+            body.put("text", bodyText);
+            interactive.put("body", body);
+
+            JSONArray rowsArray = new JSONArray();
+            for (InteractiveButton item : items) {
+                JSONObject row = new JSONObject();
+                row.put("id", item.id);
+                row.put("title", item.title.length() > 24 ? item.title.substring(0, 24) : item.title);
+                rowsArray.put(row);
+            }
+
+            JSONObject section = new JSONObject();
+            section.put("title", sectionTitle);
+            section.put("rows", rowsArray);
+
+            JSONArray sections = new JSONArray();
+            sections.put(section);
+
+            JSONObject action = new JSONObject();
+            action.put("button", buttonText);
+            action.put("sections", sections);
+            interactive.put("action", action);
+
+            payload.put("interactive", interactive);
+
+            sendRequest(payload);
+            logger.info("Sent interactive list message to {}", phone);
+        } catch (Exception e) {
+            logger.error("Error sending interactive list to {}: {}", phone, e.getMessage());
+        }
+    }
     
     /**
      * Send a message using WhatsApp Message Template
