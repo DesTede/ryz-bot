@@ -1,6 +1,7 @@
 package com.example.yanivbot.Handlers;
 
 import com.example.yanivbot.Entities.Conversation;
+import com.example.yanivbot.Entities.Customer;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
@@ -265,27 +266,37 @@ public class MessageRouter {
             // Regular customer in START state
             logger.info("User is a CUSTOMER in START state");
 
-            // Check if we already sent welcome (tempData will be set after welcome is sent)
-            // If tempData is empty, send welcome and return (don't capture name yet)
+// Check if this is a returning customer (already in DB with a name)
+            Customer existingCustomer = customerService.getCustomer(phone);
+            if (existingCustomer != null && existingCustomer.getName() != null && !existingCustomer.getName().isEmpty()) {
+                String name = existingCustomer.getName();
+                logger.info("Returning customer '{}' - skipping name capture", name);
+                convoService.saveTempData(convo, name);
+                convoService.updateState(convo, ConversationState.START_MENU);
+                whatsappService.sendSafeText(phone, "ברוך שובך " + name + "! 👋\nשמחים לראות אותך שוב ב-Movez ⚡");
+                showServiceMenu(phone, name);
+                return null;
+            }
+
+// New customer - check if we already sent welcome
             if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
                 logger.info("Sending welcome message, will capture name on next message");
                 whatsappService.sendSafeText(phone, WELCOME_MESSAGE);
-                // Set a flag in tempData so we know welcome was sent
                 convoService.saveTempData(convo, "WELCOME_SENT");
                 return null;
             }
 
-            // Welcome was already sent, now capture the name
+// Welcome was already sent, now capture the name
             logger.info("Welcome already sent, capturing name: '{}'", txt);
             String name = txt;
             convoService.saveTempData(convo, name);
             customerService.registerNewCustomer(phone, name);
             convoService.updateState(convo, ConversationState.START_MENU);
 
-            // Show service menu with customer's name
+// Show service menu with customer's name
             logger.info("Showing service menu for customer: {}", name);
             showServiceMenu(phone, name);
-            return null; // Menu buttons already sent
+            return null;
         }
 
         // ===== AWAITING_DRIVER_LOCATION STATE =====
@@ -355,8 +366,9 @@ public class MessageRouter {
         }
 
         // ===== DELIVERY STATES =====
-        if (state == ConversationState.DELIVERY_CUSTOMER_NAME ||
-                state == ConversationState.DELIVERY_CUSTOMER_PHONE ||
+        if (state == ConversationState.DELIVERY_CUSTOMER_PHONE ||
+                state == ConversationState.DELIVERY_AWAITING_CUSTOMER_CONFIRM ||
+                state == ConversationState.DELIVERY_CUSTOMER_NAME ||
                 state == ConversationState.DELIVERY_ADDRESS ||
                 state == ConversationState.DELIVERY_READY_TIME ||
                 state == ConversationState.DELIVERY_PRICE ||

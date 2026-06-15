@@ -3,6 +3,7 @@ package com.example.yanivbot.Handlers;
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
+import com.example.yanivbot.Services.BusinessOwnerService;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.WhatsappService;
 import org.springframework.stereotype.Component;
@@ -12,10 +13,13 @@ public class BusinessConversationHandler implements ConversationHandler {
 
     private final ConversationService convoService;
     private final WhatsappService whatsappService;
+    private final BusinessOwnerService businessOwnerService;
 
-    public BusinessConversationHandler(ConversationService convoService, WhatsappService whatsappService) {
+
+    public BusinessConversationHandler(ConversationService convoService, WhatsappService whatsappService, BusinessOwnerService businessOwnerService) {
         this.convoService = convoService;
         this.whatsappService = whatsappService;
+        this.businessOwnerService = businessOwnerService;
     }
 
     @Override
@@ -48,9 +52,9 @@ public class BusinessConversationHandler implements ConversationHandler {
         }
 
         if (txt.equals("business_delivery_option") || txt.equals("2")) {
-            // Business owner creating delivery - start with customer name
-            convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_NAME);
-            return "מה שם הלקוח?";
+            // Business owner creating delivery - start with customer phone
+            convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_PHONE);
+            return "📞 מה מספר הטלפון של הלקוח?";
         }
 
         // Invalid option - show menu again
@@ -59,13 +63,16 @@ public class BusinessConversationHandler implements ConversationHandler {
     }
 
     public void showBusinessMenuButtons(String phone) {
-        String bodyText = """
-                🚀 שלום וברוכים הבאים
-                ל־Movez Business
-                ניהול משלוחים ונסיעות בקלות ובמהירות ⚡
-                מה תרצו לעשות? 👇
-                (לחץ 00 לאתחול מחדש)""";
-
+        String businessName = businessOwnerService.getBusinessName(phone);
+        String greeting = (businessName != null && !businessName.isEmpty())
+                ? "🚀 שלום " + businessName + "!\nברוכים הבאים ל־Movez Business"
+                : "🚀 שלום וברוכים הבאים\nל־Movez Business";
+        
+        String bodyText = greeting + "\n" +
+                "ניהול משלוחים ונסיעות בקלות ובמהירות ⚡" +
+                "\nמה תרצו לעשות? 👇\n" +
+                "(לחץ 00 לאתחול מחדש)";
+        
         whatsappService.sendInteractiveButtons(
                 phone,
                 bodyText,

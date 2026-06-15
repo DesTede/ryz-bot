@@ -13,6 +13,7 @@ import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -34,10 +35,12 @@ public class DeliveryOrderService {
     private final GeoCodingService geoCodingService;
     private final CustomerService customerService;
     private final ShortLinkService shortLinkService;
+    private final BotConfigService botConfigService;
+
 
     public DeliveryOrderService(ConversationService convoService, DeliveryOrderRepository deliveryOrderRepo, BusinessRepository businessRepo,
                                 WhatsappService whatsappService, DriverService driverService,
-                                GeoCodingService geoCodingService, CustomerService customerService, ShortLinkService shortLinkService) {
+                                GeoCodingService geoCodingService, CustomerService customerService, ShortLinkService shortLinkService, BotConfigService botConfigService) {
         this.convoService = convoService;
         this.deliveryOrderRepo = deliveryOrderRepo;
         this.businessRepo = businessRepo;
@@ -46,8 +49,24 @@ public class DeliveryOrderService {
         this.geoCodingService = geoCodingService;
         this.customerService = customerService;
         this.shortLinkService = shortLinkService;
+        this.botConfigService = botConfigService;
     }
 
+    /**
+     * Look up the most recent name and delivery address for a customer at this business.
+     * Returns [name, address] if found, or null if this is a new customer.
+     */
+    public String[] getPreviousCustomerDetails(String businessPhone, String customerPhone) {
+        Customer customer = customerService.getCustomer(customerPhone);
+        if (customer == null || customer.getName() == null || customer.getName().isEmpty()) {
+            return null;
+        }
+        return deliveryOrderRepo
+                .findFirstByBusinessPhoneAndCustomerPhoneOrderByCreatedAtDesc(businessPhone, customerPhone)
+                .map(order -> new String[]{customer.getName(), order.getDeliveryAddress()})
+                .orElse(null);
+    }
+    
     public void createDeliveryOrder(String businessPhone, String customerName, String customerPhone, String address,
                                     int readyInMinutes, double price, String notes) {
         customerService.saveOrUpdateCustomer(customerPhone, customerName);
@@ -79,6 +98,8 @@ public class DeliveryOrderService {
         order.setDispatched(true);
         deliveryOrderRepo.save(order);
     }
+    
+    
 
     public String cancelDeliveryOrderByBusiness(long orderId, String businessPhone) {
         DeliveryOrder order = deliveryOrderRepo.findById(orderId).orElse(null);
@@ -183,8 +204,23 @@ public class DeliveryOrderService {
             }
         }
 
+        // Route feasibility check: only runs if driver already has active orders
+        if (driverService.hasActiveDeliveryOrders(driverPhone)) {
+            DeliveryOrder candidateOrder = deliveryOrderRepo.findById(orderId).orElse(null);
+            if (candidateOrder != null && !isRouteFeasible(driverPhone, candidateOrder)) {
+                int maxMinutes = botConfigService.getMaxExtraDeliveryMinutes();
+                logger.warn("[ROUTE] Driver {} blocked from claiming order #{} - route exceeds {} min threshold",
+                        PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone), orderId, maxMinutes);
+                String msg = "⚠️ לא ניתן לקבל את המשלוח\n" +
+                        "המשלוח הזה ייקח יותר מ-" + maxMinutes + " דקות\n" +
+                        "סיים את המשלוחים הפעילים שלך קודם 🚚";
+                whatsappService.sendSafeText(driverPhone, msg);
+                return null;
+            }
+        }
         // Check the delivery order
         DeliveryOrder order = deliveryOrderRepo.findById(orderId).orElse(null);
+        
 
         if (order == null) {
             logger.warn("[DELIVERY] Order #{} not found", orderId);
@@ -438,6 +474,82 @@ public class DeliveryOrderService {
         return null;
     }
 
+    private boolean isRouteFeasible(String driverPhone, DeliveryOrder newOrder) {
+        try {
+            // Get driver's current location
+            Driver driver = driverService.findByPhone(driverPhone);
+            if (driver == null || driver.getLatitude() == 0 || driver.getLongitude() == 0) {
+                logger.warn("[ROUTE] Driver {} has no location data, skipping feasibility check",
+                        PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone));
+                return true;
+            }
+
+            double[] driverCoords = new double[]{driver.getLatitude(), driver.getLongitude()};
+
+            // Build stops for existing active orders
+            List<DeliveryOrder> activeOrders = driverService.getActiveDeliveryOrders(driverPhone);
+            List<double[]> existingStops = new ArrayList<>();
+            for (DeliveryOrder active : activeOrders) {
+                // Only add business pickup if order hasn't been picked up yet
+                if (active.getDeliveryStatus() == DeliveryStatus.ASSIGNED) {
+                    Business activeBusiness = businessRepo.findByPhone(active.getBusinessPhone()).orElse(null);
+                    if (activeBusiness != null && activeBusiness.getAddress() != null) {
+                        double[] coords = geoCodingService.geocode(activeBusiness.getAddress());
+                        if (coords != null) existingStops.add(coords);
+                    }
+                }
+                double[] coords = geoCodingService.geocode(active.getDeliveryAddress());
+                if (coords != null) existingStops.add(coords);
+            }
+
+            if (existingStops.isEmpty()) {
+                logger.warn("[ROUTE] No geocodable stops for existing orders, skipping feasibility check");
+                return true;
+            }
+
+            // Build stops for the new order
+            Business newBusiness = businessRepo.findByPhone(newOrder.getBusinessPhone()).orElse(null);
+            double[] newPickupCoords = null;
+            if (newBusiness != null && newBusiness.getAddress() != null) {
+                newPickupCoords = geoCodingService.geocode(newBusiness.getAddress());
+            }
+            double[] newDeliveryCoords = geoCodingService.geocode(newOrder.getDeliveryAddress());
+            if (newDeliveryCoords == null) {
+                logger.warn("[ROUTE] Could not geocode new order #{} delivery address, skipping feasibility check", newOrder.getId());
+                return true;
+            }
+
+            // Route WITHOUT new order: driver → existing stops
+            List<double[]> withoutNewOrder = new ArrayList<>();
+            withoutNewOrder.add(driverCoords);
+            withoutNewOrder.addAll(existingStops);
+
+            // Route WITH new order: driver → existing stops + new order stops
+            List<double[]> withNewOrder = new ArrayList<>(withoutNewOrder);
+            if (newPickupCoords != null) withNewOrder.add(newPickupCoords);
+            withNewOrder.add(newDeliveryCoords);
+
+            Double durationWithout = geoCodingService.getRouteDurationMinutes(withoutNewOrder);
+            Double durationWith = geoCodingService.getRouteDurationMinutes(withNewOrder);
+
+            if (durationWithout == null || durationWith == null) {
+                logger.warn("[ROUTE] Routes API returned null for order #{}, skipping feasibility check", newOrder.getId());
+                return true;
+            }
+
+            double extraMinutes = durationWith - durationWithout;
+            int maxMinutes = botConfigService.getMaxExtraDeliveryMinutes();
+
+            logger.info("[ROUTE] Order #{} adds {} min to route (limit: {} min)",
+                    newOrder.getId(), String.format("%.1f", extraMinutes), maxMinutes);
+
+            return extraMinutes <= maxMinutes;
+
+        } catch (Exception e) {
+            logger.error("[ROUTE] Feasibility check failed for order #{}: {}", newOrder.getId(), e.getMessage(), e);
+            return true;
+        }
+    }
     /**
      * Generate a real-time Google Maps link for driver location
      *

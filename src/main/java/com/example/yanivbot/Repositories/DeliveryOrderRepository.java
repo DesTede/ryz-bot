@@ -38,15 +38,7 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
 
     Optional<DeliveryOrder> findByTrackingToken(String trackingToken);
 
-
-
-//    List<DeliveryOrder> active = repo.findByPickedUpByAndDeliveryStatusIn(
-//            driverPhone,
-//            List.of(ASSIGNED, PICKED_UP, DELIVERING)
-//    );
-    
-    
-    
-    
+    Optional<DeliveryOrder> findFirstByBusinessPhoneAndCustomerPhoneOrderByCreatedAtDesc(
+            String businessPhone, String customerPhone);
     
 }

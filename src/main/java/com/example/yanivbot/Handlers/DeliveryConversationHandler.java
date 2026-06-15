@@ -50,13 +50,17 @@ public class DeliveryConversationHandler implements ConversationHandler {
         logger.info("[DELIVERY] State: {} -> {}", state, stageInfo);
 
         return switch (state) {
-            case DELIVERY_CUSTOMER_NAME -> {
-                logger.info("[DELIVERY] -> handleCustomerName");
-                yield handleCustomerName(convo, message);
-            }
             case DELIVERY_CUSTOMER_PHONE -> {
                 logger.info("[DELIVERY] -> handleCustomerPhone");
                 yield handleCustomerPhone(convo, message);
+            }
+            case DELIVERY_AWAITING_CUSTOMER_CONFIRM -> {
+                logger.info("[DELIVERY] -> handleCustomerConfirm");
+                yield handleCustomerConfirm(convo, message);
+            }
+            case DELIVERY_CUSTOMER_NAME -> {
+                logger.info("[DELIVERY] -> handleCustomerName");
+                yield handleCustomerName(convo, message);
             }
             case DELIVERY_ADDRESS -> {
                 logger.info("[DELIVERY] -> handleAddress");
@@ -91,8 +95,9 @@ public class DeliveryConversationHandler implements ConversationHandler {
      */
     private String getDeliveryStageFromState(ConversationState state) {
         return switch (state) {
-            case DELIVERY_CUSTOMER_NAME -> "1/6 - Asking for CUSTOMER NAME";
             case DELIVERY_CUSTOMER_PHONE -> "2/6 - Asking for CUSTOMER PHONE";
+            case DELIVERY_AWAITING_CUSTOMER_CONFIRM -> "1b/6 - Awaiting CUSTOMER CONFIRM";
+            case DELIVERY_CUSTOMER_NAME -> "1/6 - Asking for CUSTOMER NAME";
             case DELIVERY_ADDRESS -> "3/6 - Asking for ADDRESS";
             case DELIVERY_READY_TIME -> "4/6 - Asking for READY TIME";
             case DELIVERY_PRICE -> "5/6 - Asking for PRICE";
@@ -102,41 +107,88 @@ public class DeliveryConversationHandler implements ConversationHandler {
     }
 
     /**
-     * Stage 1: Customer Name
-     */
-    private String handleCustomerName(Conversation convo, IncomingMessage message) {
-        String customerName = message.getText().trim();
-        logger.info("[DELIVERY] Stage 1: Saving customer name: '{}'", customerName);
-
-        convoService.saveTempData(convo, customerName);
-        convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_PHONE);
-
-        logger.info("[DELIVERY] ✅ Name saved | Moving to Stage 2 (Phone)");
-        return "📞 מה מספר הטלפון של הלקוח?";
-    }
-
-    /**
-     * Stage 2: Customer Phone with validation
+     * Stage 1: Customer Phone (now first step) - validate and look up previous order
      */
     private String handleCustomerPhone(Conversation convo, IncomingMessage message) {
-        String phone = message.getText().trim();
-        logger.info("[DELIVERY] Stage 2: Validating phone: '{}'", phone);
+        String customerPhone = message.getText().trim();
+        logger.info("[DELIVERY] Stage 1: Validating phone: '{}'", customerPhone);
 
         // Validate: must be 10 digits
-        if (!phone.matches("\\d{10}")) {
-            logger.warn("[DELIVERY] ❌ Phone validation FAILED: '{}' (not 10 digits)", phone);
+        if (!customerPhone.matches("\\d{10}")) {
+            logger.warn("[DELIVERY] ❌ Phone validation FAILED: '{}' (not 10 digits)", customerPhone);
             return "❌ מספר הטלפון לא תקין. אנא הקלידו מספר טלפון בן 10 ספרות.";
         }
 
-        // Valid phone - now update and proceed
-        String tempData = convo.getTempData() + "|" + phone;
-        logger.info("[DELIVERY] ✅ Phone validated | TempData: '{}'", tempData);
+        // Look up previous order details for this customer at this business
+        String businessPhone = message.getPhone();
+        String[] prevDetails = deliveryOrderService.getPreviousCustomerDetails(businessPhone, customerPhone);
 
-        convoService.saveTempData(convo, tempData);
+        if (prevDetails != null) {
+            // Returning customer - show details for confirmation
+            String prevName = prevDetails[0];
+            String prevAddress = prevDetails[1];
+            logger.info("[DELIVERY] ✅ Returning customer found: '{}' | Address: '{}'", prevName, prevAddress);
+            convoService.saveTempData(convo, customerPhone + "|" + prevName + "|" + prevAddress);
+            convoService.updateState(convo, ConversationState.DELIVERY_AWAITING_CUSTOMER_CONFIRM);
+            whatsappService.sendInteractiveButtons(
+                    message.getPhone(),
+                    "📋 הלקוח הזה הזמין אצלכם בעבר:\n👤 שם: " + prevName + "\n📍 כתובת: " + prevAddress + "\nהפרטים עדיין נכונים?",
+                    new WhatsappService.InteractiveButton("customer_confirm_yes", "✅ כן, נכון"),
+                    new WhatsappService.InteractiveButton("customer_confirm_no", "❌ לא, שנה")
+            );
+            return null;
+        }
+
+        // New customer - ask for name
+        logger.info("[DELIVERY] New customer - moving to name capture");
+        convoService.saveTempData(convo, customerPhone);
+        convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_NAME);
+        return "👤 מה שם הלקוח?";
+    }
+
+    /**
+     * Stage 2: Customer Name (entered after phone in the new flow)
+     * TempData at this point contains just the customer phone
+     */
+    private String handleCustomerName(Conversation convo, IncomingMessage message) {
+        String customerName = message.getText().trim();
+        String customerPhone = convo.getTempData(); // phone was stored in previous step
+        logger.info("[DELIVERY] Stage 2: Saving customer name: '{}' | Phone: '{}'", customerName, customerPhone);
+
+        convoService.saveTempData(convo, customerName + "|" + customerPhone);
         convoService.updateState(convo, ConversationState.DELIVERY_ADDRESS);
 
-        logger.info("[DELIVERY] Moving to Stage 3 (Address)");
+        logger.info("[DELIVERY] ✅ Name saved | Moving to Stage 3 (Address)");
         return "📍 מה כתובת המסירה?";
+    }
+
+    /**
+     * Stage 1b: Confirm returning customer details (name + address)
+     * TempData: {customerPhone}|{prevName}|{prevAddress}
+     */
+    private String handleCustomerConfirm(Conversation convo, IncomingMessage message) {
+        String txt = message.getText().trim();
+        String[] parts = convo.getTempData().split("\\|", 3);
+        String customerPhone = parts[0];
+        String prevName = parts.length > 1 ? parts[1] : "";
+        String prevAddress = parts.length > 2 ? parts[2] : "";
+
+        if (txt.equals("customer_confirm_yes")) {
+            // Use previous details - skip name and address, go straight to ready time
+            logger.info("[DELIVERY] ✅ Customer confirmed previous details");
+            convoService.saveTempData(convo, prevName + "|" + customerPhone + "|" + prevAddress);
+            convoService.updateState(convo, ConversationState.DELIVERY_READY_TIME);
+            showReadyTimeButton(message.getPhone());
+            return null;
+        } else if (txt.equals("customer_confirm_no")) {
+            // Details wrong - ask for new name (phone stays)
+            logger.info("[DELIVERY] ❌ Customer details rejected - asking for new name");
+            convoService.saveTempData(convo, customerPhone);
+            convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_NAME);
+            return "👤 מה שם הלקוח?";
+        }
+
+        return null;
     }
 
     /**
@@ -193,9 +245,10 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String txt = message.getText().trim();
 
         if (!txt.matches("^\\d+(\\.\\d{1,2})?$")) {
-            String errorMsg = "❌ מחיר לא תקין\n" +
-                    "אנא הקלד מחיר בספרות בלבד\n" +
-                    "דוגמה: 45.90 או 50";
+            String errorMsg = """
+                    ❌ מחיר לא תקין
+                    אנא הקלד מחיר בספרות בלבד
+                    דוגמה: 45.90 או 50""";
             whatsappService.sendSafeText(message.getPhone(), errorMsg);
             return null; // Stay in same state, ask again
         }
@@ -275,65 +328,11 @@ public class DeliveryConversationHandler implements ConversationHandler {
                     new WhatsappService.InteractiveButton("delivery_confirm_no", "ביטול ❌")
             );
 
-            return null; // Message sent via buttons
+            return null; 
         }
 
         return "❌ שגיאה בעיבוד הנתונים. אנא נסה שנית.";
     }
-//    /**
-//     * Stage 6: Notes - then show confirmation
-//     */
-//    private String handleNotes(Conversation convo, IncomingMessage message) {
-//        String notes = message.getText().trim();
-//        if (notes.equals("אין")) {
-//            notes = "";
-//        }
-//        logger.info("[DELIVERY] Stage 6: Saving notes: '{}' (empty={})", notes, notes.isEmpty());
-//
-//        String tempData = convo.getTempData() + "|" + notes;
-//        String[] parts = tempData.split("\\|", -1);  // Use -1 to NOT discard trailing empty strings
-//
-//        logger.info("[DELIVERY] Complete tempData: '{}' | Parts count: {}", tempData, parts.length);
-//
-//        // We need exactly 6 parts: name, phone, address, readyTime, price, notes
-//        if (parts.length >= 6) {
-//            String customerName = parts[0];
-//            String customerPhone = parts[1];
-//            String address = parts[2];
-//            int readyInMinutes = Integer.parseInt(parts[3]);
-//            double price = Double.parseDouble(parts[4]);
-//            String notesStr = parts[5];
-//
-//            logger.info("[DELIVERY] ✅ All data collected:");
-//            logger.info("  - Customer Name: {}", customerName);
-//            logger.info("  - Customer Phone: {}", customerPhone);
-//            logger.info("  - Address: {}", address);
-//            logger.info("  - Ready Time: {} minutes", readyInMinutes);
-//            logger.info("  - Price: {} ₪", price);
-//            logger.info("  - Notes: {}", notesStr.isEmpty() ? "(none)" : notesStr);
-//
-//            // Show confirmation with actual values
-//            String confirmationMessage = buildConfirmationMessage(customerName, customerPhone, address, readyInMinutes, price, notesStr);
-//
-//            // Save complete tempData for confirmation
-//            convoService.saveTempData(convo, tempData);
-//
-//            logger.info("[DELIVERY] 📤 Sending confirmation message with YES/NO buttons");
-//
-//            // Send confirmation with yes/no buttons
-//            whatsappService.sendInteractiveButtons(
-//                    message.getPhone(),
-//                    confirmationMessage,
-//                    new WhatsappService.InteractiveButton("delivery_confirm_yes", "אישור משלוח ✅"),
-//                    new WhatsappService.InteractiveButton("delivery_confirm_no", "ביטול משלוח ❌")
-//            );
-//
-//            return null;
-//        }
-//
-//        logger.error("[DELIVERY] ❌ Error: Not enough parts. Expected 6+, got {}", parts.length);
-//        return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
-//    }
 
     /**
      * Build confirmation message string

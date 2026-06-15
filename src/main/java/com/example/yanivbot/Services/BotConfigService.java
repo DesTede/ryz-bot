@@ -14,6 +14,9 @@ public class BotConfigService {
     public static final double DEFAULT_TAXI_PRICE_PER_MINUTE = 1.5;
     public static final double DEFAULT_TAXI_VAT = 0.18;
 
+    public static final int DEFAULT_MAX_EXTRA_DELIVERY_MINUTES = 30;
+
+
     public BotConfigService(BotConfigRepository botConfigRepo) {
         this.botConfigRepo = botConfigRepo;
     }
@@ -82,4 +85,18 @@ public class BotConfigService {
         config.setValue(String.valueOf(vat));
         botConfigRepo.save(config);
     }
+
+    public int getMaxExtraDeliveryMinutes() {
+        return botConfigRepo.findById("delivery.max.extra.minutes")
+                .map(c -> Integer.parseInt(c.getValue()))
+                .orElse(DEFAULT_MAX_EXTRA_DELIVERY_MINUTES);
+    }
+
+    public void setMaxExtraDeliveryMinutes(int minutes) {
+        BotConfig config = botConfigRepo.findById("delivery.max.extra.minutes")
+                .orElse(new BotConfig("delivery.max.extra.minutes", String.valueOf(DEFAULT_MAX_EXTRA_DELIVERY_MINUTES)));
+        config.setValue(String.valueOf(minutes));
+        botConfigRepo.save(config);
+    }
 }
+

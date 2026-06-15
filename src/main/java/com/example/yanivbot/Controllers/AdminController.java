@@ -513,6 +513,7 @@ public class AdminController {
         result.put("pricePerKm", botConfigService.getTaxiPricePerKm());
         result.put("pricePerMinute", botConfigService.getTaxiPricePerMinute());
         result.put("vat", botConfigService.getTaxiVat());
+        result.put("maxExtraDeliveryMinutes", botConfigService.getMaxExtraDeliveryMinutes());
         return ResponseEntity.ok(result);
     }
 
@@ -536,6 +537,10 @@ public class AdminController {
         if (body.containsKey("vat")) {
             botConfigService.setTaxiVat(body.get("vat"));
             logger.info("Admin updated taxi VAT to {}", body.get("vat"));
+        }
+        if (body.containsKey("maxExtraDeliveryMinutes")) {
+            botConfigService.setMaxExtraDeliveryMinutes(body.get("maxExtraDeliveryMinutes").intValue());
+            logger.info("Admin updated max extra delivery minutes to {}", body.get("maxExtraDeliveryMinutes").intValue());
         }
         return ResponseEntity.ok("✅ תעריפים עודכנו בהצלחה");
     }

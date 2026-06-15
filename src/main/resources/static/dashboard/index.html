@@ -936,6 +936,13 @@
                             </div>
                             <input class="modal-input" id="pricing-vat" type="number" min="0" step="0.01" style="width:100px;text-align:center" placeholder="0.18"/>
                         </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                            <div>
+                                <div style="font-size:15px;font-weight:700">מקסימום זמן משלוח נוסף</div>
+                                <div style="font-size:12px;color:var(--muted);margin-top:4px">מקסימום דקות להוספת משלוח נוסף לנהג עסוק</div>
+                            </div>
+                            <input class="modal-input" id="pricing-max-extra-delivery" type="number" min="1" step="1" style="width:100px;text-align:center" placeholder="30"/>
+                        </div>
                         <button class="btn-primary" onclick="savePricing()" style="align-self:flex-end">שמור תעריפים</button>
                     </div>
                 </div>
@@ -1262,8 +1269,8 @@
             document.getElementById('pricing-base').value = data.basePrice;
             document.getElementById('pricing-per-km').value = data.pricePerKm;
             document.getElementById('pricing-per-minute').value = data.pricePerMinute;
-            document.getElementById('pricing-vat').value = data.vat;
-        } catch(e) { console.error('pricing load:', e); }
+            document.getElementById('pricing-max-extra-delivery').value = data.maxExtraDeliveryMinutes;
+            } catch(e) { console.error('pricing load:', e); }
     }
     
     async function savePricing() {
@@ -1271,12 +1278,14 @@
         const pricePerKm = parseFloat(document.getElementById('pricing-per-km').value);
         const pricePerMinute = parseFloat(document.getElementById('pricing-per-minute').value);
         const vat = parseFloat(document.getElementById('pricing-vat').value);
-        if (isNaN(basePrice) || isNaN(pricePerKm) || isNaN(pricePerMinute) || isNaN(vat) || basePrice < 0 || pricePerKm < 0 || pricePerMinute < 0 || vat < 0) {
+        const maxExtraDeliveryMinutes = parseInt(document.getElementById('pricing-max-extra-delivery').value);
+        if (isNaN(basePrice) || isNaN(pricePerKm) || isNaN(pricePerMinute) || isNaN(vat) || isNaN(maxExtraDeliveryMinutes) || basePrice < 0 || pricePerKm < 0 || pricePerMinute < 0 || vat < 0 || maxExtraDeliveryMinutes < 1) {
+            toast('❌ אנא הכנס ערכים תקינים', 'error');
             toast('❌ אנא הכנס ערכים תקינים', 'error');
             return;
         }
         try {
-            await api('/admin/pricing', 'POST', { basePrice, pricePerKm, pricePerMinute, vat });
+            await api('/admin/pricing', 'POST', { basePrice, pricePerKm, pricePerMinute, vat,maxExtraDeliveryMinutes });
             toast('✅ תעריפים עודכנו בהצלחה', 'success');
         } catch(e) { toast('שגיאה: ' + e.message, 'error'); }
     }

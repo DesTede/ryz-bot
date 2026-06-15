@@ -1,13 +1,17 @@
 package com.example.yanivbot.Services;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class GeoCodingService {
@@ -95,6 +99,96 @@ public class GeoCodingService {
         }
     }
 
+    public TripInfo getTripInfoByCoords(double originLat, double originLng, double destLat, double destLng) {
+        try {
+            String url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins="
+                    + originLat + "," + originLng
+                    + "&destinations=" + destLat + "," + destLng
+                    + "&mode=driving&language=he&region=il&key=" + apiKey;
+
+            Map<?, ?> response = restTemplate.getForObject(url, Map.class);
+
+            if (response == null || !"OK".equals(response.get("status"))) return null;
+
+            List<?> rows = (List<?>) response.get("rows");
+            if (rows == null || rows.isEmpty()) return null;
+
+            List<?> elements = (List<?>) ((Map<?, ?>) rows.get(0)).get("elements");
+            if (elements == null || elements.isEmpty()) return null;
+
+            Map<?, ?> element = (Map<?, ?>) elements.get(0);
+            if (!"OK".equals(element.get("status"))) return null;
+
+            Map<?, ?> distanceMap = (Map<?, ?>) element.get("distance");
+            Map<?, ?> durationMap = (Map<?, ?>) element.get("duration");
+            if (distanceMap == null || durationMap == null) return null;
+
+            double distanceKm = ((Number) distanceMap.get("value")).doubleValue() / 1000.0;
+            double durationMinutes = ((Number) durationMap.get("value")).doubleValue() / 60.0;
+            return new TripInfo(distanceKm, durationMinutes);
+
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public Double getRouteDurationMinutes(List<double[]> stops) {
+        try {
+            if (stops == null || stops.size() < 2) return null;
+
+            double[] origin = stops.get(0);
+            double[] destination = stops.get(stops.size() - 1);
+            List<double[]> intermediates = stops.subList(1, stops.size() - 1);
+
+            // Build origin
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("origin", Map.of("location", Map.of("latLng",
+                    Map.of("latitude", origin[0], "longitude", origin[1]))));
+
+            // Build destination
+            requestBody.put("destination", Map.of("location", Map.of("latLng",
+                    Map.of("latitude", destination[0], "longitude", destination[1]))));
+
+            // Build intermediates with waypoint optimization
+            if (!intermediates.isEmpty()) {
+                List<Map<String, Object>> intermediatesList = new ArrayList<>();
+                for (double[] stop : intermediates) {
+                    intermediatesList.add(Map.of("location", Map.of("latLng",
+                            Map.of("latitude", stop[0], "longitude", stop[1]))));
+                }
+                requestBody.put("intermediates", intermediatesList);
+                requestBody.put("optimizeWaypointOrder", true);
+            }
+
+            requestBody.put("travelMode", "DRIVE");
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", "application/json");
+            headers.set("X-Goog-Api-Key", apiKey);
+            headers.set("X-Goog-FieldMask", "routes.duration");
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            Map<?, ?> response = restTemplate.postForObject(
+                    "https://routes.googleapis.com/directions/v2:computeRoutes", entity, Map.class);
+
+            if (response == null) return null;
+
+            List<?> routes = (List<?>) response.get("routes");
+            if (routes == null || routes.isEmpty()) return null;
+
+            String durationStr = (String) ((Map<?, ?>) routes.get(0)).get("duration");
+            if (durationStr == null) return null;
+
+            // Response is protobuf Duration string e.g. "522s"
+            double seconds = Double.parseDouble(durationStr.replace("s", ""));
+            return seconds / 60.0;
+
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
     public static class TripInfo {
         public final double distanceKm;
         public final double durationMinutes;
