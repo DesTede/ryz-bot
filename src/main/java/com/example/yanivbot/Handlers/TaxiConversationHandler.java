@@ -237,19 +237,9 @@ public class TaxiConversationHandler implements ConversationHandler {
             GeoCodingService.TripInfo tripInfo = geoCodingService.getTripInfo(pickupPlaceId, destinationPlaceId);
 
             double basePrice = botConfigService.getTaxiBasePrice();
-            if (basePrice <= 0) 
-                basePrice = BotConfigService.DEFAULT_TAXI_BASE_PRICE;
-            double pricePerKm = 
-                    botConfigService.getTaxiPricePerKm();
-            if (pricePerKm <= 0)
-                pricePerKm = BotConfigService.DEFAULT_TAXI_PRICE_PER_KM;
-
+            double pricePerKm = botConfigService.getTaxiPricePerKm();
             double pricePerMinute = botConfigService.getTaxiPricePerMinute();
-            if (pricePerMinute <= 0)
-                pricePerMinute = BotConfigService.DEFAULT_TAXI_PRICE_PER_MINUTE;
-            
             double vat = botConfigService.getTaxiVat();
-            if (vat <= 0) vat = BotConfigService.DEFAULT_TAXI_VAT;
 
             double carTypeModifier = 1.0;
             switch (carType) {

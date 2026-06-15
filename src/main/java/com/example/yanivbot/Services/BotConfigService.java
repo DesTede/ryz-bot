@@ -11,7 +11,7 @@ public class BotConfigService {
 
     public static final double DEFAULT_TAXI_BASE_PRICE = 15.0;
     public static final double DEFAULT_TAXI_PRICE_PER_KM = 4.5;
-    public static final double DEFAULT_TAXI_PRICE_PER_MINUTE = 2.5;
+    public static final double DEFAULT_TAXI_PRICE_PER_MINUTE = 1.5;
     public static final double DEFAULT_TAXI_VAT = 0.18;
 
     public BotConfigService(BotConfigRepository botConfigRepo) {
