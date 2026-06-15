@@ -1,10 +1,7 @@
 package com.example.yanivbot.Entities;
 
 import com.example.yanivbot.Models.ConversationState;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,7 +17,8 @@ public class Conversation {
     
     @Enumerated(EnumType.STRING)
     private ConversationState state;
-    
+
+    @Column(columnDefinition = "TEXT")
     private String tempData;
     
     private long lastMessageTime;
