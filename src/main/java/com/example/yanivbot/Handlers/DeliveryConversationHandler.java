@@ -95,9 +95,9 @@ public class DeliveryConversationHandler implements ConversationHandler {
      */
     private String getDeliveryStageFromState(ConversationState state) {
         return switch (state) {
-            case DELIVERY_CUSTOMER_PHONE -> "2/6 - Asking for CUSTOMER PHONE";
+            case DELIVERY_CUSTOMER_PHONE -> "1/6 - Asking for CUSTOMER PHONE";
             case DELIVERY_AWAITING_CUSTOMER_CONFIRM -> "1b/6 - Awaiting CUSTOMER CONFIRM";
-            case DELIVERY_CUSTOMER_NAME -> "1/6 - Asking for CUSTOMER NAME";
+            case DELIVERY_CUSTOMER_NAME -> "2/6 - Asking for CUSTOMER NAME";
             case DELIVERY_ADDRESS -> "3/6 - Asking for ADDRESS";
             case DELIVERY_READY_TIME -> "4/6 - Asking for READY TIME";
             case DELIVERY_PRICE -> "5/6 - Asking for PRICE";
@@ -291,7 +291,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String notes = (txt.isEmpty() || txt.equals("אין")) ? "" : txt;
         // Build complete tempData: name|phone|address|readyTime|price|notes
         String tempData = convo.getTempData();
-        String[] parts = tempData.split("\\|");
+        String[] parts = tempData.split("\\|", -1);
 
         if (parts.length >= 5) {
             // Add notes to the end
