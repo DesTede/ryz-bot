@@ -1,6 +1,7 @@
 package com.example.yanivbot.Handlers;
 
 import com.example.yanivbot.Entities.Conversation;
+import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.*;
@@ -272,23 +273,36 @@ public class DriverConversationHandler implements ConversationHandler {
             return "❌ שגיאה בעיבוד המיקום. אנא נסה שוב.";
         }
     }
-    
-    
+
+
 
     private String handleEndShift(Conversation convo, IncomingMessage message) {
-        driverService.clockOut(message.getPhone());
-        convoService.updateState(convo, ConversationState.START);
-        convoService.saveTempData(convo, "END_SHIFT"); // Flag that driver ended shift
+        String phone = message.getPhone();
 
-        String bodyText = "✅ המשמרת נסגרה בהצלחה\nנשמח לראות אותך שוב בהמשך 🙌";
+        // Check if driver has an active taxi order
+        TaxiOrder activeOrder = driverService.getActiveTaxiOrder(phone);
+        if (activeOrder != null) {
+            return "⚠️ יש לך הזמנה פעילה #" + activeOrder.getId() + ".\n" +
+                    "לא ניתן לסיים משמרת עם הזמנה פעילה.\n" +
+                    "אנא סיים את הנסיעה תחילה ואז סיים משמרת.";
+        }
+
+        driverService.clockOut(phone);
+        convoService.updateState(convo, ConversationState.START);
+        convoService.saveTempData(convo, "END_SHIFT");
+
+        String bodyText = """
+                ✅ המשמרת נסגרה בהצלחה
+                אל תשכח לעצור את שידור המיקום באפליקציה 📵
+                נשמח לראות אותך שוב בהמשך 🙌""";
 
         whatsappService.sendInteractiveButtonsSafe(
-                message.getPhone(),
+                phone,
                 bodyText,
                 new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת")
         );
 
-        return null; // Message already sent via button
+        return null;
     }
 
     private String handleCancelShiftStart(Conversation convo, IncomingMessage message) {

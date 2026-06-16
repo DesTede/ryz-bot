@@ -48,6 +48,9 @@ public class TaxiOrder {
 
     @Column(name = "admin_alerted_no_drivers", nullable = false)
     private boolean adminAlertedNoDrivers = false;
+
+    @Column(nullable = false)
+    private boolean customerAlertedStaleLocation = false;
     
     @Column(name = "tracking_token")
     private String trackingToken;
@@ -181,5 +184,13 @@ public class TaxiOrder {
 
     public void setEstimatedFare(Double estimatedFare) {
         this.estimatedFare = estimatedFare;
+    }
+
+    public boolean isCustomerAlertedStaleLocation() {
+        return customerAlertedStaleLocation;
+    }
+
+    public void setCustomerAlertedStaleLocation(boolean customerAlertedStaleLocation) {
+        this.customerAlertedStaleLocation = customerAlertedStaleLocation;
     }
 }

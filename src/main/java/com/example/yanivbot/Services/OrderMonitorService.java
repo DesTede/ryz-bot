@@ -235,6 +235,34 @@ public class OrderMonitorService {
         }
     }
 
+    // Runs every 5 minutes — notifies customer if driver location is stale during active taxi order
+    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
+    public void checkStaleDriverLocation() {
+        LocalDateTime staleThreshold = LocalDateTime.now().minusMinutes(5);
+
+        List<TaxiOrder> activeOrders = taxiOrderRepo.findByStatusIn(
+                List.of(TaxiOrderStatus.ASSIGNED, TaxiOrderStatus.CONFIRMED));
+
+        for (TaxiOrder order : activeOrders) {
+            if (order.getDriverPhone() == null) continue;
+            if (order.isCustomerAlertedStaleLocation()) continue;
+
+            double[] loc = driverService.getDriverLocation(order.getDriverPhone());
+            Driver driver = driverService.findByPhone(order.getDriverPhone());
+            if (driver == null) continue;
+            if (driver.getLocationUpdatedAt() == null) continue;
+            if (driver.getLocationUpdatedAt().isAfter(staleThreshold)) continue;
+
+            // Location is stale — notify customer
+            whatsappService.sendSafeText(order.getPhone(),
+                    "⚠️ המיקום לא מתעדכן כרגע, הנהג בדרכו אליך 🚗");
+
+            order.setCustomerAlertedStaleLocation(true);
+            taxiOrderRepo.save(order);
+            logger.info("Stale location alert sent to customer for order #{}", order.getId());
+        }
+    }
+
     private String buildDispatchMessage(DeliveryOrder order) {
         return """
                 📦 משלוח חדש!
@@ -299,35 +327,4 @@ public class OrderMonitorService {
             convoService.save(convo);
         }
     }
-
-    // Commented out: Check if active driver's location is updated every 15 minutes
-    // This feature will be implemented in the future
-    
-    /*
-    private static final int LOCATION_STALE_MINUTES = 15; // alert if no update in 15 min
-
-    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
-    public void checkDriverLocations() {
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(LOCATION_STALE_MINUTES);
-
-        // get all active drivers of any type
-        List<Driver> allActiveDrivers = new ArrayList<>();
-        allActiveDrivers.addAll(driverService.getActiveDrivers(DriverType.TAXI));
-        allActiveDrivers.addAll(driverService.getActiveDrivers(DriverType.DELIVERY));
-
-        // deduplicate by phone
-        allActiveDrivers.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        Driver::getPhone, d -> d, (d1, d2) -> d1))
-                .values()
-                .forEach(driver -> {
-                    if (driver.getLocationUpdatedAt() != null &&
-                            driver.getLocationUpdatedAt().isBefore(cutoff)) {
-                        whatsappService.sendSafeText(driver.getPhone(),
-                                "📍 המיקום שלך לא עודכן כבר " + LOCATION_STALE_MINUTES + " דקות.\n" +
-                                        "אנא שלח מיקום מעודכן כדי להמשיך לקבל הזמנות.");
-                    }
-                });
-    }
-    */
 }
