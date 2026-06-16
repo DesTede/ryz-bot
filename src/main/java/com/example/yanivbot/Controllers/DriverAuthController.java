@@ -60,7 +60,7 @@ public class DriverAuthController {
         otpRepo.save(otp);
 
         boolean inWindow = convoService.isWithin24HourWindow(phone);
-        String driverMsg = code + "הוא קוד האימות שלך. מטעמי אבטחה,\n אין לשתף את הקוד הזה";
+        String driverMsg = code + " הוא קוד האימות שלך.\n מטעמי אבטחה, אין לשתף את הקוד הזה ";
         if (inWindow) {
             whatsappService.sendSafeText(phone,driverMsg);
             
