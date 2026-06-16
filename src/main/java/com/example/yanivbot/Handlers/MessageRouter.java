@@ -392,7 +392,7 @@ public class MessageRouter {
      */
     private void showServiceMenu(String phone, String name) {
         String displayName = (name != null && !name.isEmpty()) ? name : "ידידי";
-        String message = "מה בא לך " + displayName + "?";
+        String message = "אז מה בא לך היום?";
 
         try {
             logger.info("Sending service menu to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), message);
