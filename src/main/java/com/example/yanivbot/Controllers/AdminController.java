@@ -522,25 +522,61 @@ public class AdminController {
             @RequestHeader(value = "X-Admin-Key", required = false) String key,
             @RequestBody Map<String, Double> body) {
         if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+
+        boolean anyUpdates = false;
+
         if (body.containsKey("basePrice")) {
-            botConfigService.setTaxiBasePrice(body.get("basePrice"));
-            logger.info("Admin updated taxi base price to {}", body.get("basePrice"));
+            double newPrice = body.get("basePrice");
+            double currentPrice = botConfigService.getTaxiBasePrice();
+            if (newPrice != currentPrice) {
+                botConfigService.setTaxiBasePrice(newPrice);
+                logger.info("Admin updated taxi base price to {}", newPrice);
+                anyUpdates = true;
+            }
         }
+
         if (body.containsKey("pricePerKm")) {
-            botConfigService.setTaxiPricePerKm(body.get("pricePerKm"));
-            logger.info("Admin updated taxi price per km to {}", body.get("pricePerKm"));
+            double newPrice = body.get("pricePerKm");
+            double currentPrice = botConfigService.getTaxiPricePerKm();
+            if (newPrice != currentPrice) {
+                botConfigService.setTaxiPricePerKm(newPrice);
+                logger.info("Admin updated taxi price per km to {}", newPrice);
+                anyUpdates = true;
+            }
         }
+
         if (body.containsKey("pricePerMinute")) {
-            botConfigService.setTaxiPricePerMinute(body.get("pricePerMinute"));
-            logger.info("Admin updated taxi price per minute to {}", body.get("pricePerMinute"));
+            double newPrice = body.get("pricePerMinute");
+            double currentPrice = botConfigService.getTaxiPricePerMinute();
+            if (newPrice != currentPrice) {
+                botConfigService.setTaxiPricePerMinute(newPrice);
+                logger.info("Admin updated taxi price per minute to {}", newPrice);
+                anyUpdates = true;
+            }
         }
+
         if (body.containsKey("vat")) {
-            botConfigService.setTaxiVat(body.get("vat"));
-            logger.info("Admin updated taxi VAT to {}", body.get("vat"));
+            double newVat = body.get("vat");
+            double currentVat = botConfigService.getTaxiVat();
+            if (newVat != currentVat) {
+                botConfigService.setTaxiVat(newVat);
+                logger.info("Admin updated taxi VAT to {}", newVat);
+                anyUpdates = true;
+            }
         }
+
         if (body.containsKey("maxExtraDeliveryMinutes")) {
-            botConfigService.setMaxExtraDeliveryMinutes(body.get("maxExtraDeliveryMinutes").intValue());
-            logger.info("Admin updated max extra delivery minutes to {}", body.get("maxExtraDeliveryMinutes").intValue());
+            int newMinutes = body.get("maxExtraDeliveryMinutes").intValue();
+            int currentMinutes = botConfigService.getMaxExtraDeliveryMinutes();
+            if (newMinutes != currentMinutes) {
+                botConfigService.setMaxExtraDeliveryMinutes(newMinutes);
+                logger.info("Admin updated max extra delivery minutes to {}", newMinutes);
+                anyUpdates = true;
+            }
+        }
+
+        if (!anyUpdates) {
+            return ResponseEntity.ok("ℹ️ לא נעשו שינויים");
         }
         return ResponseEntity.ok("✅ תעריפים עודכנו בהצלחה");
     }
