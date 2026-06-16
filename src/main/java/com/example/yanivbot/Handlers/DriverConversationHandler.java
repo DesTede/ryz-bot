@@ -311,11 +311,13 @@ public class DriverConversationHandler implements ConversationHandler {
 
         String bodyText = """
             🟢 להתחלת המשמרת, פתח את אפליקציית Movez Driver ולחץ על "התחל משמרת".
-            
-            📲 הורדת האפליקציה:
-            https://expo.dev/accounts/movezbot/projects/movez-driver/builds/e464c4d8-c4f7-4ce9-af98-38e9c519ea02
-            
+       
             לאחר שתתחיל שידור מיקום באפליקציה, תתחיל לקבל הזמנות 🚀""";
+
+             
+//            📲 הורדת האפליקציה:
+//        https://expo.dev/accounts/movezbot/projects/movez-driver/builds/e464c4d8-c4f7-4ce9-af98-38e9c519ea02
+
 
         whatsappService.sendSafeText(phone, bodyText);
     }

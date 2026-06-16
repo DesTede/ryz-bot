@@ -120,6 +120,14 @@ public class DriverService {
     }
 
     /**
+     * Returns true if driver's location was updated within the last 5 minutes.
+     */
+    private boolean isLocationFresh(Driver driver) {
+        if (driver.getLocationUpdatedAt() == null) return false;
+        return driver.getLocationUpdatedAt().isAfter(LocalDateTime.now().minusMinutes(5));
+    }
+
+    /**
      * Dispatch to drivers within 5km radius of order location
      * Sends order as interactive button for easy claiming
      * Only sends to active drivers with valid location data
@@ -151,6 +159,23 @@ public class DriverService {
             return;
         }
 
+        // Filter out drivers with stale location (not sharing from app)
+        availableDrivers = availableDrivers.stream()
+                .filter(driver -> {
+                    if (!isLocationFresh(driver)) {
+                        logger.debug("Driver {} skipped - location stale", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()));
+                        return false;
+                    }
+                    return true;
+                })
+                .toList();
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No drivers with fresh location for order #{}", orderId);
+            alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
+            return;
+        }
+        
         // Filter out drivers who already have an active order
         availableDrivers = availableDrivers.stream()
                 .filter(driver -> {
@@ -228,6 +253,23 @@ public class DriverService {
             return;
         }
 
+        // Filter out drivers with stale location (not sharing from app)
+        availableDrivers = availableDrivers.stream()
+                .filter(driver -> {
+                    if (!isLocationFresh(driver)) {
+                        logger.debug("Driver {} skipped - location stale", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()));
+                        return false;
+                    }
+                    return true;
+                })
+                .toList();
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No drivers with fresh location for order #{}", orderId);
+            alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
+            return;
+        }
+        
         // Filter out drivers who already have an active order
         availableDrivers = availableDrivers.stream()
                 .filter(driver -> {
@@ -280,6 +322,23 @@ public class DriverService {
             return;
         }
 
+        // Filter out drivers with stale location (not sharing from app)
+        availableDrivers = availableDrivers.stream()
+                .filter(driver -> {
+                    if (!isLocationFresh(driver)) {
+                        logger.debug("Driver {} skipped - location stale", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()));
+                        return false;
+                    }
+                    return true;
+                })
+                .toList();
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No drivers with fresh location for order #{}", orderId);
+            alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
+            return;
+        }
+        
         // Filter out drivers who have reached delivery limit or have active taxi orders
         availableDrivers = availableDrivers.stream()
                 .filter(driver -> {
@@ -347,23 +406,40 @@ public class DriverService {
             return;
         }
 
+        // Filter out drivers with stale location (not sharing from app)
+        availableDrivers = availableDrivers.stream()
+                .filter(driver -> {
+                    if (!isLocationFresh(driver)) {
+                        logger.debug("Driver {} skipped - location stale", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()));
+                        return false;
+                    }
+                    return true;
+                })
+                .toList();
+
+        if (availableDrivers.isEmpty()) {
+            logger.warn("No drivers with fresh location for order #{}", orderId);
+            alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
+            return;
+        }
+        
         // Filter out drivers who have reached delivery limit or have active taxi orders
         availableDrivers = availableDrivers.stream()
                 .filter(driver -> {
                     // For BOTH drivers: check if they have an active taxi order
-                    if (driver.getType() == DriverType.BOTH) {                          // ← NEW
-                        if (hasActiveTaxiOrder(driver.getPhone())) {                    // ← NEW
+                    if (driver.getType() == DriverType.BOTH) {                          
+                        if (hasActiveTaxiOrder(driver.getPhone())) {                    
                             logger.debug("Driver {} skipped - has active taxi order", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()));
-                            return false;                                               // ← NEW
-                        }                                                               // ← NEW
-                    }                                                                   // ← NEW
+                            return false;                                              
+                        }                                                              
+                    }                                                                  
 
-                    // Check delivery order limit                                        // ← NEW
-                    if (!canClaimMoreDeliveries(driver.getPhone())) {                   // ← NEW
-                        int activeCount = getActiveDeliveryCount(driver.getPhone());    // ← NEW
+                    // Check delivery order limit                                     
+                    if (!canClaimMoreDeliveries(driver.getPhone())) {                  
+                        int activeCount = getActiveDeliveryCount(driver.getPhone());   
                         logger.debug("Driver {} skipped - reached delivery limit ({}/{})", driver.getPhone(), activeCount, maxActiveDeliveries);
-                        return false;                                                   // ← NEW
-                    }                                                                   // ← NEW
+                        return false;                                                  
+                    }                                                                  
 
                     return true;
                 })
@@ -427,46 +503,6 @@ public class DriverService {
             deliveryOrderRepo.save(order);
         }
     }
-
-//    public void alertAdminIfNoDriversAvailable(long orderId, DriverType type, String orderDetails) {
-//        // Get the order
-//        Optional<TaxiOrder> orderOpt = taxiOrderRepo.findById(orderId);
-//        if (orderOpt.isEmpty()) {
-//            logger.warn("Order #{} not found", orderId);
-//            return;
-//        }
-//
-//        TaxiOrder order = orderOpt.get();
-//
-//        // Only send alert once per order
-//        if (order.isAdminAlertedNoDrivers()) {
-//            logger.info("No drivers alert already sent for order #{}, skipping", orderId);
-//            return;
-//        }
-//
-//        logger.warn("No drivers available for order #{} - alerting admins", orderId);
-//
-//        String driverType = type == DriverType.TAXI ? "מונית" : "משלוח";
-//        String adminMessage = "🚨 *אוי לא, אין נהגים פנויים!*\n" +
-//                "נוצרה הזמנת " + driverType + " חדשה (#" + orderId + ") אבל אין אף נהג זמין כרגע במערכת 😰\n\n" +
-//                "📋 *פרטי ההזמנה:*\n" + orderDetails;
-//                
-////                "⚠️ הזמנת " + (type == DriverType.TAXI ? "מונית" : "משלוח") +
-////                " חדשה #" + orderId + " נוצרה אך אין נהגים זמינים!\n" +
-////                orderDetails;
-//
-//        // Use smart method that saves 40-60% on costs
-//        notifyAdminsSmartMessage(
-//                adminMessage,                    
-//                "no_drivers_available_admin",    
-//                List.of(driverType ,String.valueOf(orderId), type.name())  
-//        );
-//        
-//        // Mark as alerted so this message is never sent again for this order
-//        order.setAdminAlertedNoDrivers(true);
-//        taxiOrderRepo.save(order);
-//    }
-
 
     /**
      * Calculate distance between two coordinates using Haversine formula
@@ -543,7 +579,7 @@ public class DriverService {
 
     /**
      * Notify admins smartly about events
-     * Delegates to WhatsappService for 24-hour aware delivery
+     * Delegates to WhatsappService for 24-hour informed delivery
      */
     public void notifyAdminsSmartMessage(String regularMessage, String templateName,
                                          List<String> templateVariables) {
