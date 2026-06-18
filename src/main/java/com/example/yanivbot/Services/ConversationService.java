@@ -137,4 +137,12 @@ public class ConversationService {
     public List<Conversation> findIdleMidFlowConversations(List<ConversationState> states, long fromMs, long toMs) {
         return convoRepo.findByStateInAndLastMessageTimeBetweenAndNudgedAt(states, fromMs, toMs, 0L);
     }
+
+    public boolean exists(String phone) {
+        return convoRepo.existsById(phone);
+    }
+
+    public void deleteConversation(String phone) {
+        convoRepo.deleteById(phone);
+    }
 }

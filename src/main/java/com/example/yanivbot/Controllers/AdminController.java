@@ -1,7 +1,9 @@
 package com.example.yanivbot.Controllers;
 
 import com.example.yanivbot.Entities.*;
+import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.DeliveryStatus;
+import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.*;
 import com.example.yanivbot.Services.*;
@@ -40,6 +42,7 @@ public class AdminController {
     private final DriverRepository driverRepo;
     private final CustomerRepository customerRepo;
     private final BusinessRepository businessRepo;
+    private final ConversationService convoService;
 
     public AdminController(DriverService driverService,
                            BotConfigService botConfigService,
@@ -47,7 +50,7 @@ public class AdminController {
                            DeliveryOrderRepository deliveryOrderRepo,
                            DriverRepository driverRepo,
                            CustomerRepository customerRepo,
-                           BusinessRepository businessRepo) {
+                           BusinessRepository businessRepo, ConversationService convoService) {
         this.driverService = driverService;
         this.botConfigService = botConfigService;
         this.taxiOrderRepo = taxiOrderRepo;
@@ -55,6 +58,7 @@ public class AdminController {
         this.driverRepo = driverRepo;
         this.customerRepo = customerRepo;
         this.businessRepo = businessRepo;
+        this.convoService = convoService;
     }
 
     // =========================================================
@@ -256,24 +260,28 @@ public class AdminController {
         if (driverRepo.findByPhone(phone).isPresent()) {
             return ResponseEntity.badRequest().body("❌ נהג עם מספר זה כבר קיים");
         }
-        com.example.yanivbot.Models.DriverType driverType;
+        DriverType driverType;
         try {
-            driverType = com.example.yanivbot.Models.DriverType.valueOf(type.toUpperCase());
+            driverType = DriverType.valueOf(type.toUpperCase());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("❌ סוג נהג לא תקין: " + type);
         }
         Driver driver = new Driver(phone, name, false, driverType);
         driver.setCarColor(carColor.isBlank() ? null : carColor);
         driver.setCarModel(carModel.isBlank() ? null : carModel);
-        driver.setLocationToken(java.util.UUID.randomUUID().toString());
+        driver.setLocationToken(UUID.randomUUID().toString());
         if (!carType.isBlank()) {
             try {
-                driver.setCarType(com.example.yanivbot.Models.CarType.valueOf(carType.toUpperCase()));
+                driver.setCarType(CarType.valueOf(carType.toUpperCase()));
             } catch (IllegalArgumentException e) {
                 logger.warn("Unknown carType {}, leaving null", carType);
             }
         }
         driverRepo.save(driver);
+        if (convoService.exists(phone)) {
+            convoService.deleteConversation(phone);
+            logger.info("Cleared stale conversation state for newly added driver: {}", phone);
+        }
         logger.info("Admin added new driver: {}", phone);
         return ResponseEntity.ok("✅ נהג נוסף בהצלחה");
     }
@@ -390,8 +398,13 @@ public class AdminController {
         business.setAddress(address);
 
         businessRepo.save(business);
+        if (convoService.exists(phone)) {
+            convoService.deleteConversation(phone);
+            logger.info("Cleared stale conversation state for newly added business: {}", phone);
+        }
         logger.info("Admin added new business: {}", phone);
         return ResponseEntity.ok("✅ עסק נוסף בהצלחה");
+    
     }
 
     @PutMapping("/businesses/{phone}")

@@ -108,8 +108,8 @@ public class MessageRouter {
         boolean isAdminCommand = txt.equals("כבה בוט") || txt.equals("kahah_bot")
                 || txt.equals("הפעל בוט") || txt.equals("hepel_bot")
                 || txt.startsWith("stop_redispatch_taxi_") || txt.startsWith("stop_redispatch_del_");
-        
-        
+
+
         if (isAdminCommand) {
             // Check if user is actually an admin BEFORE processing the command
             if (!adminCommandHandler.isAdmin(phone)) {
@@ -141,7 +141,7 @@ public class MessageRouter {
             long orderId = Long.parseLong(txt.replace("delivery_cancel_business_", ""));
             return deliveryOrderService.cancelDeliveryOrderByBusiness(orderId, phone);
         }
-        
+
         // Reset conversation if user sends "00" or "התחל מחדש"
         if (txt.equals("00") || txt.equals("התחל מחדש")) {
             logger.info("Reset signal received: '{}'", txt);
@@ -151,7 +151,7 @@ public class MessageRouter {
             convoService.save(convo);
             return "🔄 איפוס משתמש. בואו נתחיל מחדש! 🚀";
         }
-        
+
         // ===== TIMEOUT CHECK — reset mid-flow conversations idle for 30+ minutes =====
         boolean isMidFlow = state != ConversationState.START
                 && state != ConversationState.START_MENU
@@ -191,7 +191,6 @@ public class MessageRouter {
             if (driver != null) {
                 logger.info("User is a DRIVER (active={}, showing driver menu)", driver.isActive());
 
-                // Check if this is an order-related command - route to DriverHandler regardless of shift state
                 if (txt.startsWith("taxi_claim_") || txt.startsWith("delivery_claim_") ||
                         txt.startsWith("taxi_complete_") || txt.startsWith("taxi_cancel_driver_") ||
                         txt.startsWith("איסוף ") || txt.startsWith("נמסר ") ||
@@ -210,35 +209,24 @@ public class MessageRouter {
                     return null;
                 }
 
+                // Check if trying to start or end shift - ALWAYS route to handler regardless of tempData state
+                if (txt.equals("התחל משמרת") || txt.equals("driver_start_shift") ||
+                        txt.equals("סיים משמרת") || txt.equals("driver_end_shift")) {
+                    logger.info("Driver attempting to start/end shift, routing to DriverHandler");
+                    String driverResponse = driverHandler.handleMessage(convo, message);
+                    if (driverResponse != null) {
+                        return driverResponse;
+                    }
+                    return null;
+                }
+
                 // Check if driver just ended shift - treat as customer for non-shift, non-order commands
                 if (convo.getTempData() != null && convo.getTempData().equals("END_SHIFT")) {
-                    logger.info("Driver has ended shift, checking if restarting or being customer");
-                    // If trying to restart shift, route to handler
-                    if (txt.equals("התחל משמרת") || txt.equals("driver_start_shift")) {
-                        logger.info("Driver restarting shift, routing to DriverHandler");
-                        String driverResponse = driverHandler.handleMessage(convo, message);
-                        if (driverResponse != null) {
-                            return driverResponse;
-                        }
-                        return null;
-                    }
-                    // Otherwise, treat as customer - clear END_SHIFT flag and fall through
-                    logger.info("Driver typing non-shift message after end shift, treating as customer");
+                    logger.info("Driver has ended shift, treating non-shift message as customer");
                     convoService.saveTempData(convo, "");
                     // Fall through to customer logic below
                 } else {
                     // Driver is active/normal (not in END_SHIFT state)
-                    // Check if trying to start or end shift - ALWAYS route to handler
-                    if (txt.equals("התחל משמרת") || txt.equals("driver_start_shift") ||
-                            txt.equals("סיים משמרת") || txt.equals("driver_end_shift")) {
-                        logger.info("Driver attempting to start/end shift, routing to DriverHandler");
-                        String driverResponse = driverHandler.handleMessage(convo, message);
-                        if (driverResponse != null) {
-                            return driverResponse;
-                        }
-                        return null;
-                    }
-
                     // Send driver welcome message with buttons ONLY on first message (no tempData)
                     if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
                         logger.info("Sending driver welcome message with buttons");
