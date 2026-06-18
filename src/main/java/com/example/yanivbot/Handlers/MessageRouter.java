@@ -92,6 +92,9 @@ public class MessageRouter {
         String phone = message.getPhone();
         ConversationState state = convo.getState();
 
+        // Update 24h window on every inbound message
+        convoService.updateLastMessageTime(phone);
+
         logger.info("========== ROUTE START ==========");
         logger.info("Phone: {}", phone);
         logger.info("Message: '{}'", txt);
