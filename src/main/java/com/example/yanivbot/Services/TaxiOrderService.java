@@ -230,7 +230,7 @@ public class TaxiOrderService {
         // Notify driver if assigned
         if (driverPhone != null) {
             whatsappService.sendSafeText(driverPhone,
-                    "❌ הנסיעה #" + orderId + " בוטלה על ידי הלקוח.\nהמערכת מסמנת אותך כפנוי 🚀");
+                    "❌ נסיעה מספר" + orderId + " בוטלה על ידי הלקוח.\nהמערכת מסמנת אותך כפנוי 🚀");
         }
 
         logger.info("Order #{} cancelled by customer {}", orderId, customerPhone);

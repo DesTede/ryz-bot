@@ -50,7 +50,7 @@ public class DriverAuthController {
         Driver driver = driverService.findByPhone(phone);
         if (driver == null) {
             logger.warn("OTP requested for unknown driver phone: {}", PhoneNumberUtil.maskPhoneNumber(phone));
-            return ResponseEntity.status(403).body(Map.of("error", "Phone not registered as a driver"));
+            return ResponseEntity.status(403).body(Map.of("error", "מספר הטלפון אינו רשום כנהג במערכת"));
         }
 
         String code = String.format("%06d", new Random().nextInt(999999));
