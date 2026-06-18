@@ -67,7 +67,6 @@ public class DriverAuthController {
         } else {
             whatsappService.sendOtpTemplate(phone, code, "driver_otp");
         }
-
         logger.info("OTP sent to driver {}", PhoneNumberUtil.maskPhoneNumber(phone));
         return ResponseEntity.ok(Map.of("message", "OTP sent"));
     }
