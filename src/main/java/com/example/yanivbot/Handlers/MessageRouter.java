@@ -102,9 +102,6 @@ public class MessageRouter {
         logger.info("================================");
 
         // ===== CHECK ADMIN COMMANDS FIRST (works even when bot is off) =====
-        // Admin commands are handled and we stop here, whether they return a message or send via WhatsApp
-//        boolean isAdminCommand = txt.equals("כבה בוט") || txt.equals("kahah_bot")
-//                || txt.equals("הפעל בוט") || txt.equals("hepel_bot");
         boolean isAdminCommand = txt.equals("כבה בוט") || txt.equals("kahah_bot")
                 || txt.equals("הפעל בוט") || txt.equals("hepel_bot")
                 || txt.startsWith("stop_redispatch_taxi_") || txt.startsWith("stop_redispatch_del_");
@@ -367,6 +364,7 @@ public class MessageRouter {
                 state == ConversationState.DELIVERY_AWAITING_CUSTOMER_CONFIRM ||
                 state == ConversationState.DELIVERY_CUSTOMER_NAME ||
                 state == ConversationState.DELIVERY_ADDRESS ||
+                state == ConversationState.AWAITING_DELIVERY_ADDRESS_SELECTION ||
                 state == ConversationState.DELIVERY_READY_TIME ||
                 state == ConversationState.DELIVERY_PRICE ||
                 state == ConversationState.DELIVERY_NOTES ||
