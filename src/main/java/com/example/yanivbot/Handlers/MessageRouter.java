@@ -185,9 +185,15 @@ public class MessageRouter {
                 return null;
             }
 
-            // Check if user is a driver (active or not)
-            Driver driver = driverService.findByPhone(phone);
-            logger.info("Driver lookup for {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), (driver != null ? "FOUND" : "NOT FOUND"));
+
+            // If a driver was already bridged into customer name-capture (WELCOME_SENT),
+            // skip the driver lookup so their name isn't swallowed by DriverConversationHandler
+            Driver driver = "WELCOME_SENT".equals(convo.getTempData()) ? null : driverService.findByPhone(phone);
+            if (driver == null && "WELCOME_SENT".equals(convo.getTempData())) {
+                logger.info("Customer name-capture in progress (WELCOME_SENT) - skipping driver lookup");
+            } else {
+                logger.info("Driver lookup for {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), (driver != null ? "FOUND" : "NOT FOUND"));
+            }
             if (driver != null) {
                 logger.info("User is a DRIVER (active={}, showing driver menu)", driver.isActive());
 
