@@ -232,8 +232,6 @@ public class DriverConversationHandler implements ConversationHandler {
             return "❌ הטלפון שלך לא רשום במערכת כנהג. צור קשר עם תמיכה.";
         }
 
-        driverService.clockIn(message.getPhone());
-        convoService.saveTempData(convo, "DRIVER_ACTIVE");
         showShiftStartConfirmation(message.getPhone());
         return null;
     }
