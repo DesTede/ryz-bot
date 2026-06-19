@@ -131,7 +131,7 @@ public class OrderMonitorService {
             
             whatsappService.notifyAdminsSmartMessage(
                     adminMsg,
-                    "taxi_order_unclaimed_admin",
+                    "taxi_order_delayed_admin",
                     List.of(String.valueOf(order.getId()), String.valueOf(TAXI_ALERT_MINUTES)),
                     convoService  
             );

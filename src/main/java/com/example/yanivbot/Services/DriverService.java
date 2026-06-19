@@ -481,7 +481,7 @@ public class DriverService {
                 return;
             }
             logger.warn("No drivers available for taxi order #{} - alerting admins", orderId);
-            notifyAdminsSmartMessage(adminMessage, "no_drivers_available_admin",
+            notifyAdminsSmartMessage(adminMessage, "no_taxi_driver_available_admin",
                     List.of(driverType, String.valueOf(orderId), type.name()));
             order.setAdminAlertedNoDrivers(true);
             taxiOrderRepo.save(order);
@@ -497,7 +497,7 @@ public class DriverService {
                 return;
             }
             logger.warn("No drivers available for delivery order #{} - alerting admins", orderId);
-            notifyAdminsSmartMessage(adminMessage, "no_drivers_available_admin",
+            notifyAdminsSmartMessage(adminMessage, "no_delivery_driver_available_admin",
                     List.of(driverType, String.valueOf(orderId), type.name()));
             order.setAdminAlertedNoDrivers(true);
             deliveryOrderRepo.save(order);

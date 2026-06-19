@@ -861,7 +861,6 @@
         <div class="page-header">
             <div class="page-title"><span>נהגים</span></div>
             <div style="display:flex;gap:10px">
-<!--                <button class="refresh-btn" onclick="syncDrivers()">↺ סנכרן Sheets</button>-->
                 <button class="refresh-btn" onclick="loadDrivers()">↻ רענן</button>
                 <button class="btn-primary" onclick="openModal('add-driver-modal')">+ הוסף נהג</button>
             </div>
@@ -895,7 +894,6 @@
         <div class="page-header">
             <div class="page-title"><span>עסקים</span></div>
             <div style="display:flex;gap:10px">
-<!--                <button class="refresh-btn" onclick="syncBusinesses()">↺ סנכרן Sheets</button>-->
                 <button class="refresh-btn" onclick="loadBusinesses()">↻ רענן</button>
                 <button class="btn-primary" onclick="openModal('add-business-modal')">+ הוסף עסק</button>
             </div>
@@ -1872,33 +1870,7 @@
     // SETTINGS
     // ══════════════════════════════════════════════════════════════
     function loadSettings() { loadBotStatus(); loadPricing(); }
-    async function syncSheets() {
-        toast('מסנכרן...', 'success');
-        try {
-            await api('/admin/sync-sheets', 'POST');
-            toast('✅ סנכרון הושלם', 'success');
-            loadDrivers();
-        } catch(e) { toast('שגיאה בסנכרון: ' + e.message, 'error'); }
-    }
-
-    async function syncDrivers() {
-        toast('מסנכרן נהגים...', 'success');
-        try {
-            await api('/admin/sync-drivers', 'POST');
-            toast('✅ נהגים סונכרנו', 'success');
-            loadDrivers();
-        } catch(e) { toast('שגיאה בסנכרון: ' + e.message, 'error'); }
-    }
-
-    async function syncBusinesses() {
-        toast('מסנכרן עסקים...', 'success');
-        try {
-            await api('/admin/sync-businesses', 'POST');
-            toast('✅ עסקים סונכרנו', 'success');
-            loadBusinesses();
-        } catch(e) { toast('שגיאה בסנכרון: ' + e.message, 'error'); }
-    }
-
+    
     // ══════════════════════════════════════════════════════════════
     // MODAL
     // ══════════════════════════════════════════════════════════════
@@ -1967,11 +1939,6 @@
         document.querySelector('.main').style.visibility = 'hidden';
     }
 
-    // function hideLogin() {
-    //     document.getElementById('login-overlay').style.display = 'none';
-    //     document.querySelector('.sidebar').style.visibility = 'visible';
-    //     document.querySelector('.main').style.visibility = 'visible';
-    // }
     function hideLogin() {
         document.getElementById('login-overlay').style.display = 'none';
         document.querySelector('.sidebar').style.visibility = 'visible';
