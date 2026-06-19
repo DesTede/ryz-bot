@@ -93,7 +93,7 @@ public class MessageRouter {
         ConversationState state = convo.getState();
 
         // Update 24h window on every inbound message
-        convoService.updateLastMessageTime(phone);
+        convoService.updateLastMessageTime(convo);
 
         logger.info("========== ROUTE START ==========");
         logger.info("Phone: {}", phone);
@@ -174,8 +174,19 @@ public class MessageRouter {
         if (state == ConversationState.START) {
             logger.info("In START state - determining user type");
 
-            // Check if user is a business owner FIRST (before checking driver)
-            if (businessOwnerService.isBusinessOwner(phone)) {
+            // An unambiguous driver command (shift toggle / order action) can never be a
+            // customer name or a business-menu selection - used below to safely bypass
+            // both the business-owner check and the WELCOME_SENT bridge guard.
+            boolean isUnambiguousDriverCommand = txt.startsWith("taxi_claim_") || txt.startsWith("delivery_claim_") ||
+                    txt.startsWith("taxi_complete_") || txt.startsWith("taxi_cancel_driver_") ||
+                    txt.startsWith("איסוף ") || txt.startsWith("נמסר ") || txt.startsWith("בדרך ") ||
+                    txt.equals("התחל משמרת") || txt.equals("driver_start_shift") ||
+                    txt.equals("סיים משמרת") || txt.equals("driver_end_shift");
+
+            // Check if user is a business owner FIRST (before checking driver) -
+            // unless they just sent an unambiguous driver command, so dual-role
+            // driver+business accounts aren't swallowed by the business menu
+            if (businessOwnerService.isBusinessOwner(phone) && !isUnambiguousDriverCommand) {
                 logger.info("User is a BUSINESS OWNER - showing business menu");
                 businessHandler.showBusinessMenuButtons(phone);
                 convoService.updateState(convo, ConversationState.BUSINESS_MENU);
@@ -184,8 +195,10 @@ public class MessageRouter {
 
 
             // If a driver was already bridged into customer name-capture (WELCOME_SENT),
-            // skip the driver lookup so their name isn't swallowed by DriverConversationHandler
-            Driver driver = "WELCOME_SENT".equals(convo.getTempData()) ? null : driverService.findByPhone(phone);
+            // skip the driver lookup so their name isn't swallowed by DriverConversationHandler -
+            // unless this message is itself an unambiguous driver command, which can't be a name
+            Driver driver = ("WELCOME_SENT".equals(convo.getTempData()) && !isUnambiguousDriverCommand)
+                    ? null : driverService.findByPhone(phone);
             if (driver == null && "WELCOME_SENT".equals(convo.getTempData())) {
                 logger.info("Customer name-capture in progress (WELCOME_SENT) - skipping driver lookup");
             } else {

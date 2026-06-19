@@ -71,8 +71,6 @@ public class MessageController {
 
             // Route to appropriate handler
             String reply = messageRouter.route(convo, message);
-
-            convoService.updateLastMessageTime(message.getPhone());
             convo.setLastMessageTime(System.currentTimeMillis());
             convo.setNudgedAt(0);
             convoService.save(convo);

@@ -104,6 +104,11 @@ public class ConversationService {
         convoRepo.save(convo);
     }
 
+    public void updateLastMessageTime(Conversation convo) {
+        convo.setLastMessageTime(System.currentTimeMillis());
+        convoRepo.save(convo);
+    }
+
     /**
      * Returns true if customer sent a message within the last 24 hours
      */
