@@ -5,7 +5,8 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -15,7 +16,10 @@ import java.util.Map;
 
 @Service
 public class GeoCodingService {
-    
+
+    private static final Logger logger = LoggerFactory.getLogger(GeoCodingService.class);
+
+
     @Value("${google.maps.api-key}")
     private String apiKey;
 
@@ -37,6 +41,9 @@ public class GeoCodingService {
             double lat = ((Number) location.get("lat")).doubleValue();
             double lng = ((Number) location.get("lng")).doubleValue();
 
+            String formattedAddress = (String) ((Map) results.get(0)).get("formatted_address");
+            logger.info("geocode('{}') -> formatted_address='{}', lat={}, lng={}", address, formattedAddress, lat, lng);
+            
             return new double[]{lat, lng};
 
         } catch (Exception e) {
