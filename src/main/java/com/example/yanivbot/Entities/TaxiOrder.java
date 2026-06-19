@@ -23,6 +23,9 @@ public class TaxiOrder {
     @Column(nullable = false)
     private String pickUpLocation;
 
+    @Column(name = "pick_up_place_id")        // NEW
+    private String pickUpPlaceId;
+
     @Column(nullable = false)
     private String destination;
 
@@ -192,5 +195,13 @@ public class TaxiOrder {
 
     public void setCustomerAlertedStaleLocation(boolean customerAlertedStaleLocation) {
         this.customerAlertedStaleLocation = customerAlertedStaleLocation;
+    }
+
+    public String getPickUpPlaceId() {
+        return pickUpPlaceId;
+    }
+
+    public void setPickUpPlaceId(String pickUpPlaceId) {
+        this.pickUpPlaceId = pickUpPlaceId;
     }
 }

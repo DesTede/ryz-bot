@@ -303,13 +303,15 @@ public class TaxiConversationHandler implements ConversationHandler {
         String[] parts = orderData.split("\\|", -1);
         String carType = parts[0];
         String pickupLocation = parts[1];
+        String pickupPlaceId = parts[2];
         String destination = parts[3];
         String notes = parts.length > 5 ? parts[5] : "";
         Double estimatedFare = (parts.length > 6 && !parts[6].isEmpty()) ? Double.parseDouble(parts[6]) : null;
-        
+
         try {
             logger.info("Creating taxi order for customer {}", message.getPhone());
-            taxiOrderService.createTaxiOrder(message.getPhone(), pickupLocation, destination, notes, CarType.valueOf(carType), estimatedFare);
+            taxiOrderService.createTaxiOrder(message.getPhone(), pickupLocation, pickupPlaceId, destination, notes, CarType.valueOf(carType), estimatedFare);
+            
             convoService.updateState(convo, ConversationState.START);
             logger.info("Taxi order created successfully");
             convoService.saveTempData(convo,"");

@@ -45,7 +45,9 @@ public class TaxiOrderService {
         this.shortLinkService = shortLinkService;
     }
 
-    public void createTaxiOrder(String customerPhone, String pickUp, String destination, String notes, CarType carType, Double estimatedFare) {
+    public void createTaxiOrder(String customerPhone, String pickUp, String pickUpPlaceId, 
+                                String destination, String notes, CarType carType, Double estimatedFare) {
+
 
         // Prevent duplicate orders
         List<TaxiOrder> existing = taxiOrderRepo.findByPhoneAndStatus(customerPhone, TaxiOrderStatus.CREATED);
@@ -59,8 +61,9 @@ public class TaxiOrderService {
         
         // Save customer
         customerService.recordTaxiOrder(customerPhone);
-        
+
         TaxiOrder taxiOrder = new TaxiOrder(customerPhone, pickUp, destination, notes);
+        taxiOrder.setPickUpPlaceId(pickUpPlaceId);
         taxiOrder.setRequestedCarType(carType);
         taxiOrder.setEstimatedFare(estimatedFare);
         taxiOrderRepo.save(taxiOrder);
@@ -88,7 +91,9 @@ public class TaxiOrderService {
                 fareText
         );
 
-        double[] coords = geoCodingService.geocode(order.getPickUpLocation());
+        double[] coords = (order.getPickUpPlaceId() != null && !order.getPickUpPlaceId().isEmpty())
+                ? geoCodingService.geocodeByPlaceId(order.getPickUpPlaceId())
+                : geoCodingService.geocode(order.getPickUpLocation());
 
         String orderDetails = "🚗 סוג כלי רכב: " + order.getRequestedCarType().getHebrewName() + "\n" +
                 "📍 מאיפה: " + order.getPickUpLocation() + "\n" +

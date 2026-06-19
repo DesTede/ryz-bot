@@ -51,6 +51,33 @@ public class GeoCodingService {
         }
     }
 
+    // new method, inserted right after geocode()
+    public double[] geocodeByPlaceId(String placeId) {
+        try {
+            String url = "https://maps.googleapis.com/maps/api/geocode/json?place_id="
+                    + placeId + "&language=he&key=" + apiKey;
+
+            Map response = restTemplate.getForObject(url, Map.class);
+
+            List results = (List) response.get("results");
+            if (results == null || results.isEmpty()) return null;
+
+            Map location = (Map)((Map)((Map) results.get(0)).get("geometry")).get("location");
+
+            double lat = ((Number) location.get("lat")).doubleValue();
+            double lng = ((Number) location.get("lng")).doubleValue();
+
+            String formattedAddress = (String) ((Map) results.get(0)).get("formatted_address");
+            logger.info("geocodeByPlaceId('{}') -> formatted_address='{}', lat={}, lng={}", placeId, formattedAddress, lat, lng);
+
+            return new double[]{lat, lng};
+
+        } catch (Exception e) {
+            logger.warn("geocodeByPlaceId failed for placeId={}", placeId, e);
+            return null;
+        }
+    }
+
     public TripInfo getTripInfo(String origin, String destination) {
         try {
             if (origin == null || destination == null) {
