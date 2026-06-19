@@ -128,13 +128,23 @@ public class OrderMonitorService {
                     "🎯 *יעד:* " + order.getDestination() + "\n" +
                     "📞 *לקוח:* " + order.getPhone();
 
-            
-            whatsappService.notifyAdminsSmartMessage(
-                    adminMsg,
-                    "taxi_order_delayed_admin",
-                    List.of(String.valueOf(order.getId()), String.valueOf(TAXI_ALERT_MINUTES)),
-                    convoService  
-            );
+
+            try {
+                whatsappService.notifyAdminsSmartMessage(
+                        adminMsg,
+                        "taxi_order_delayed_admin",
+                        List.of(
+                                String.valueOf(order.getId()),
+                                String.valueOf(TAXI_ALERT_MINUTES),
+                                order.getPickUpLocation(),
+                                order.getDestination(),
+                                order.getPhone()
+                        ),
+                        convoService
+                );
+            } catch (Exception e) {
+                logger.error("Failed to send admin alert for taxi order #{}: {}", order.getId(), e.getMessage(), e);
+            }
             
             // Notify customer
             whatsappService.sendSafeText(order.getPhone(),
@@ -210,7 +220,10 @@ public class OrderMonitorService {
             driverService.notifyAdminsSmartMessage(
                     adminMsg,
                     "delivery_order_delayed_admin",
-                    List.of(String.valueOf(order.getId()), String.valueOf(DELIVERY_ALERT_MINUTES))
+                    List.of(String.valueOf(order.getId()), 
+                            String.valueOf(DELIVERY_ALERT_MINUTES),
+                            order.getDeliveryAddress(),
+                            order.getBusinessPhone())
             );
 
             // Notify business owner
