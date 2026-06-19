@@ -5,10 +5,15 @@ import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.DeliveryOrderService;
+import com.example.yanivbot.Services.GooglePlacesService;
 import com.example.yanivbot.Services.WhatsappService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
+
 
 @Component
 public class DeliveryConversationHandler implements ConversationHandler {
@@ -18,28 +23,19 @@ public class DeliveryConversationHandler implements ConversationHandler {
     private final ConversationService convoService;
     private final DeliveryOrderService deliveryOrderService;
     private final WhatsappService whatsappService;
+    private final GooglePlacesService placesService;
 
-    public DeliveryConversationHandler(ConversationService convoService, DeliveryOrderService deliveryOrderService, WhatsappService whatsappService) {
+    public DeliveryConversationHandler(ConversationService convoService, DeliveryOrderService deliveryOrderService, WhatsappService whatsappService, GooglePlacesService placesService) {
         this.convoService = convoService;
         this.deliveryOrderService = deliveryOrderService;
         this.whatsappService = whatsappService;
+        this.placesService = placesService;
     }
 
     @Override
     public String handleMessage(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
         ConversationState state = convo.getState();
-
-        // Handle pickup/delivery commands
-//        if (txt.matches("^איסוף\\s+\\d+$")) {
-//            long orderId = Long.parseLong(txt.split("\\s+")[1]);
-//            return deliveryOrderService.markPickedUp(orderId, message.getPhone());
-//        }
-//
-//        if (txt.matches("^נמסר\\s+\\d+$")) {
-//            long orderId = Long.parseLong(txt.split("\\s+")[1]);
-//            return deliveryOrderService.completeDelivery(orderId, message.getPhone());
-//        }
         
         // ===== DELIVERY FLOW LOG =====
         logger.info("[DELIVERY] Phone: {} | Input: '{}' | State: {} | TempData: '{}'",
@@ -65,6 +61,10 @@ public class DeliveryConversationHandler implements ConversationHandler {
             case DELIVERY_ADDRESS -> {
                 logger.info("[DELIVERY] -> handleAddress");
                 yield handleAddress(convo, message);
+            }
+            case AWAITING_DELIVERY_ADDRESS_SELECTION -> {
+                logger.info("[DELIVERY] -> handleAddressSelection");
+                yield handleAddressSelection(convo, message);
             }
             case DELIVERY_READY_TIME -> {
                 logger.info("[DELIVERY] -> handleReadyTime");
@@ -99,6 +99,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
             case DELIVERY_AWAITING_CUSTOMER_CONFIRM -> "1b/6 - Awaiting CUSTOMER CONFIRM";
             case DELIVERY_CUSTOMER_NAME -> "2/6 - Asking for CUSTOMER NAME";
             case DELIVERY_ADDRESS -> "3/6 - Asking for ADDRESS";
+            case AWAITING_DELIVERY_ADDRESS_SELECTION -> "3b/6 - Awaiting ADDRESS SELECTION";
             case DELIVERY_READY_TIME -> "4/6 - Asking for READY TIME";
             case DELIVERY_PRICE -> "5/6 - Asking for PRICE";
             case DELIVERY_NOTES -> "6/6 - Asking for NOTES then CONFIRMATION";
@@ -127,8 +128,9 @@ public class DeliveryConversationHandler implements ConversationHandler {
             // Returning customer - show details for confirmation
             String prevName = prevDetails[0];
             String prevAddress = prevDetails[1];
+            String prevPlaceId = prevDetails.length > 2 ? prevDetails[2] : "";
             logger.info("[DELIVERY] ✅ Returning customer found: '{}' | Address: '{}'", prevName, prevAddress);
-            convoService.saveTempData(convo, customerPhone + "|" + prevName + "|" + prevAddress);
+            convoService.saveTempData(convo, customerPhone + "|" + prevName + "|" + prevAddress + "|" + prevPlaceId);
             convoService.updateState(convo, ConversationState.DELIVERY_AWAITING_CUSTOMER_CONFIRM);
             whatsappService.sendInteractiveButtons(
                     message.getPhone(),
@@ -164,19 +166,19 @@ public class DeliveryConversationHandler implements ConversationHandler {
 
     /**
      * Stage 1b: Confirm returning customer details (name + address)
-     * TempData: {customerPhone}|{prevName}|{prevAddress}
+     * TempData: {customerPhone}|{prevName}|{prevAddress}|{prevPlaceId}
      */
     private String handleCustomerConfirm(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
-        String[] parts = convo.getTempData().split("\\|", 3);
+        String[] parts = convo.getTempData().split("\\|", 4);
         String customerPhone = parts[0];
         String prevName = parts.length > 1 ? parts[1] : "";
         String prevAddress = parts.length > 2 ? parts[2] : "";
+        String prevPlaceId = parts.length > 3 ? parts[3] : "";
 
         if (txt.equals("customer_confirm_yes")) {
-            // Use previous details - skip name and address, go straight to ready time
             logger.info("[DELIVERY] ✅ Customer confirmed previous details");
-            convoService.saveTempData(convo, prevName + "|" + customerPhone + "|" + prevAddress);
+            convoService.saveTempData(convo, prevName + "|" + customerPhone + "|" + prevAddress + "|" + prevPlaceId);
             convoService.updateState(convo, ConversationState.DELIVERY_READY_TIME);
             showReadyTimeButton(message.getPhone());
             return null;
@@ -190,19 +192,76 @@ public class DeliveryConversationHandler implements ConversationHandler {
 
         return null;
     }
-
+    
     /**
-     * Stage 3: Delivery Address
+     * Stage 3: Delivery Address - show Places suggestions instead of taking raw free text
      */
     private String handleAddress(Conversation convo, IncomingMessage message) {
-        String address = message.getText().trim();
-        String tempData = convo.getTempData() + "|" + address;
-        logger.info("[DELIVERY] Stage 3: Saving address: '{}' | TempData: '{}'", address, tempData);
+        String input = message.getText().trim();
+        String[] parts = convo.getTempData().split("\\|", -1);
+        String customerName = parts[0];
+        String customerPhone = parts[1];
+
+        List<GooglePlacesService.PlaceSuggestion> suggestions = placesService.getSuggestions(input);
+
+        if (suggestions.isEmpty()) {
+            return "🔍 לא נמצאה כתובת תואמת, נסו לכתוב בצורה אחרת (לא לשכוח עיר)";
+        }
+
+        List<WhatsappService.InteractiveButton> items = new ArrayList<>();
+        StringBuilder tempData = new StringBuilder(customerName + "|" + customerPhone + "|ADDRESS_PENDING");
+        for (int i = 0; i < Math.min(9, suggestions.size()); i++) {
+            String fullAddress = suggestions.get(i).description;
+
+            String titleText = fullAddress.contains(",") ? fullAddress.split(",")[0].trim() : fullAddress;
+            if (titleText.length() > 24) {
+                titleText = titleText.substring(0, 21) + "...";
+            }
+            String descriptionText = fullAddress.contains(",")
+                    ? fullAddress.substring(fullAddress.indexOf(',') + 1).trim()
+                    : null;
+            items.add(new WhatsappService.InteractiveButton("delivery_addr_" + i, titleText, descriptionText));
+            tempData.append("|").append(fullAddress).append("|").append(suggestions.get(i).placeId);
+        }
+        items.add(new WhatsappService.InteractiveButton("delivery_addr_manual", "✏️ הזן ידנית"));
+
+        convoService.saveTempData(convo, tempData.toString());
+        convoService.updateState(convo, ConversationState.AWAITING_DELIVERY_ADDRESS_SELECTION);
+
+        logger.info("[DELIVERY] Stage 3: Showing address suggestions | TempData: '{}'", tempData);
+        whatsappService.sendInteractiveList(message.getPhone(), "📍 בחר כתובת מסירה:", "בחר כתובת", "תוצאות חיפוש", items);
+        return null;
+    }
+
+    /**
+     * Stage 3b: Customer picked an address from the suggestion list (or asked to enter manually)
+     */
+    private String handleAddressSelection(Conversation convo, IncomingMessage message) {
+        String txt = message.getText().trim();
+        String[] parts = convo.getTempData().split("\\|", -1);
+        String customerName = parts[0];
+        String customerPhone = parts[1];
+
+        if (txt.equals("delivery_addr_manual")) {
+            convoService.updateState(convo, ConversationState.DELIVERY_ADDRESS);
+            return "📍 הזן כתובת מסירה ידנית:";
+        }
+
+        if (!txt.startsWith("delivery_addr_")) {
+            return "📍 אנא בחר כתובת מהרשימה, או לחץ על ✏️ הזן ידנית";
+        }
+
+        int index = Integer.parseInt(txt.replace("delivery_addr_", ""));
+        String address = parts[3 + (index * 2)];
+        String addressPlaceId = parts[4 + (index * 2)];
+
+        String tempData = customerName + "|" + customerPhone + "|" + address + "|" + addressPlaceId;
+        logger.info("[DELIVERY] ✅ Address selected: '{}' | TempData: '{}'", address, tempData);
 
         convoService.saveTempData(convo, tempData);
         convoService.updateState(convo, ConversationState.DELIVERY_READY_TIME);
 
-        logger.info("[DELIVERY] ✅ Address saved | Moving to Stage 4 (Ready Time)");
+        logger.info("[DELIVERY] Moving to Stage 4 (Ready Time)");
         showReadyTimeButton(message.getPhone());
         return null;
     }
@@ -286,33 +345,29 @@ public class DeliveryConversationHandler implements ConversationHandler {
     private String handleNotes(Conversation convo, IncomingMessage message) {
         String txt = message.getText().trim();
 
-        // Simply store the notes without parsing
-//        String notes = txt.isEmpty() ? "" : txt;
+        // store the notes without parsing
         String notes = (txt.isEmpty() || txt.equals("אין")) ? "" : txt;
-        // Build complete tempData: name|phone|address|readyTime|price|notes
+        
+        // Build complete tempData: name|phone|address|placeId|readyTime|price|notes
         String tempData = convo.getTempData();
         String[] parts = tempData.split("\\|", -1);
 
-        if (parts.length >= 5) {
-            // Add notes to the end
+        if (parts.length >= 6) {
             String completeTempData = tempData + "|" + notes;
-
-            // Save updated tempData
             convoService.saveTempData(convo, completeTempData);
 
             logger.info("[DELIVERY] ✅ All data collected:");
             logger.info("  - Customer Name: {}", parts[0]);
             logger.info("  - Address: {}", parts[2]);
-            logger.info("  - Ready Time: {} minutes", parts[3]);
-            logger.info("  - Price: {} ₪", parts[4]);
+            logger.info("  - Ready Time: {} minutes", parts[4]);
+            logger.info("  - Price: {} ₪", parts[5]);
             logger.info("  - Notes: {}", notes.isEmpty() ? "(none)" : notes);
 
-            // ✅ CONVERT TO CORRECT TYPES
             String customerName = parts[0];
             String customerPhone = parts[1];
             String address = parts[2];
-            int readyMinutes = Integer.parseInt(parts[3]);  // ✅ Convert to int
-            double price = Double.parseDouble(parts[4]);
+            int readyMinutes = Integer.parseInt(parts[4]);
+            double price = Double.parseDouble(parts[5]);
 
             // Show confirmation with all details
             String confirmation = buildConfirmationMessage(customerName, customerPhone, address,
@@ -356,16 +411,16 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String tempData = convo.getTempData();
 
         if (txt.equals("delivery_confirm_yes")) {
-            // Create the order
             String[] parts = tempData.split("\\|", -1);
-            if (parts.length >= 6) {
+            if (parts.length >= 7) {
                 String businessPhone = message.getPhone();
                 String customerName = parts[0];
                 String customerPhone = parts[1];
                 String address = parts[2];
-                int readyInMinutes = Integer.parseInt(parts[3]);
-                double price = Double.parseDouble(parts[4]);
-                String notesStr = parts[5];
+                String addressPlaceId = parts[3];
+                int readyInMinutes = Integer.parseInt(parts[4]);
+                double price = Double.parseDouble(parts[5]);
+                String notesStr = parts[6];
 
                 logger.info("[DELIVERY] ✅ User confirmed order - creating delivery order...");
 
@@ -374,6 +429,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
                         customerName,
                         customerPhone,
                         address,
+                        addressPlaceId,
                         readyInMinutes,
                         price,
                         notesStr

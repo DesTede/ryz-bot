@@ -43,6 +43,7 @@ public class AdminController {
     private final CustomerRepository customerRepo;
     private final BusinessRepository businessRepo;
     private final ConversationService convoService;
+    private final GooglePlacesService placesService;
 
     public AdminController(DriverService driverService,
                            BotConfigService botConfigService,
@@ -50,7 +51,7 @@ public class AdminController {
                            DeliveryOrderRepository deliveryOrderRepo,
                            DriverRepository driverRepo,
                            CustomerRepository customerRepo,
-                           BusinessRepository businessRepo, ConversationService convoService) {
+                           BusinessRepository businessRepo, ConversationService convoService, GooglePlacesService placesService) {
         this.driverService = driverService;
         this.botConfigService = botConfigService;
         this.taxiOrderRepo = taxiOrderRepo;
@@ -59,6 +60,7 @@ public class AdminController {
         this.customerRepo = customerRepo;
         this.businessRepo = businessRepo;
         this.convoService = convoService;
+        this.placesService = placesService;
     }
 
     // =========================================================
@@ -388,6 +390,7 @@ public class AdminController {
         String name  = body.get("name");
         String phone = PhoneNumberUtil.normalizePhone(body.get("phone"));
         String address = body.getOrDefault("address", "");
+        String addressPlaceId = body.getOrDefault("addressPlaceId", "");
         if (name == null || name.isBlank() || phone == null || phone.isBlank()) {
             return ResponseEntity.badRequest().body("❌ שם וטלפון הם שדות חובה");
         }
@@ -396,6 +399,7 @@ public class AdminController {
         }
         Business business = new Business(name, phone, true);
         business.setAddress(address);
+        business.setAddressPlaceId(addressPlaceId);
 
         businessRepo.save(business);
         if (convoService.exists(phone)) {
@@ -418,6 +422,8 @@ public class AdminController {
                 business.setName(body.get("name"));
             if (body.containsKey("address"))
                 business.setAddress(body.get("address"));
+            if (body.containsKey("addressPlaceId"))
+                business.setAddressPlaceId(body.get("addressPlaceId"));
             if (body.containsKey("phone") && !body.get("phone").isBlank()) {
                 String newPhone = PhoneNumberUtil.normalizePhone(body.get("phone"));
                 if (!newPhone.equals(phone) && businessRepo.findByPhone(newPhone).isPresent()) {
@@ -592,6 +598,18 @@ public class AdminController {
             return ResponseEntity.ok("ℹ️ לא נעשו שינויים");
         }
         return ResponseEntity.ok("✅ תעריפים עודכנו בהצלחה");
+    }
+
+    @GetMapping("/places/suggestions")
+    public ResponseEntity<List<Map<String, String>>> getPlaceSuggestions(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @RequestParam String input) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        List<Map<String, String>> results = new ArrayList<>();
+        for (GooglePlacesService.PlaceSuggestion s : placesService.getSuggestions(input)) {
+            results.add(Map.of("placeId", s.placeId, "description", s.description));
+        }
+        return ResponseEntity.ok(results);
     }
     
     // =========================================================

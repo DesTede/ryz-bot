@@ -20,6 +20,7 @@ public enum ConversationState {
     DELIVERY_AWAITING_CUSTOMER_CONFIRM,
     DELIVERY_CUSTOMER_NAME,
     DELIVERY_ADDRESS,                       // Entering delivery address
+    AWAITING_DELIVERY_ADDRESS_SELECTION,    // Choosing delivery address from Places suggestions
     DELIVERY_READY_TIME,                    // When order will be ready
     DELIVERY_PRICE,                         // Delivery fee
     DELIVERY_NOTES,                         // Optional notes

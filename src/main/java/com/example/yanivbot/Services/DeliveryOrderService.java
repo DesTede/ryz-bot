@@ -63,11 +63,11 @@ public class DeliveryOrderService {
         }
         return deliveryOrderRepo
                 .findFirstByBusinessPhoneAndCustomerPhoneOrderByCreatedAtDesc(businessPhone, customerPhone)
-                .map(order -> new String[]{customer.getName(), order.getDeliveryAddress()})
+                .map(order -> new String[]{customer.getName(), order.getDeliveryAddress(), order.getDeliveryAddressPlaceId()})
                 .orElse(null);
     }
-    
-    public void createDeliveryOrder(String businessPhone, String customerName, String customerPhone, String address,
+
+    public void createDeliveryOrder(String businessPhone, String customerName, String customerPhone, String address, String addressPlaceId,
                                     int readyInMinutes, double price, String notes) {
         customerService.saveOrUpdateCustomer(customerPhone, customerName);
 
@@ -75,6 +75,7 @@ public class DeliveryOrderService {
         order.setBusinessPhone(businessPhone);
         order.setCustomerPhone(customerPhone);
         order.setDeliveryAddress(address);
+        order.setDeliveryAddressPlaceId(addressPlaceId);
         order.setReadyInMinutes(readyInMinutes);
         order.setDeliveryFee(price);
         order.setNotes(notes);
@@ -146,7 +147,9 @@ public class DeliveryOrderService {
                 order.getId()
         );
 
-        double[] coords = geoCodingService.geocode(order.getDeliveryAddress());
+        double[] coords = (order.getDeliveryAddressPlaceId() != null && !order.getDeliveryAddressPlaceId().isEmpty())
+                ? geoCodingService.geocodeByPlaceId(order.getDeliveryAddressPlaceId())
+                : geoCodingService.geocode(order.getDeliveryAddress());
 
         if (coords != null) {
             driverService.dispatchDeliveryToClosestDrivers(msg, coords[0], coords[1],
@@ -494,11 +497,15 @@ public class DeliveryOrderService {
                 if (active.getDeliveryStatus() == DeliveryStatus.ASSIGNED) {
                     Business activeBusiness = businessRepo.findByPhone(active.getBusinessPhone()).orElse(null);
                     if (activeBusiness != null && activeBusiness.getAddress() != null) {
-                        double[] coords = geoCodingService.geocode(activeBusiness.getAddress());
-                        if (coords != null) existingStops.add(coords);
+                        double[] coords = (active.getDeliveryAddressPlaceId() != null && !active.getDeliveryAddressPlaceId().isEmpty())
+                                ? geoCodingService.geocodeByPlaceId(active.getDeliveryAddressPlaceId())
+                                : geoCodingService.geocode(active.getDeliveryAddress());
+                        if (coords != null) existingStops.add(coords);;
                     }
                 }
-                double[] coords = geoCodingService.geocode(active.getDeliveryAddress());
+                double[] coords = (active.getDeliveryAddressPlaceId() != null && !active.getDeliveryAddressPlaceId().isEmpty())
+                        ? geoCodingService.geocodeByPlaceId(active.getDeliveryAddressPlaceId())
+                        : geoCodingService.geocode(active.getDeliveryAddress());
                 if (coords != null) existingStops.add(coords);
             }
 
@@ -513,7 +520,9 @@ public class DeliveryOrderService {
             if (newBusiness != null && newBusiness.getAddress() != null) {
                 newPickupCoords = geoCodingService.geocode(newBusiness.getAddress());
             }
-            double[] newDeliveryCoords = geoCodingService.geocode(newOrder.getDeliveryAddress());
+            double[] newDeliveryCoords = (newOrder.getDeliveryAddressPlaceId() != null && !newOrder.getDeliveryAddressPlaceId().isEmpty())
+                    ? geoCodingService.geocodeByPlaceId(newOrder.getDeliveryAddressPlaceId())
+                    : geoCodingService.geocode(newOrder.getDeliveryAddress());
             if (newDeliveryCoords == null) {
                 logger.warn("[ROUTE] Could not geocode new order #{} delivery address, skipping feasibility check", newOrder.getId());
                 return true;

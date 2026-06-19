@@ -20,6 +20,7 @@ public class DeliveryOrder {
     private String customerPhone;
     private String pickedUpBy;
     private String deliveryAddress;
+    private String deliveryAddressPlaceId;
     private int readyInMinutes;
     
     @Enumerated(EnumType.STRING)
@@ -182,6 +183,14 @@ public class DeliveryOrder {
 
     public void setTrackingToken(String trackingToken) {
         this.trackingToken = trackingToken;
+    }
+
+    public String getDeliveryAddressPlaceId() {
+        return deliveryAddressPlaceId;
+    }
+
+    public void setDeliveryAddressPlaceId(String deliveryAddressPlaceId) {
+        this.deliveryAddressPlaceId = deliveryAddressPlaceId;
     }
     
 }

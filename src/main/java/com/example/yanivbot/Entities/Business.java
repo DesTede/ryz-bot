@@ -17,6 +17,7 @@ public class Business {
     private String name;
     private String phone;
     private String address;
+    private String addressPlaceId;
     private Boolean active;
 
     public Business(String name, String phone, String address, Boolean active) {
@@ -69,5 +70,13 @@ public class Business {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public String getAddressPlaceId() {
+        return addressPlaceId;
+    }
+
+    public void setAddressPlaceId(String addressPlaceId) {
+        this.addressPlaceId = addressPlaceId;
     }
 }

@@ -393,6 +393,32 @@
             direction: rtl;
         }
         .modal-input:focus { border-color: var(--accent); }
+        .address-autocomplete-wrap { position: relative; }
+        .address-suggestions {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            left: 0;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 10;
+            margin-top: -12px;
+            margin-bottom: 16px;
+        }
+        .address-suggestions.open { display: block; }
+        .address-suggestion-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 1px solid var(--border);
+            direction: rtl;
+        }
+        .address-suggestion-item:last-child { border-bottom: none; }
+        .address-suggestion-item:hover { background: var(--accent-glow); color: var(--accent); }
         .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
         .btn-primary {
             background: linear-gradient(135deg, #FFA500, #FF8C00);
@@ -995,7 +1021,11 @@
         <div class="modal-label">טלפון</div>
         <input class="modal-input" id="edit-business-phone" placeholder="0501234567" type="tel"/>
         <div class="modal-label">כתובת</div>
-        <input class="modal-input" id="edit-business-address" placeholder="רחוב הרצל 1, רחובות"/>
+        <div class="address-autocomplete-wrap">
+            <input class="modal-input" id="edit-business-address" placeholder="רחוב הרצל 1, רחובות" autocomplete="off"/>
+            <div class="address-suggestions" id="edit-business-address-suggestions"></div>
+        </div>
+        <input type="hidden" id="edit-business-address-place-id"/>
         <div class="modal-actions">
             <button class="btn-secondary" onclick="closeEditBusiness()">ביטול</button>
             <button class="btn-primary" onclick="saveEditBusiness()">שמור</button>
@@ -1092,7 +1122,11 @@
         <div class="modal-label">טלפון * (עם קידומת מדינה)</div>
         <input class="modal-input" id="add-business-phone" placeholder="0501234567"/>
         <div class="modal-label">כתובת</div>
-        <input class="modal-input" id="add-business-address" placeholder="רחוב הרצל 1, רחובות"/>
+        <div class="address-autocomplete-wrap">
+            <input class="modal-input" id="add-business-address" placeholder="רחוב הרצל 1, רחובות" autocomplete="off"/>
+            <div class="address-suggestions" id="add-business-address-suggestions"></div>
+        </div>
+        <input type="hidden" id="add-business-address-place-id"/>
         <div class="modal-actions">
             <button class="btn-secondary" onclick="closeModal('add-business-modal')">ביטול</button>
             <button class="btn-primary" onclick="submitAddBusiness()">הוסף עסק</button>
@@ -1172,6 +1206,50 @@
         const ct = res.headers.get('content-type') || '';
         return ct.includes('json') ? res.json() : res.text();
     }
+
+    // ══════════════════════════════════════════════════════════════
+    // ADDRESS AUTOCOMPLETE (business address fields)
+    // ══════════════════════════════════════════════════════════════
+    function initAddressAutocomplete(inputId, suggestionsId, placeIdInputId) {
+        const input = document.getElementById(inputId);
+        const box = document.getElementById(suggestionsId);
+        const placeIdInput = document.getElementById(placeIdInputId);
+        let debounceTimer = null;
+
+        input.addEventListener('input', () => {
+            placeIdInput.value = ''; // typing invalidates any previously selected place_id
+            clearTimeout(debounceTimer);
+            const text = input.value.trim();
+            if (text.length < 2) { box.classList.remove('open'); box.innerHTML = ''; return; }
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const suggestions = await api('/admin/places/suggestions?input=' + encodeURIComponent(text));
+                    if (!suggestions.length) { box.classList.remove('open'); box.innerHTML = ''; return; }
+                    box.innerHTML = suggestions.map(s =>
+                        `<div class="address-suggestion-item" data-place-id="${s.placeId}" data-description="${s.description.replace(/"/g, '&quot;')}">${s.description}</div>`
+                    ).join('');
+                    box.classList.add('open');
+                } catch (e) { box.classList.remove('open'); box.innerHTML = ''; }
+            }, 300);
+        });
+
+        box.addEventListener('click', e => {
+            const item = e.target.closest('.address-suggestion-item');
+            if (!item) return;
+            input.value = item.dataset.description;
+            placeIdInput.value = item.dataset.placeId;
+            box.classList.remove('open');
+            box.innerHTML = '';
+        });
+
+        document.addEventListener('click', e => {
+            if (e.target !== input && !box.contains(e.target)) {
+                box.classList.remove('open');
+            }
+        });
+    }
+    initAddressAutocomplete('add-business-address', 'add-business-address-suggestions', 'add-business-address-place-id');
+    initAddressAutocomplete('edit-business-address', 'edit-business-address-suggestions', 'edit-business-address-place-id');
 
     // ══════════════════════════════════════════════════════════════
     // TOAST
@@ -1672,7 +1750,7 @@
           <td style="font-family:var(--mono);font-size:12px">${formatPhone(b.phone)}</td>
           <td style="font-size:13px;color:var(--muted)">${b.address||'—'}</td>
           <td><span class="badge ${b.active ? 'badge-green' : 'badge-muted'}" style="cursor:pointer" onclick="toggleBusinessActive('${b.phone}', this)">${b.active ? 'פעיל' : 'לא פעיל'}</span></td>          <td>
-            <button class="action-btn" onclick="openEditBusiness('${b.phone}','${b.name||''}','${b.address||''}')">עריכה</button>
+            <button class="action-btn" onclick="openEditBusiness('${b.phone}','${b.name||''}','${b.address||''}','${b.addressPlaceId||''}')">עריכה</button>
             <button class="action-btn danger" onclick="deleteBusiness('${b.phone}','${b.name||b.phone}')">מחק</button>
           </td>
         </tr>`).join('') : '<tr><td colspan="5" class="empty">אין עסקים רשומים</td></tr>';
@@ -1752,11 +1830,13 @@
     // ══════════════════════════════════════════════════════════════
     let editBusinessPhone = null;
 
-    function openEditBusiness(phone, name, address) {
+    function openEditBusiness(phone, name, address, addressPlaceId) {
         editBusinessPhone = phone;
         document.getElementById('edit-business-phone').value = formatPhone(phone);
         document.getElementById('edit-business-name').value = name;
         document.getElementById('edit-business-address').value = address;
+        document.getElementById('edit-business-address-place-id').value = addressPlaceId || '';
+        document.getElementById('edit-business-address-suggestions').classList.remove('open');
         document.getElementById('edit-business-modal').classList.add('open');
     }
 
@@ -1777,6 +1857,7 @@
         }
         if (name) body.name = name;
         body.address = address;
+        body.addressPlaceId = document.getElementById('edit-business-address-place-id').value.trim();
         try {
             await api(`/admin/businesses/${editBusinessPhone}`, 'PUT', body);
             toast('✅ פרטי העסק עודכנו', 'success');
@@ -1864,14 +1945,15 @@
         const name    = document.getElementById('add-business-name').value.trim();
         const phone   = document.getElementById('add-business-phone').value.trim();
         const address = document.getElementById('add-business-address').value.trim();
+        const addressPlaceId = document.getElementById('add-business-address-place-id').value.trim();
         if (!name || !phone) { toast('שם וטלפון הם שדות חובה', 'error'); return; }
         if (!isValidPhone(phone)) { toast('❌ מספר טלפון לא תקין. יש להזין מספר בפורמט 05XXXXXXXX', 'error'); return; }
 
         try {
-            const result = await api('/admin/businesses/add', 'POST', { name, phone, address });
+            const result = await api('/admin/businesses/add', 'POST', { name, phone, address, addressPlaceId });
             toast(result, 'success');
             closeModal('add-business-modal');
-            ['add-business-name','add-business-phone','add-business-address'].forEach(id => document.getElementById(id).value = '');
+            ['add-business-name','add-business-phone','add-business-address','add-business-address-place-id'].forEach(id => document.getElementById(id).value = '');
             loadBusinesses();
         } catch(e) { toast('שגיאה: ' + e.message, 'error'); }
     }
