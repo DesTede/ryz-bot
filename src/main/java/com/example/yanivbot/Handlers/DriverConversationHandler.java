@@ -282,7 +282,7 @@ public class DriverConversationHandler implements ConversationHandler {
         // Check if driver has an active taxi order
         TaxiOrder activeOrder = driverService.getActiveTaxiOrder(phone);
         if (activeOrder != null) {
-            return "⚠️ יש לך הזמנה פעילה #" + activeOrder.getId() + ".\n" +
+            return "⚠️ יש לך הזמנה פעילה מס'" + activeOrder.getId() + ".\n" +
                     "לא ניתן לסיים משמרת עם הזמנה פעילה.\n" +
                     "אנא סיים את הנסיעה תחילה ואז סיים משמרת.";
         }
