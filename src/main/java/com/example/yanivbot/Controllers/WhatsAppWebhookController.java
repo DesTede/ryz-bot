@@ -1,6 +1,6 @@
 package com.example.yanivbot.Controllers;
 
-import com.example.yanivbot.Models.IncomingMessage;
+import com.example.yanivbot.Entities.IncomingMessage;
 import com.example.yanivbot.Services.WhatsappService;
 import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;

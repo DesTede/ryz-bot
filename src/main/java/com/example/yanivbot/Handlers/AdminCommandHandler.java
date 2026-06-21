@@ -1,7 +1,5 @@
 package com.example.yanivbot.Handlers;
 
-import com.example.yanivbot.Entities.Conversation;
-import com.example.yanivbot.Models.IncomingMessage;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import com.example.yanivbot.Services.BotConfigService;

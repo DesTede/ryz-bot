@@ -1,6 +1,6 @@
 package com.example.yanivbot.Services;
 
-import com.example.yanivbot.Models.IncomingMessage;
+import com.example.yanivbot.Entities.IncomingMessage;
 import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.json.JSONArray;
 import org.json.JSONObject;

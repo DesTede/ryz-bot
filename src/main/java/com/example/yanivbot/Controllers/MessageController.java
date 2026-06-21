@@ -2,7 +2,7 @@ package com.example.yanivbot.Controllers;
 
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Handlers.MessageRouter;
-import com.example.yanivbot.Models.IncomingMessage;
+import com.example.yanivbot.Entities.IncomingMessage;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.CustomerService;
 import com.example.yanivbot.Services.WhatsappService;

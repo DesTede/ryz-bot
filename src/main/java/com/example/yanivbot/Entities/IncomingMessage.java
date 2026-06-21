@@ -1,4 +1,4 @@
-package com.example.yanivbot.Models;
+package com.example.yanivbot.Entities;
 
 public class IncomingMessage {
 

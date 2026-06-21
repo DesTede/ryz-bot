@@ -2,7 +2,7 @@ package com.example.yanivbot.Handlers;
 
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.ConversationState;
-import com.example.yanivbot.Models.IncomingMessage;
+import com.example.yanivbot.Entities.IncomingMessage;
 import com.example.yanivbot.Services.BusinessOwnerService;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.WhatsappService;

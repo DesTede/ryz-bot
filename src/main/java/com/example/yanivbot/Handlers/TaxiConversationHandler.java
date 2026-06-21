@@ -3,7 +3,7 @@ package com.example.yanivbot.Handlers;
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.ConversationState;
-import com.example.yanivbot.Models.IncomingMessage;
+import com.example.yanivbot.Entities.IncomingMessage;
 import com.example.yanivbot.Services.*;
 import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;

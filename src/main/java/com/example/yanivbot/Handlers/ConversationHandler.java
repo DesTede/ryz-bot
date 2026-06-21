@@ -1,7 +1,7 @@
 package com.example.yanivbot.Handlers;
 
 import com.example.yanivbot.Entities.Conversation;
-import com.example.yanivbot.Models.IncomingMessage;
+import com.example.yanivbot.Entities.IncomingMessage;
 
 /**
  * Interface for handling conversation flows.
