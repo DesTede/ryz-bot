@@ -297,7 +297,8 @@ public class DriverConversationHandler implements ConversationHandler {
         whatsappService.sendInteractiveButtonsSafe(
                 phone,
                 bodyText,
-                new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת")
+                new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת"),
+                new WhatsappService.InteractiveButton("driver_order_ride", "🚕 הזמן נסיעה")
         );
 
         return null;

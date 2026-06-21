@@ -208,6 +208,28 @@ public class MessageRouter {
             if (driver != null) {
                 logger.info("User is a DRIVER (active={}, showing driver menu)", driver.isActive());
 
+                // Off-shift driver chose to order a ride as a customer - switch into customer mode.
+                // Blocked while on an active shift so they don't drop out of driver mode mid-shift.
+                if (txt.equals("driver_order_ride")) {
+                    if (driver.isActive()) {
+                        logger.info("Active driver tried to order a ride - must end shift first");
+                        return "⚠️ אתה במשמרת פעילה. כדי להזמין נסיעה כלקוח, סיים קודם את המשמרת.";
+                    }
+                    logger.info("Driver chose to order a ride - switching to customer mode");
+                    Customer existingCustomer = customerService.getCustomer(phone);
+                    String customerName = (existingCustomer != null && existingCustomer.getName() != null
+                            && !existingCustomer.getName().isEmpty())
+                            ? existingCustomer.getName()
+                            : driver.getName();
+                    if (existingCustomer == null) {
+                        customerService.registerNewCustomer(phone, customerName);
+                    }
+                    convoService.saveTempData(convo, customerName);
+                    convoService.updateState(convo, ConversationState.START_MENU);
+                    showServiceMenu(phone, customerName);
+                    return null;
+                }
+
                 if (txt.startsWith("taxi_claim_") || txt.startsWith("delivery_claim_") ||
                         txt.startsWith("taxi_complete_") || txt.startsWith("taxi_cancel_driver_") ||
                         txt.startsWith("איסוף ") || txt.startsWith("נמסר ") ||
@@ -427,7 +449,8 @@ public class MessageRouter {
                     phone,
                     DRIVER_WELCOME_MESSAGE,
                     new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת"),
-                    new WhatsappService.InteractiveButton("driver_end_shift", "🔴 סיים משמרת")
+                    new WhatsappService.InteractiveButton("driver_end_shift", "🔴 סיים משמרת"),
+                    new WhatsappService.InteractiveButton("driver_order_ride", "🚕 הזמן נסיעה")
             );
             logger.info("Driver welcome menu sent successfully");
         } catch (Exception e) {
