@@ -6,6 +6,7 @@ import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.DriverService;
 import com.example.yanivbot.Services.JwtService;
 import com.example.yanivbot.Services.WhatsappService;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -381,12 +382,16 @@ public class DriverLocationController {
             return ResponseEntity.status(401).build();
         }
         String phone = jwtService.extractPhone(token);
-        driverService.clockIn(phone);
         Driver driver = driverRepo.findDriverByPhone(phone).orElse(null);
-        String driverName = (driver != null && driver.getName() != null) ? driver.getName() : "נהג";
+        if (driver == null) {
+            logger.warn("Shift start attempted for unknown driver: {}", PhoneNumberUtil.maskPhoneNumber(phone));
+            return ResponseEntity.status(404).build();
+        }
+        driverService.clockIn(phone);
+        String driverName = driver.getName() != null ? driver.getName() : "נהג";
         boolean inWindow = convoService.isWithin24HourWindow(phone);
         whatsappService.sendDriverShiftStartedTemplate(phone, driverName, inWindow);
-        logger.info("Driver {} clocked in via app", phone);
+        logger.info("Driver {} clocked in via app", PhoneNumberUtil.maskPhoneNumber(phone));
         return ResponseEntity.ok().build();
     }
 }

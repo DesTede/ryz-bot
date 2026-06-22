@@ -101,4 +101,23 @@ public class DriverAuthController {
         logger.info("Driver {} authenticated successfully", PhoneNumberUtil.maskPhoneNumber(phone));
         return ResponseEntity.ok(Map.of("token", token));
     }
+
+    @PostMapping("/validate")
+    public ResponseEntity<Void> validateToken(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).build();
+        }
+        String token = authHeader.substring(7);
+        if (!jwtService.isValid(token)) {
+            return ResponseEntity.status(401).build();
+        }
+        String phone = jwtService.extractPhone(token);
+        Driver driver = driverService.findByPhone(phone);
+        if (driver == null) {
+            logger.warn("Token validation failed - driver not found: {}", PhoneNumberUtil.maskPhoneNumber(phone));
+            return ResponseEntity.status(404).build();
+        }
+        logger.info("Token validated for driver {}", PhoneNumberUtil.maskPhoneNumber(phone));
+        return ResponseEntity.ok().build();
+    }
 }
