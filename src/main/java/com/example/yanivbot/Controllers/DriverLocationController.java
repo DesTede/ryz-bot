@@ -323,7 +323,7 @@ public class DriverLocationController {
         driver.setLocationUpdatedAt(LocalDateTime.now());
         driverRepo.save(driver);
 
-        logger.debug("Location updated for driver {} via browser: {}, {}", driver.getPhone(), lat, lng);
+        logger.info("Location updated for driver {} via browser: {}, {}", driver.getPhone(), lat, lng);
         return ResponseEntity.ok().build();
     }
 
@@ -363,7 +363,7 @@ public class DriverLocationController {
         driver.setLocationUpdatedAt(LocalDateTime.now());
         driverRepo.save(driver);
 
-        logger.debug("Location updated for driver {} via app: {}, {}", phone, lat, lng);
+        logger.info("Location updated for driver {} via app: {}, {}", phone, lat, lng);
         return ResponseEntity.ok().build();
     }
 
