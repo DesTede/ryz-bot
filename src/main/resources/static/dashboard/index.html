@@ -1971,6 +1971,9 @@
             hideLogin();
             loadAll();
             setInterval(loadAll, 60000);
+            setInterval(() => {
+                if (document.getElementById('nav-live')?.classList.contains('active')) loadLive();
+            }, 10000);
         } catch(e) {
             err.textContent = '❌ שגיאת חיבור לשרת';
         }
@@ -1992,6 +1995,9 @@
         hideLogin();
         loadAll();
         setInterval(loadAll, 60000);
+        setInterval(() => {
+            if (document.getElementById('nav-live')?.classList.contains('active')) loadLive();
+        }, 10000);
     } else {
         showLogin();
     }
