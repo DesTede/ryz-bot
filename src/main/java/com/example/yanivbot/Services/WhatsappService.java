@@ -642,14 +642,6 @@ public class WhatsappService {
         }
 
         try {
-            Map<String, Object> headerParam = new HashMap<>();
-            headerParam.put("type", "text");
-            headerParam.put("text", driverName);
-
-            Map<String, Object> headerComponent = new HashMap<>();
-            headerComponent.put("type", "header");
-            headerComponent.put("parameters", List.of(headerParam));
-
             Map<String, Object> bodyParam = new HashMap<>();
             bodyParam.put("type", "text");
             bodyParam.put("text", driverName);
@@ -661,7 +653,7 @@ public class WhatsappService {
             Map<String, Object> template = new HashMap<>();
             template.put("name", "driver_shift_started");
             template.put("language", Map.of("code", "he"));
-            template.put("components", List.of(headerComponent, bodyComponent));
+            template.put("components", List.of(bodyComponent));
 
             Map<String, Object> message = new HashMap<>();
             message.put("messaging_product", "whatsapp");
