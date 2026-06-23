@@ -140,7 +140,7 @@ public class DeliveryOrderService {
         ✅ לקבלת המשלוח לחץ על הכפתור למטה
         """.formatted(
                 businessName,
-                order.getBusinessPhone(),
+                PhoneNumberUtil.toLocalFormat(order.getBusinessPhone()),
                 order.getDeliveryAddress(),
                 order.getDeliveryFee(),
                 order.getNotes().isEmpty() ? "אין" : order.getNotes(),
@@ -153,11 +153,11 @@ public class DeliveryOrderService {
 
         if (coords != null) {
             driverService.dispatchDeliveryToClosestDrivers(msg, coords[0], coords[1],
-                    "📍 כתובת: " + order.getDeliveryAddress() + "\n📞 לקוח: " + order.getCustomerPhone(),
+                    "📍 כתובת: " + order.getDeliveryAddress() + "\n📞 לקוח: " + PhoneNumberUtil.toLocalFormat(order.getCustomerPhone()),
                     order.getId());
         } else {
             driverService.dispatchDeliveryToDrivers(msg,
-                    "📍 כתובת: " + order.getDeliveryAddress() + "\n📞 לקוח: " + order.getCustomerPhone(),
+                    "📍 כתובת: " + order.getDeliveryAddress() + "\n📞 לקוח: " + PhoneNumberUtil.toLocalFormat(order.getCustomerPhone()),
                     order.getId());
         }
     }
@@ -253,7 +253,8 @@ public class DeliveryOrderService {
             if (bCoords != null) {
                 Integer bEta = etaMinutes(driver.getLatitude(), driver.getLongitude(), bCoords[0], bCoords[1]);
                 pickupNav = (bEta != null ? "\n⏱️ זמן נסיעה לעסק: ~" + bEta + " דקות" : "")
-                        + "\n🧭 ניווט לעסק: " + mapsNavLink(bCoords[0], bCoords[1]);
+                        + "\n🗺️ Google Maps: " + mapsNavLink(bCoords[0], bCoords[1])
+                        + "\n🔵 Waze: " + wazeNavLink(bCoords[0], bCoords[1]);
             }
         }
         
@@ -278,7 +279,7 @@ public class DeliveryOrderService {
         );
 
         // Notify business owner that driver claimed the order
-        String businessNotification = "יאלה, יצאנו לדרך! 🎉\nמשלוח #" + orderId + " בטיפול.\nהנהג כבר בדרך לעסק שלך לאסוף את ההזמנה 🤙";
+        String businessNotification = "יאללה, יצאנו לדרך! 🎉\nמשלוח #" + orderId + " בטיפול.\nהנהג כבר בדרך לעסק שלך לאסוף את ההזמנה 🤙";
         
         whatsappService.sendSafeText(order.getBusinessPhone(), businessNotification);
 
@@ -343,7 +344,8 @@ public class DeliveryOrderService {
                 : null;
         String deliveryNav = (deliveryCoords != null)
                 ? (deliveryEta != null ? "\n⏱️ זמן נסיעה ללקוח: ~" + deliveryEta + " דקות" : "")
-                + "\n🧭 ניווט ללקוח: " + mapsNavLink(deliveryCoords[0], deliveryCoords[1])
+                + "\n🗺️ Google Maps: " + mapsNavLink(deliveryCoords[0], deliveryCoords[1])
+                + "\n🔵 Waze: " + wazeNavLink(deliveryCoords[0], deliveryCoords[1])
                 : "";
         
         // Send confirmation to driver with complete button
@@ -360,7 +362,7 @@ public class DeliveryOrderService {
         """.formatted(
                 order.getId(),
                 businessName,
-                order.getCustomerPhone(),
+                PhoneNumberUtil.toLocalFormat(order.getCustomerPhone()),
                 order.getDeliveryAddress(),
                 order.getDeliveryFee(),
                 order.getNotes().isEmpty() ? "אין" : order.getNotes()
@@ -391,7 +393,7 @@ public class DeliveryOrderService {
 
             String customerMsg = "🛵 ההזמנה שלך בדרך!\n\n" +
                     "👤 " + customerName + ", ההזמנה מ-" + notifBusinessName + " יצאה לדרך.\n" +
-                    "📞 טלפון שליח: " + driverPhone + "\n" +
+                    "📞 טלפון שליח: " + PhoneNumberUtil.toLocalFormat(driverPhone) + "\n" +
                     "⏱️ זמן הגעה משוער: " + customerEtaText + "\n" +
                     "📍 כתובת מסירה: " + order.getDeliveryAddress() + "\n\n" +
                     "🗺️ מעקב חי אחר השליח:\n" + trackingLink;
@@ -401,7 +403,7 @@ public class DeliveryOrderService {
                     customerMsg,
                     "delivery_status_delivering",
                     Arrays.asList(customerName, notifBusinessName,
-                            driverPhone,customerEtaText, order.getDeliveryAddress(), trackingLink),
+                            PhoneNumberUtil.toLocalFormat(driverPhone),customerEtaText, order.getDeliveryAddress(), trackingLink),
                     convoService
             );
             logger.info("[DELIVERY] ✅ Sent tracking link to customer for order #{}", orderId);
@@ -525,6 +527,12 @@ public class DeliveryOrderService {
     private String mapsNavLink(double destLat, double destLng) {
         return shortLinkService.createShortLink(
                 "https://www.google.com/maps/dir/?api=1&destination=" + destLat + "," + destLng);
+    }
+
+    /** Waze navigation link to coords; driver's live position is the origin. */
+    private String wazeNavLink(double destLat, double destLng) {
+        return shortLinkService.createShortLink(
+                "https://waze.com/ul?ll=" + destLat + "," + destLng + "&navigate=yes");
     }
     
     private boolean isRouteFeasible(String driverPhone, DeliveryOrder newOrder) {

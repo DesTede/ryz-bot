@@ -98,7 +98,7 @@ public class TaxiOrderService {
         String orderDetails = "🚗 סוג כלי רכב: " + order.getRequestedCarType().getHebrewName() + "\n" +
                 "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
                 "🎯 לאן: " + order.getDestination() + "\n" +
-                "📞 לקוח: " + order.getPhone();
+                "📞 לקוח: " + PhoneNumberUtil.toLocalFormat(order.getPhone());
 
         if (coords != null) {
             driverService.dispatchToClosestDrivers(DriverType.TAXI, msg, coords[0], coords[1], orderDetails, order.getId(), order.getRequestedCarType());
@@ -155,12 +155,6 @@ public class TaxiOrderService {
         } catch (Exception e) {
             logger.warn("Error notifying taxi customer for order #{}: {}", orderId, e.getMessage(), e);
         }
-        
-        // Send confirmation with interactive button for completion
-//        Driver claimedDriver = driverService.findByPhone(driverPhone);
-//        String driverLiveLink = (claimedDriver != null && claimedDriver.getLocationToken() != null)
-//                ?  shortLinkService.createShortLink(baseUrl + "/driver/live/" + claimedDriver.getLocationToken())
-//                : "";
         
         String confirmationMsg = """
                     

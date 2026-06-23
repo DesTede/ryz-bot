@@ -61,17 +61,6 @@ public class PhoneNumberUtil {
     }
 
     /**
-     * Get display format for phone number
-     * Uses maskPhoneNumber format (e.g., "********4567")
-     *
-     * @param phoneNumber The phone number to mask
-     * @return Masked phone number safe for logs
-     */
-    public static String getDisplayPhone(String phoneNumber) {
-        return maskPhoneNumber(phoneNumber);
-    }
-
-    /**
      * Check if a phone number is valid (basic check)
      *
      * @param phoneNumber The phone number to check
