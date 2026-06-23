@@ -180,6 +180,7 @@ public class MessageRouter {
             boolean isUnambiguousDriverCommand = txt.startsWith("taxi_claim_") || txt.startsWith("delivery_claim_") ||
                     txt.startsWith("taxi_complete_") || txt.startsWith("taxi_cancel_driver_") ||
                     txt.startsWith("delivery_pickup_") || txt.startsWith("delivery_complete_") ||
+                    txt.equals("driver_show_route") ||
                     txt.startsWith("איסוף ") || txt.startsWith("נמסר ") || txt.startsWith("בדרך ") ||
                     txt.equals("התחל משמרת") || txt.equals("driver_start_shift") ||
                     txt.equals("סיים משמרת") || txt.equals("driver_end_shift");
@@ -233,6 +234,7 @@ public class MessageRouter {
                 if (txt.startsWith("taxi_claim_") || txt.startsWith("delivery_claim_") ||
                         txt.startsWith("taxi_complete_") || txt.startsWith("taxi_cancel_driver_") ||
                         txt.startsWith("delivery_pickup_") || txt.startsWith("delivery_complete_") ||
+                        txt.equals("driver_show_route") ||
                         txt.startsWith("איסוף ") || txt.startsWith("נמסר ") ||
                         txt.startsWith("בדרך ")) {
                     logger.info(">>> DRIVER ORDER COMMAND DETECTED <<<");

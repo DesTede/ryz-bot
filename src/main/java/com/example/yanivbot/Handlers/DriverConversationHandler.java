@@ -73,8 +73,12 @@ public class DriverConversationHandler implements ConversationHandler {
         }                                                                   
 
         // Handle delivery complete button (delivery_complete_123)          
-        if (txt.startsWith("delivery_complete_")) {                         
-            return handleDeliveryComplete(message);                         
+        if (txt.startsWith("delivery_complete_")) {
+            return handleDeliveryComplete(message);
+        }
+
+        if (txt.equals("driver_show_route")) {
+            return handleShowRoute(message);
         }
         
         // Handle location sharing - can happen in any state while driver is active
@@ -272,6 +276,13 @@ public class DriverConversationHandler implements ConversationHandler {
         }
     }
 
+    private String handleShowRoute(IncomingMessage message) {
+        String navBlock = deliveryOrderService.buildDriverNavBlock(message.getPhone());
+        if (navBlock == null || navBlock.isBlank()) {
+            return "אין לך משלוחים פעילים כרגע 🏁";
+        }
+        return "📍 המסלול המעודכן שלך:" + navBlock;
+    }
 
 
     private String handleEndShift(Conversation convo, IncomingMessage message) {
@@ -334,30 +345,8 @@ public class DriverConversationHandler implements ConversationHandler {
 
         whatsappService.sendSafeText(phone, bodyText);
     }
-        
-//        String bodyText = """
-//                📍 כדי להתחיל משמרת עליך לשלוח מיקום נוכחי.
-//                לאחר מכן תוכל להתחיל לקבל הזמנות חדשות 🚀
-//                לחץ על הכפתור למטה לשיתוף מיקום""";
-//        
-//        whatsappService.sendLocationRequestMessage(phone, bodyText);
-//        
-//        
-//    }
 
     public boolean isDriver(String phone) {
         return driverService.findByPhone(phone) != null;
     }
-
-//    public boolean isBusinessOwner(String phone) {
-//        if (adminPhones != null && !adminPhones.isEmpty()) {
-//            String[] phones = adminPhones.split(",");
-//            for (String adminPhone : phones) {
-//                if (adminPhone.trim().equals(phone)) {
-//                    return true;
-//                }
-//            }
-//        }
-//        return false;
-//    }
 }

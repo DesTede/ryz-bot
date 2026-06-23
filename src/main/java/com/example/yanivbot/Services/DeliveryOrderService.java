@@ -246,18 +246,8 @@ public class DeliveryOrderService {
         Business business = businessRepo.findByPhone(order.getBusinessPhone()).orElse(null);
         String businessName = (business != null && business.getName() != null) ? business.getName() : "העסק";
 
-        // v1 Trip planning + ETA: navigation + ETA to the business (pickup leg)
-        String pickupNav = "";
-        if (business != null) {
-            double[] bCoords = resolveCoords(business.getAddressPlaceId(), business.getAddress());
-            if (bCoords != null) {
-                Integer bEta = etaMinutes(driver.getLatitude(), driver.getLongitude(), bCoords[0], bCoords[1]);
-                pickupNav = (bEta != null ? "\n⏱️ זמן נסיעה לעסק: ~" + bEta + " דקות" : "")
-                        + "\n🗺️ Google Maps: " + mapsNavLink(bCoords[0], bCoords[1]) 
-                        + "\n"
-                        + "\n🔵 Waze: " + wazeNavLink(bCoords[0], bCoords[1]);
-            }
-        }
+        // v2 Trip planning: next stop + order summary
+        String pickupNav = buildDriverNavBlock(driverPhone);
         
         // Send confirmation to driver with order details
         String driverConfirmation ="""
@@ -272,11 +262,12 @@ public class DeliveryOrderService {
                 businessName,
                 order.getDeliveryAddress()
         ) + pickupNav;
-                
+
         whatsappService.sendInteractiveButtonsSafe(
                 driverPhone,
                 driverConfirmation,
-                new WhatsappService.InteractiveButton("delivery_pickup_" + orderId, "✅ אספתי")
+                new WhatsappService.InteractiveButton("delivery_pickup_" + orderId, "✅ אספתי"),
+                new WhatsappService.InteractiveButton("driver_show_route", "📍 הצג מסלול")
         );
 
         // Notify business owner that driver claimed the order
@@ -338,20 +329,14 @@ public class DeliveryOrderService {
         String businessName = (business != null && business.getName() != null) ? business.getName() : "העסק";
 
         Driver pickupDriver = driverService.findByPhone(driverPhone);
-        String driverLiveLink = (pickupDriver != null && pickupDriver.getLocationToken() != null)
-                ? "\n\n📍 שדר מיקום ללקוח:\n" + shortLinkService.createShortLink(baseUrl + "/driver/live/" + pickupDriver.getLocationToken())
-                : "";
+        
 
         // v1 Trip planning + ETA: driver -> customer delivery leg (shared by driver & customer messages)
         double[] deliveryCoords = resolveCoords(order.getDeliveryAddressPlaceId(), order.getDeliveryAddress());
         Integer deliveryEta = (deliveryCoords != null && pickupDriver != null)
                 ? etaMinutes(pickupDriver.getLatitude(), pickupDriver.getLongitude(), deliveryCoords[0], deliveryCoords[1])
                 : null;
-        String deliveryNav = (deliveryCoords != null)
-                ? (deliveryEta != null ? "\n⏱️ זמן נסיעה ללקוח: ~" + deliveryEta + " דקות" : "")
-                + "\n🗺️ Google Maps: " + mapsNavLink(deliveryCoords[0], deliveryCoords[1])
-                + "\n🔵 Waze: " + wazeNavLink(deliveryCoords[0], deliveryCoords[1])
-                : "";
+        String deliveryNav = buildDriverNavBlock(driverPhone);
         
         // Send confirmation to driver with complete button
         String driverMsg ="""
@@ -372,13 +357,13 @@ public class DeliveryOrderService {
                 order.getDeliveryFee(),
                 order.getNotes().isEmpty() ? "אין" : order.getNotes()
                 ) +
-                deliveryNav +
-                driverLiveLink ;
+                deliveryNav;
 
         whatsappService.sendInteractiveButtonsSafe(
                 driverPhone,
                 driverMsg,
-                new WhatsappService.InteractiveButton("delivery_complete_" + orderId, "✅ משלוח הושלם")
+                new WhatsappService.InteractiveButton("delivery_complete_" + orderId, "✅ משלוח הושלם"),
+                new WhatsappService.InteractiveButton("driver_show_route", "📍 הצג מסלול")
         );
 
         // Notify business owner
@@ -548,6 +533,120 @@ public class DeliveryOrderService {
     private String wazeNavLink(double destLat, double destLng) {
         return shortLinkService.createShortLink(
                 "https://waze.com/ul?ll=" + destLat + "," + destLng + "&navigate=yes");
+    }
+
+    /** Carrier for stop metadata used in v2 route planning. */
+    private static class StopEntry {
+        final double[] coords;
+        final long orderId;
+        final boolean isPickup;
+        StopEntry(double[] coords, long orderId, boolean isPickup) {
+            this.coords = coords; this.orderId = orderId; this.isPickup = isPickup;
+        }
+    }
+
+    /**
+     * v2: Post-processes optimized stop order to enforce pickup-before-drop.
+     * If a delivery drop appears before its business pickup, moves the pickup just before it.
+     */
+    private List<StopEntry> enforcePickupBeforeDrop(List<double[]> orderedStops,
+                                                    List<StopEntry> originalEntries) {
+        // Map each coord reference back to its StopEntry (by object identity)
+        List<StopEntry> ordered = new ArrayList<>();
+        for (int i = 1; i < orderedStops.size(); i++) {
+            double[] coords = orderedStops.get(i);
+            for (StopEntry e : originalEntries) {
+                if (e.coords == coords) { ordered.add(e); break; }
+            }
+        }
+        // Scan and fix: for each drop, ensure its pickup precedes it
+        boolean fixed = true;
+        while (fixed) {
+            fixed = false;
+            for (int i = 0; i < ordered.size(); i++) {
+                StopEntry drop = ordered.get(i);
+                if (drop.isPickup) continue;
+                for (int j = i + 1; j < ordered.size(); j++) {
+                    if (ordered.get(j).isPickup && ordered.get(j).orderId == drop.orderId) {
+                        StopEntry pickup = ordered.remove(j);
+                        ordered.add(i, pickup);
+                        fixed = true;
+                        break;
+                    }
+                }
+                if (fixed) break;
+            }
+        }
+        return ordered;
+    }
+
+    /**
+     * v2: Builds the nav block shown to the driver: next stop link + order summary.
+     * Full optimized route is computed internally; only the first stop is surfaced.
+     * Public so DriverConversationHandler can call it for the on-demand button.
+     */
+    public String buildDriverNavBlock(String driverPhone) {
+        try {
+            Driver driver = driverService.findByPhone(driverPhone);
+            if (driver == null || (driver.getLatitude() == 0 && driver.getLongitude() == 0)) return "";
+
+            List<DeliveryOrder> activeOrders = driverService.getActiveDeliveryOrders(driverPhone);
+            if (activeOrders.isEmpty()) return "";
+
+            // Count for summary line
+            long toPickup = activeOrders.stream()
+                    .filter(o -> o.getDeliveryStatus() == DeliveryStatus.ASSIGNED).count();
+            long enRoute = activeOrders.stream()
+                    .filter(o -> o.getDeliveryStatus() == DeliveryStatus.PICKED_UP
+                            || o.getDeliveryStatus() == DeliveryStatus.DELIVERING).count();
+
+            // Build stop entries
+            List<StopEntry> entries = new ArrayList<>();
+            for (DeliveryOrder o : activeOrders) {
+                if (o.getDeliveryStatus() == DeliveryStatus.ASSIGNED) {
+                    Business b = businessRepo.findByPhone(o.getBusinessPhone()).orElse(null);
+                    if (b != null) {
+                        double[] coords = resolveCoords(b.getAddressPlaceId(), b.getAddress());
+                        if (coords != null) entries.add(new StopEntry(coords, o.getId(), true));
+                    }
+                }
+                double[] coords = resolveCoords(o.getDeliveryAddressPlaceId(), o.getDeliveryAddress());
+                if (coords != null) entries.add(new StopEntry(coords, o.getId(), false));
+            }
+            if (entries.isEmpty()) return "";
+
+            // Build stops list for Routes API
+            List<double[]> stops = new ArrayList<>();
+            stops.add(new double[]{driver.getLatitude(), driver.getLongitude()});
+            for (StopEntry e : entries) stops.add(e.coords);
+
+            GeoCodingService.OptimizedRoute route = geoCodingService.getOptimizedRoute(stops);
+            if (route == null) return "";
+
+            // Enforce pickup-before-drop and get the first stop
+            List<StopEntry> orderedEntries = enforcePickupBeforeDrop(route.orderedStops, entries);
+            if (orderedEntries.isEmpty()) return "";
+
+            StopEntry nextStop = orderedEntries.get(0);
+            int totalMin = (int) Math.round(route.totalMinutes);
+            int totalStops = orderedEntries.size();
+
+            // Next stop nav links (single destination — privacy preserved)
+            String nextMaps = mapsNavLink(nextStop.coords[0], nextStop.coords[1]);
+            String nextWaze = wazeNavLink(nextStop.coords[0], nextStop.coords[1]);
+            String stopType = nextStop.isPickup ? "🏪 הבא: איסוף מעסק" : "🏠 הבא: מסירה ללקוח";
+
+            return "\n\n📦 משלוחים פעילים: " + activeOrders.size()
+                    + " (" + toPickup + " לאיסוף, " + enRoute + " בדרך ללקוח)"
+                    + "\n⏱️ זמן כולל משוער: ~" + totalMin + " דקות (" + totalStops + " עצירות)"
+                    + "\n" + stopType + ":"
+                    + "\n🗺️ Google Maps: " + nextMaps
+                    + "\n🔵 Waze: " + nextWaze;
+
+        } catch (Exception e) {
+            logger.warn("[ROUTE] buildDriverNavBlock failed for {}: {}", driverPhone, e.getMessage());
+            return "";
+        }
     }
     
     private boolean isRouteFeasible(String driverPhone, DeliveryOrder newOrder) {

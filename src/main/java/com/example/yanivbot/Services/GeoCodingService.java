@@ -222,6 +222,83 @@ public class GeoCodingService {
             return null;
         }
     }
+
+    public OptimizedRoute getOptimizedRoute(List<double[]> stops) {
+        try {
+            if (stops == null || stops.size() < 2) return null;
+
+            double[] origin = stops.get(0);
+            List<double[]> waypoints = stops.subList(1, stops.size());
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("origin", Map.of("location", Map.of("latLng",
+                    Map.of("latitude", origin[0], "longitude", origin[1]))));
+
+            double[] destination = waypoints.get(waypoints.size() - 1);
+            requestBody.put("destination", Map.of("location", Map.of("latLng",
+                    Map.of("latitude", destination[0], "longitude", destination[1]))));
+
+            if (waypoints.size() > 1) {
+                List<Map<String, Object>> intermediatesList = new ArrayList<>();
+                for (int i = 0; i < waypoints.size() - 1; i++) {
+                    double[] stop = waypoints.get(i);
+                    intermediatesList.add(Map.of("location", Map.of("latLng",
+                            Map.of("latitude", stop[0], "longitude", stop[1]))));
+                }
+                requestBody.put("intermediates", intermediatesList);
+                requestBody.put("optimizeWaypointOrder", true);
+            }
+
+            requestBody.put("travelMode", "DRIVE");
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", "application/json");
+            headers.set("X-Goog-Api-Key", apiKey);
+            headers.set("X-Goog-FieldMask", "routes.duration,routes.optimizedIntermediateWaypointIndex");
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            Map<?, ?> response = restTemplate.postForObject(
+                    "https://routes.googleapis.com/directions/v2:computeRoutes", entity, Map.class);
+
+            if (response == null) return null;
+            List<?> routes = (List<?>) response.get("routes");
+            if (routes == null || routes.isEmpty()) return null;
+
+            Map<?, ?> route = (Map<?, ?>) routes.get(0);
+            String durationStr = (String) route.get("duration");
+            if (durationStr == null) return null;
+            double totalMinutes = Double.parseDouble(durationStr.replace("s", "")) / 60.0;
+
+            List<?> optimizedIndices = (List<?>) route.get("optimizedIntermediateWaypointIndex");
+
+            List<double[]> orderedStops = new ArrayList<>();
+            orderedStops.add(origin);
+            if (optimizedIndices != null && waypoints.size() > 1) {
+                List<double[]> intermediates = new ArrayList<>(waypoints.subList(0, waypoints.size() - 1));
+                for (Object idx : optimizedIndices) {
+                    orderedStops.add(intermediates.get(((Number) idx).intValue()));
+                }
+            }
+            orderedStops.add(destination);
+
+            return new OptimizedRoute(totalMinutes, orderedStops);
+
+        } catch (Exception e) {
+            logger.warn("[ROUTE] getOptimizedRoute failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public static class OptimizedRoute {
+        public final double totalMinutes;
+        public final List<double[]> orderedStops;
+
+        public OptimizedRoute(double totalMinutes, List<double[]> orderedStops) {
+            this.totalMinutes = totalMinutes;
+            this.orderedStops = orderedStops;
+        }
+    }
     
     public static class TripInfo {
         public final double distanceKm;
