@@ -238,7 +238,7 @@ public class TaxiOrderService {
                     "❌ נסיעה מספר" + orderId + " בוטלה על ידי הלקוח.\nהמערכת מסמנת אותך כפנוי 🚀");
         }
 
-        logger.info("Order #{} cancelled by customer {}", orderId, customerPhone);
+        logger.info("Order #{} cancelled by customer {}", orderId, PhoneNumberUtil.maskPhoneNumber(customerPhone));
         return "✅ ההזמנה בוטלה בהצלחה.\nנשמח לשרת אותך שוב ב־Movez 💙";
     }
 
@@ -266,13 +266,13 @@ public class TaxiOrderService {
         // Rebroadcast to other drivers
         broadcastToDrivers(order);
 
-        logger.info("Order #{} cancelled by driver {}, rebroadcasting", orderId, driverPhone);
+        logger.info("Order #{} cancelled by driver {}, rebroadcasting", orderId, PhoneNumberUtil.maskPhoneNumber(driverPhone));
         return "✅ הנסיעה בוטלה.\nההזמנה הועברה לנהג אחר.";
     }
 
     private void notifyTaxiCustomer(TaxiOrder order) {
         try {
-            logger.info("Notifying taxi customer for order #{} (phone: {})", order.getId(), order.getPhone());
+            logger.info("Notifying taxi customer for order #{} (phone: {})", order.getId(), PhoneNumberUtil.maskPhoneNumber(order.getPhone()));
 
             Driver driver = driverService.findByPhone(order.getDriverPhone());
             String driverName = driver != null ? driver.getName() : order.getDriverPhone();

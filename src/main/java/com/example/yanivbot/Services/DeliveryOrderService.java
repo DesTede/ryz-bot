@@ -115,7 +115,7 @@ public class DeliveryOrderService {
         order.setDeliveryStatus(DeliveryStatus.CANCELLED);
         deliveryOrderRepo.save(order);
 
-        logger.info("Delivery order #{} cancelled by business {}", orderId, businessPhone);
+        logger.info("Delivery order #{} cancelled by business {}", orderId, PhoneNumberUtil.maskPhoneNumber(businessPhone));
         return "✅ ההזמנה בוטלה בהצלחה.\nנשמח לשרת אותך שוב ב־Movez 💙";
     }
 
@@ -246,6 +246,17 @@ public class DeliveryOrderService {
         Business business = businessRepo.findByPhone(order.getBusinessPhone()).orElse(null);
         String businessName = (business != null && business.getName() != null) ? business.getName() : "העסק";
 
+        // v1 Trip planning + ETA: navigation + ETA to the business (pickup leg)
+        String pickupNav = "";
+        if (business != null) {
+            double[] bCoords = resolveCoords(business.getAddressPlaceId(), business.getAddress());
+            if (bCoords != null) {
+                Integer bEta = etaMinutes(driver.getLatitude(), driver.getLongitude(), bCoords[0], bCoords[1]);
+                pickupNav = (bEta != null ? "\n⏱️ זמן נסיעה לעסק: ~" + bEta + " דקות" : "")
+                        + "\n🧭 ניווט לעסק: " + mapsNavLink(bCoords[0], bCoords[1]);
+            }
+        }
+        
         // Send confirmation to driver with order details
         String driverConfirmation ="""
         🔥 קיבלת משלוח!
@@ -258,7 +269,7 @@ public class DeliveryOrderService {
                 order.getId(),
                 businessName,
                 order.getDeliveryAddress()
-        );
+        ) + pickupNav;
                 
         whatsappService.sendInteractiveButtonsSafe(
                 driverPhone,
@@ -324,6 +335,16 @@ public class DeliveryOrderService {
         String driverLiveLink = (pickupDriver != null && pickupDriver.getLocationToken() != null)
                 ? "\n\n📍 שדר מיקום ללקוח:\n" + shortLinkService.createShortLink(baseUrl + "/driver/live/" + pickupDriver.getLocationToken())
                 : "";
+
+        // v1 Trip planning + ETA: driver -> customer delivery leg (shared by driver & customer messages)
+        double[] deliveryCoords = resolveCoords(order.getDeliveryAddressPlaceId(), order.getDeliveryAddress());
+        Integer deliveryEta = (deliveryCoords != null && pickupDriver != null)
+                ? etaMinutes(pickupDriver.getLatitude(), pickupDriver.getLongitude(), deliveryCoords[0], deliveryCoords[1])
+                : null;
+        String deliveryNav = (deliveryCoords != null)
+                ? (deliveryEta != null ? "\n⏱️ זמן נסיעה ללקוח: ~" + deliveryEta + " דקות" : "")
+                + "\n🧭 ניווט ללקוח: " + mapsNavLink(deliveryCoords[0], deliveryCoords[1])
+                : "";
         
         // Send confirmation to driver with complete button
         String driverMsg ="""
@@ -344,7 +365,8 @@ public class DeliveryOrderService {
                 order.getDeliveryFee(),
                 order.getNotes().isEmpty() ? "אין" : order.getNotes()
                 ) +
-                driverLiveLink;
+                deliveryNav +
+                driverLiveLink ;
 
         whatsappService.sendInteractiveButtonsSafe(
                 driverPhone,
@@ -365,10 +387,12 @@ public class DeliveryOrderService {
                     ? customerBusiness.getName() : "העסק";
 
             String trackingLink = shortLinkService.createShortLink(baseUrl + "/track/" + order.getTrackingToken());
-
+            String customerEtaText = (deliveryEta != null) ? "עוד כ-" + deliveryEta + " דקות" : "בקרוב";
 
             String customerMsg = "🛵 ההזמנה שלך בדרך!\n\n" +
                     "👤 " + customerName + ", ההזמנה מ-" + notifBusinessName + " יצאה לדרך.\n" +
+                    "📞 טלפון שליח: " + driverPhone + "\n" +
+                    "⏱️ זמן הגעה משוער: " + customerEtaText + "\n" +
                     "📍 כתובת מסירה: " + order.getDeliveryAddress() + "\n\n" +
                     "🗺️ מעקב חי אחר השליח:\n" + trackingLink;
 
@@ -376,7 +400,8 @@ public class DeliveryOrderService {
                     whatsappService.normalizePhone(order.getCustomerPhone()),
                     customerMsg,
                     "delivery_status_delivering",
-                    Arrays.asList(customerName, notifBusinessName, driverPhone, order.getDeliveryAddress(), trackingLink),
+                    Arrays.asList(customerName, notifBusinessName,
+                            driverPhone,customerEtaText, order.getDeliveryAddress(), trackingLink),
                     convoService
             );
             logger.info("[DELIVERY] ✅ Sent tracking link to customer for order #{}", orderId);
@@ -477,6 +502,31 @@ public class DeliveryOrderService {
         return null;
     }
 
+    // ---- v1 Trip planning + ETA helpers (single-order) ----
+
+    /** Resolve a destination to [lat,lng] using place_id when available, else address text. */
+    private double[] resolveCoords(String placeId, String address) {
+        if (placeId != null && !placeId.isEmpty()) {
+            double[] c = geoCodingService.geocodeByPlaceId(placeId);
+            if (c != null) return c;
+        }
+        return address != null ? geoCodingService.geocode(address) : null;
+    }
+
+    /** Driver -> destination travel time in whole minutes, or null if unavailable. */
+    private Integer etaMinutes(double fromLat, double fromLng, double destLat, double destLng) {
+        if (fromLat == 0 || fromLng == 0) return null; // no driver GPS yet
+        GeoCodingService.TripInfo trip =
+                geoCodingService.getTripInfoByCoords(fromLat, fromLng, destLat, destLng);
+        return (trip != null && trip.durationMinutes > 0) ? (int) Math.round(trip.durationMinutes) : null;
+    }
+
+    /** Short Google Maps directions link to coords; driver's live position is the origin. */
+    private String mapsNavLink(double destLat, double destLng) {
+        return shortLinkService.createShortLink(
+                "https://www.google.com/maps/dir/?api=1&destination=" + destLat + "," + destLng);
+    }
+    
     private boolean isRouteFeasible(String driverPhone, DeliveryOrder newOrder) {
         try {
             // Get driver's current location
@@ -493,20 +543,17 @@ public class DeliveryOrderService {
             List<DeliveryOrder> activeOrders = driverService.getActiveDeliveryOrders(driverPhone);
             List<double[]> existingStops = new ArrayList<>();
             for (DeliveryOrder active : activeOrders) {
-                // Only add business pickup if order hasn't been picked up yet
+                // Add the business PICKUP stop only if the order hasn't been picked up yet
                 if (active.getDeliveryStatus() == DeliveryStatus.ASSIGNED) {
                     Business activeBusiness = businessRepo.findByPhone(active.getBusinessPhone()).orElse(null);
-                    if (activeBusiness != null && activeBusiness.getAddress() != null) {
-                        double[] coords = (active.getDeliveryAddressPlaceId() != null && !active.getDeliveryAddressPlaceId().isEmpty())
-                                ? geoCodingService.geocodeByPlaceId(active.getDeliveryAddressPlaceId())
-                                : geoCodingService.geocode(active.getDeliveryAddress());
-                        if (coords != null) existingStops.add(coords);;
+                    if (activeBusiness != null) {
+                        double[] pickupCoords = resolveCoords(activeBusiness.getAddressPlaceId(), activeBusiness.getAddress());
+                        if (pickupCoords != null) existingStops.add(pickupCoords);
                     }
                 }
-                double[] coords = (active.getDeliveryAddressPlaceId() != null && !active.getDeliveryAddressPlaceId().isEmpty())
-                        ? geoCodingService.geocodeByPlaceId(active.getDeliveryAddressPlaceId())
-                        : geoCodingService.geocode(active.getDeliveryAddress());
-                if (coords != null) existingStops.add(coords);
+                // Always add the DELIVERY (drop-off) stop
+                double[] deliveryCoords = resolveCoords(active.getDeliveryAddressPlaceId(), active.getDeliveryAddress());
+                if (deliveryCoords != null) existingStops.add(deliveryCoords);
             }
 
             if (existingStops.isEmpty()) {
@@ -516,10 +563,9 @@ public class DeliveryOrderService {
 
             // Build stops for the new order
             Business newBusiness = businessRepo.findByPhone(newOrder.getBusinessPhone()).orElse(null);
-            double[] newPickupCoords = null;
-            if (newBusiness != null && newBusiness.getAddress() != null) {
-                newPickupCoords = geoCodingService.geocode(newBusiness.getAddress());
-            }
+            double[] newPickupCoords = (newBusiness != null)
+                    ? resolveCoords(newBusiness.getAddressPlaceId(), newBusiness.getAddress())
+                    : null;
             double[] newDeliveryCoords = (newOrder.getDeliveryAddressPlaceId() != null && !newOrder.getDeliveryAddressPlaceId().isEmpty())
                     ? geoCodingService.geocodeByPlaceId(newOrder.getDeliveryAddressPlaceId())
                     : geoCodingService.geocode(newOrder.getDeliveryAddress());

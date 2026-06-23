@@ -211,9 +211,9 @@ public class WhatsappService {
             payload.put("interactive", interactive);
 
             sendRequest(payload);
-            logger.info("Sent interactive button message to {}", phone);
+            logger.info("Sent interactive button message to {}", PhoneNumberUtil.maskPhoneNumber(phone));
         } catch (Exception e) {
-            logger.error("Error sending interactive buttons to {}: {}", phone, e.getMessage());
+            logger.error("Error sending interactive buttons to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage());
         }
     }
 
@@ -346,9 +346,9 @@ public class WhatsappService {
             payload.put("interactive", interactive);
 
             sendRequest(payload);
-            logger.info("Sent interactive list message to {}", phone);
+            logger.info("Sent interactive list message to {}", PhoneNumberUtil.maskPhoneNumber(phone));
         } catch (Exception e) {
-            logger.error("Error sending interactive list to {}: {}", phone, e.getMessage());
+            logger.error("Error sending interactive list to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage());
         }
     }
     
