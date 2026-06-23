@@ -253,7 +253,8 @@ public class DeliveryOrderService {
             if (bCoords != null) {
                 Integer bEta = etaMinutes(driver.getLatitude(), driver.getLongitude(), bCoords[0], bCoords[1]);
                 pickupNav = (bEta != null ? "\n⏱️ זמן נסיעה לעסק: ~" + bEta + " דקות" : "")
-                        + "\n🗺️ Google Maps: " + mapsNavLink(bCoords[0], bCoords[1])
+                        + "\n🗺️ Google Maps: " + mapsNavLink(bCoords[0], bCoords[1]) 
+                        + "\n"
                         + "\n🔵 Waze: " + wazeNavLink(bCoords[0], bCoords[1]);
             }
         }
@@ -279,7 +280,11 @@ public class DeliveryOrderService {
         );
 
         // Notify business owner that driver claimed the order
-        String businessNotification = "יאללה, יצאנו לדרך! 🎉\nמשלוח #" + orderId + " בטיפול.\nהנהג כבר בדרך לעסק שלך לאסוף את ההזמנה 🤙";
+        String driverDisplayName = driver.getName() != null ? driver.getName() : "השליח";
+        String businessNotification = "יאללה, יצאנו לדרך! 🎉\nמשלוח #" + orderId + " בטיפול.\n" +
+                "🛵 שליח: " + driverDisplayName + "\n" +
+                "📞 טלפון: " + PhoneNumberUtil.toLocalFormat(driverPhone) + "\n" +
+                "הנהג כבר בדרך לעסק שלך לאסוף את ההזמנה 🤙";
         
         whatsappService.sendSafeText(order.getBusinessPhone(), businessNotification);
 
@@ -389,7 +394,7 @@ public class DeliveryOrderService {
                     ? customerBusiness.getName() : "העסק";
 
             String trackingLink = shortLinkService.createShortLink(baseUrl + "/track/" + order.getTrackingToken());
-            String customerEtaText = (deliveryEta != null) ? "עוד כ-" + deliveryEta + " דקות" : "בקרוב";
+            String customerEtaText = (deliveryEta != null) ? "כ-" + deliveryEta + " " : "בקרוב";
 
             String customerMsg = "🛵 ההזמנה שלך בדרך!\n\n" +
                     "👤 " + customerName + ", ההזמנה מ-" + notifBusinessName + " יצאה לדרך.\n" +
@@ -399,7 +404,7 @@ public class DeliveryOrderService {
                     "🗺️ מעקב חי אחר השליח:\n" + trackingLink;
 
             whatsappService.sendSmartCustomerMessage(
-                    whatsappService.normalizePhone(order.getCustomerPhone()),
+                    PhoneNumberUtil.normalizePhone(order.getCustomerPhone()),
                     customerMsg,
                     "delivery_status_delivering",
                     Arrays.asList(customerName, notifBusinessName,
@@ -482,7 +487,17 @@ public class DeliveryOrderService {
                     order.getDeliveryAddress()       // {{2}} - Delivery Address
             );
             
-            String customerMsg = "✅ הנסיעה הסתיימה בהצלחה\nתודה שבחרת לנסוע ב־Movez 🙌 🚙";
+            String customerMsg = """
+                    המשלוח הגיע אליך!
+                    ההזמנה שלך מ%s
+                    הגיעה בהצלחה!
+                    *לכתובת*: %s
+                    
+                    🏍️ *Movez* דואגת שהמשלוח יגיע אליך
+                     במהירות ובבטחה 💙
+                    ✅ תודה על ההזמנה ובתיאבון 😋
+                    """.formatted(businessName,
+                    order.getDeliveryAddress());
 
             // Send smart message: Free if in 24-hour window, template if outside
             whatsappService.sendSmartCustomerMessage(

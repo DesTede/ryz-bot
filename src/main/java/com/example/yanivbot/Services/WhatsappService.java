@@ -109,12 +109,6 @@ public class WhatsappService {
         }
     }
     
-    /**
-     * Normalize phone number to international format
-     */
-    public String normalizePhone(String phone) {
-        return PhoneNumberUtil.normalizePhone(phone);
-    }
 
     /**
      * Send text message
@@ -368,7 +362,6 @@ public class WhatsappService {
      * @param phone Recipient phone number (format: 972XXXXXXXXX)
      * @param templateName Template name registered in WhatsApp Business API
      * @param variables List of variable values in order ({{1}}, {{2}}, etc)
-     * @throws Exception if template sending fails
      */
     public void sendTemplateMessage(String phone, String templateName, List<String> variables) {
         logger.info("Preparing template message for {}: {}",
@@ -420,7 +413,7 @@ public class WhatsappService {
             // Build message object
             Map<String, Object> message = new HashMap<>();
             message.put("messaging_product", "whatsapp");
-            message.put("to", normalizePhone(phone));
+            message.put("to", PhoneNumberUtil.normalizePhone(phone));
             message.put("type", "template");
             message.put("template", template);
 
@@ -539,7 +532,7 @@ public class WhatsappService {
             sendSafeText(phone, regularMessage);
         } else {
             logger.info("Outside 24-hour window - sending template to {}", PhoneNumberUtil.maskPhoneNumber(phone));
-            sendTemplateMessage(normalizePhone(phone), templateName, templateVariables);
+            sendTemplateMessage(PhoneNumberUtil.normalizePhone(phone), templateName, templateVariables);
         }
     }
 
@@ -550,7 +543,7 @@ public class WhatsappService {
                                       List<String> templateVariables, boolean useTemplate) {
         if (useTemplate) {
             logger.info("📋 Sending template (forced) to {}", PhoneNumberUtil.maskPhoneNumber(phone));
-            sendTemplateMessage(normalizePhone(phone), templateName, templateVariables);
+            sendTemplateMessage(PhoneNumberUtil.normalizePhone(phone), templateName, templateVariables);
         } else {
             logger.info("📱 Sending regular text (forced) to {}", PhoneNumberUtil.maskPhoneNumber(phone));
             sendSafeText(phone, regularMessage);
@@ -619,7 +612,7 @@ public class WhatsappService {
 
             Map<String, Object> message = new HashMap<>();
             message.put("messaging_product", "whatsapp");
-            message.put("to", normalizePhone(phone));
+            message.put("to", PhoneNumberUtil.normalizePhone(phone));
             message.put("type", "template");
             message.put("template", template);
 
@@ -657,7 +650,7 @@ public class WhatsappService {
 
             Map<String, Object> message = new HashMap<>();
             message.put("messaging_product", "whatsapp");
-            message.put("to", normalizePhone(phone));
+            message.put("to", PhoneNumberUtil.normalizePhone(phone));
             message.put("type", "template");
             message.put("template", template);
 
