@@ -464,11 +464,6 @@ public class DriverService {
     }
 
     public void alertAdminIfNoDriversAvailable(long orderId, DriverType type, String orderDetails) {
-        String driverType = type == DriverType.TAXI ? "מונית" : "משלוח";
-        String adminMessage = "🚨 *אוי לא, אין נהגים פנויים!*\n" +
-                "נוצרה הזמנת " + driverType + " חדשה (#" + orderId + ") אבל אין אף נהג זמין כרגע במערכת 😰\n\n" +
-                "📋 *פרטי ההזמנה:*\n" + orderDetails;
-
         if (type == DriverType.TAXI) {
             Optional<TaxiOrder> orderOpt = taxiOrderRepo.findById(orderId);
             if (orderOpt.isEmpty()) {
@@ -481,8 +476,14 @@ public class DriverService {
                 return;
             }
             logger.warn("No drivers available for taxi order #{} - alerting admins", orderId);
+            String adminMessage = "🚨 *אין נהגים פנויים!*\n" +
+                    "נוצרה הזמנת מונית חדשה (#" + order.getId() + ") אבל אין אף נהג זמין כרגע במערכת 😰\n\n" +
+                    "📍 *איסוף:* " + order.getPickUpLocation() + "\n" +
+                    "🎯 *יעד:* " + order.getDestination() + "\n" +
+                    "📞 *לקוח:* " + order.getPhone();
             notifyAdminsSmartMessage(adminMessage, "no_taxi_driver_available_admin",
-                    List.of(driverType, String.valueOf(orderId), type.name()));
+                    List.of(String.valueOf(order.getId()), order.getPickUpLocation(),
+                            order.getDestination(), order.getPhone()));
             order.setAdminAlertedNoDrivers(true);
             taxiOrderRepo.save(order);
         } else {
@@ -497,8 +498,14 @@ public class DriverService {
                 return;
             }
             logger.warn("No drivers available for delivery order #{} - alerting admins", orderId);
+            String adminMessage = "🚨 *אין שליחים פנויים!*\n" +
+                    "נוצר משלוח חדש (#" + order.getId() + ") אבל אין אף שליח זמין כרגע במערכת 😰\n\n" +
+                    "📍 *כתובת למשלוח:* " + order.getDeliveryAddress() + "\n" +
+                    "📞 *טלפון העסק:* " + order.getBusinessPhone();
+            
             notifyAdminsSmartMessage(adminMessage, "no_delivery_driver_available_admin",
-                    List.of(driverType, String.valueOf(orderId), type.name()));
+                    List.of(String.valueOf(order.getId()), order.getDeliveryAddress(),
+                            order.getBusinessPhone()));
             order.setAdminAlertedNoDrivers(true);
             deliveryOrderRepo.save(order);
         }
