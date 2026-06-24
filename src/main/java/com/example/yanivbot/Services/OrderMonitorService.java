@@ -10,6 +10,7 @@ import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -36,6 +37,10 @@ public class OrderMonitorService {
     private static final int DELIVERY_ALERT_MINUTES = 10;
 
     private static final int ADMIN_REPEAT_ALERT_MINUTES = 5;
+    // Active-driver stale-location handling (change these to tune timing)
+    private static final int DRIVER_STALE_LOCATION_MINUTES = 5;   // location considered stale after this
+    private static final int DRIVER_STALE_REALERT_MINUTES = 15;   // re-alert driver only after this gap
+    private static final int DRIVER_AUTO_CLOCKOUT_MINUTES = 20;   // auto clock-out after sustained staleness
 
 
 
@@ -240,6 +245,60 @@ public class OrderMonitorService {
             logger.info("Stale location alert sent to customer for order #{}", order.getId());
         }
     }
+
+    // Runs every 5 minutes — alerts active drivers whose location is stale and auto-clocks-out long-stale ones
+    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
+    public void checkActiveDriversStaleLocation() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime staleThreshold = now.minusMinutes(DRIVER_STALE_LOCATION_MINUTES);
+        LocalDateTime clockOutThreshold = now.minusMinutes(DRIVER_AUTO_CLOCKOUT_MINUTES);
+        LocalDateTime reAlertThreshold = now.minusMinutes(DRIVER_STALE_REALERT_MINUTES);
+
+        for (Driver driver : driverService.getAllActiveDrivers()) {
+            // Skip drivers currently on an order — their staleness is handled by the customer alert
+            if (driverService.hasActiveTaxiOrder(driver.getPhone())
+                    || driverService.hasActiveDeliveryOrders(driver.getPhone())) {
+                continue;
+            }
+
+            LocalDateTime lastUpdate = driver.getLocationUpdatedAt();
+            if (lastUpdate == null) continue;                 // never reported
+            if (lastUpdate.isAfter(staleThreshold)) continue; // location is fresh
+
+            // Sustained staleness — auto clock-out and tell the driver why
+            if (lastUpdate.isBefore(clockOutThreshold)) {
+                driverService.clockOut(driver.getPhone());
+                String clockOutMsg = "🔴 הוצאת מהמשמרת אוטומטית כי המיקום שלך לא התעדכן יותר מ-"
+                        + DRIVER_AUTO_CLOCKOUT_MINUTES + " דקות.\n" +
+                        "כדי לחזור לעבוד, פתח את האפליקציה והתחל משמרת מחדש 🚗";
+                whatsappService.sendSmartCustomerMessage(driver.getPhone(), clockOutMsg,
+                        "driver_auto_clocked_out",
+                        List.of(String.valueOf(DRIVER_AUTO_CLOCKOUT_MINUTES)), convoService);
+                logger.warn("Driver {} auto clocked-out — location stale > {} min",
+                        PhoneNumberUtil.maskPhoneNumber(driver.getPhone()), DRIVER_AUTO_CLOCKOUT_MINUTES);
+                continue;
+            }
+
+            // Stale but not long enough for clock-out — alert once, re-alert only after the gap
+            LocalDateTime lastAlert = driver.getStaleLocationAlertedAt();
+            if (lastAlert != null && lastAlert.isAfter(reAlertThreshold)) {
+                continue; // alerted recently, don't spam
+            }
+
+            String staleMsg = "⚠️ המיקום שלך לא מתעדכן כבר כ-" + DRIVER_STALE_LOCATION_MINUTES + " דקות.\n" +
+                    "עד שהמיקום יחזור להתעדכן, לא תופיע כזמין ולא תקבל הזמנות חדשות.\n" +
+                    "אנא ודא שהאפליקציה פתוחה ושיתוף המיקום פעיל 📍";
+            whatsappService.sendSmartCustomerMessage(driver.getPhone(), staleMsg,
+                    "driver_location_stale",
+                    List.of(String.valueOf(DRIVER_STALE_LOCATION_MINUTES)), convoService);
+
+            driver.setStaleLocationAlertedAt(now);
+            driverService.saveDriver(driver);
+            logger.info("Stale location alert sent to driver {}",
+                    PhoneNumberUtil.maskPhoneNumber(driver.getPhone()));
+        }
+    }
+
 
     private String buildDispatchMessage(DeliveryOrder order) {
         return """

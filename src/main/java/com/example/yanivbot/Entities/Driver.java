@@ -25,6 +25,7 @@ public class Driver {
     private double latitude;
     private double longitude;
     private LocalDateTime locationUpdatedAt;
+    private LocalDateTime staleLocationAlertedAt;
 
     @Enumerated(EnumType.STRING)
     private DriverType type;
@@ -148,5 +149,13 @@ public class Driver {
 
     public void setLocationToken(String locationToken) {
         this.locationToken = locationToken;
+    }
+
+    public LocalDateTime getStaleLocationAlertedAt() {
+        return staleLocationAlertedAt;
+    }
+
+    public void setStaleLocationAlertedAt(LocalDateTime staleLocationAlertedAt) {
+        this.staleLocationAlertedAt = staleLocationAlertedAt;
     }
 }

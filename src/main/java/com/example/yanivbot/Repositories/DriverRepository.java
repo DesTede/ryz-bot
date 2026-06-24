@@ -19,6 +19,11 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
     List<Driver> findByActiveAndTypeIn(Boolean active, List<DriverType> types);
 
     /**
+     * Find all drivers by active status (any type)
+     */
+    List<Driver> findByActive(boolean active);
+
+    /**
      * Find driver by phone number - original method name
      * Uses explicit @Query with Driver entity name (not table name)
      */

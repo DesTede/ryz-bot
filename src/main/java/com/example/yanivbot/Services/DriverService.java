@@ -85,6 +85,7 @@ public class DriverService {
             driver.setLatitude(latitude);
             driver.setLongitude(longitude);
             driver.setLocationUpdatedAt(LocalDateTime.now());
+            driver.setStaleLocationAlertedAt(null);  // fresh update — clear any prior stale alert
             driverRepo.save(driver);
             logger.info("Driver {} location updated to {}, {}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone), latitude, longitude);
         } else {
@@ -106,6 +107,20 @@ public class DriverService {
      */
     public List<Driver> getActiveDrivers(DriverType type) {
         return driverRepo.findByActiveAndTypeIn(true, List.of(type, DriverType.BOTH));
+    }
+
+    /**
+     * Get all active drivers (any type)
+     */
+    public List<Driver> getAllActiveDrivers() {
+        return driverRepo.findByActive(true);
+    }
+
+    /**
+     * Persist a driver entity
+     */
+    public void saveDriver(Driver driver) {
+        driverRepo.save(driver);
     }
 
     /**
