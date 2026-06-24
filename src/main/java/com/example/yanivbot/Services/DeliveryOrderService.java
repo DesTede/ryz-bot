@@ -116,11 +116,11 @@ public class DeliveryOrderService {
         deliveryOrderRepo.save(order);
 
         logger.info("Delivery order #{} cancelled by business {}", orderId, PhoneNumberUtil.maskPhoneNumber(businessPhone));
-        return "✅ ההזמנה בוטלה בהצלחה.\nנשמח לשרת אותך שוב ב־Movez 💙";
+        return "✅ ההזמנה בוטלה בהצלחה.\nנשמח לשרת אותך שוב ב־RYZ 💙";
     }
 
     public void broadcastToDrivers(DeliveryOrder order) {
-        String businessName = "Movez";
+        String businessName = "RYZ";
         try {
             var business = businessRepo.findByPhone(order.getBusinessPhone());
             if (business.isPresent()) {
@@ -240,7 +240,16 @@ public class DeliveryOrderService {
         // OK to claim - mark driver and update status
         order.setPickedUpBy(driverPhone);
         order.setDeliveryStatus(DeliveryStatus.ASSIGNED);
-        deliveryOrderRepo.save(order);
+        try {
+            deliveryOrderRepo.saveAndFlush(order);
+        } catch (org.springframework.dao.OptimisticLockingFailureException e) {
+            // Another driver claimed this order at the same moment and won the race
+            logger.warn("[DELIVERY] Concurrent claim race on order #{} — driver {} lost", orderId,
+                    PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone));
+            String alreadyTakenMsg = "🚫 משלוח #" + orderId + " כבר שויך לנהג אחר\nהישאר זמין — הזמנה חדשה יכולה להגיע בכל רגע 🚀";
+            whatsappService.sendSafeText(driverPhone, alreadyTakenMsg);
+            return null;
+        }
         logger.info("[DELIVERY] ✅ Order #{} claimed by driver {}", orderId, PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone));
 
         Business business = businessRepo.findByPhone(order.getBusinessPhone()).orElse(null);
@@ -362,15 +371,69 @@ public class DeliveryOrderService {
         whatsappService.sendInteractiveButtonsSafe(
                 driverPhone,
                 driverMsg,
+                new WhatsappService.InteractiveButton("delivery_delivering_" + orderId, "🛵 יצאתי לדרך"),
+                new WhatsappService.InteractiveButton("driver_show_route", "📍 הצג מסלול")
+        );
+
+        // Notify business owner (customer is NOT notified yet — that happens when driver taps "on my way")
+        String businessMsg = "🛵 השליח אסף את ההזמנה ויוצא לדרך!\nמעדכנים שמשלוח #" + order.getId() + " נאסף מהעסק שלך עכשיו וטס ללקוח 🔥";
+        whatsappService.sendSafeText(order.getBusinessPhone(), businessMsg);
+
+        logger.info("[DELIVERY] ✅ Sent pickup confirmations for order #{}", orderId);
+        return null;
+    }
+
+    /**
+     * Driver marks they are on the way to the customer.
+     * Changes status: PICKED_UP → DELIVERING
+     * This is the point where the customer is notified and gets the live tracking link.
+     */
+    public String markDelivering(long orderId, String driverPhone) {
+        logger.info("[DELIVERY] Driver {} marking order #{} as on-the-way",
+                PhoneNumberUtil.maskPhoneNumber(driverPhone), orderId);
+
+        DeliveryOrder order = deliveryOrderRepo.findById(orderId).orElse(null);
+        if (order == null) {
+            logger.warn("[DELIVERY] Order #{} not found", orderId);
+            return null;
+        }
+
+        if (order.getDeliveryStatus() != DeliveryStatus.PICKED_UP) {
+            logger.warn("[DELIVERY] Order #{} not in PICKED_UP status: {}", orderId, order.getDeliveryStatus());
+            String msg = "🚫 משלוח #" + orderId + " לא במצב נכון\nמצב נוכחי: " + order.getDeliveryStatus();
+            whatsappService.sendSafeText(driverPhone, msg);
+            return null;
+        }
+
+        if (order.getPickedUpBy() == null || !order.getPickedUpBy().equals(driverPhone)) {
+            String msg = "🚫 משלוח #" + orderId + " לא שויך לך";
+            whatsappService.sendSafeText(driverPhone, msg);
+            return null;
+        }
+
+        order.setDeliveryStatus(DeliveryStatus.DELIVERING);
+        deliveryOrderRepo.save(order);
+        logger.info("[DELIVERY] ✅ Order #{} marked as DELIVERING by driver {}", orderId,
+                PhoneNumberUtil.maskPhoneNumber(driverPhone));
+
+        Driver deliveringDriver = driverService.findByPhone(driverPhone);
+
+        // Driver gets the complete + route buttons now
+        String driverMsg = "🛵 בדרך ללקוח עם משלוח #" + orderId + "\nבסיום לחץ על הכפתור 👇";
+        whatsappService.sendInteractiveButtonsSafe(
+                driverPhone,
+                driverMsg,
                 new WhatsappService.InteractiveButton("delivery_complete_" + orderId, "✅ משלוח הושלם"),
                 new WhatsappService.InteractiveButton("driver_show_route", "📍 הצג מסלול")
         );
 
-        // Notify business owner
-        String businessMsg = "🛵 השליח אסף את ההזמנה ויוצא לדרך!\nמעדכנים שמשלוח #" + order.getId() + " נאסף מהעסק שלך עכשיו וטס ללקוח 🔥";
-        whatsappService.sendSafeText(order.getBusinessPhone(), businessMsg);
-        
+        // Now notify the customer with the live tracking link + ETA
         try {
+            double[] deliveryCoords = resolveCoords(order.getDeliveryAddressPlaceId(), order.getDeliveryAddress());
+            Integer deliveryEta = (deliveryCoords != null && deliveringDriver != null)
+                    ? etaMinutes(deliveringDriver.getLatitude(), deliveringDriver.getLongitude(), deliveryCoords[0], deliveryCoords[1])
+                    : null;
+
             Customer customer = customerService.getCustomer(order.getCustomerPhone());
             String customerName = customer != null ? customer.getName() : "לקוח";
 
@@ -393,7 +456,7 @@ public class DeliveryOrderService {
                     customerMsg,
                     "delivery_status_delivering",
                     Arrays.asList(customerName, notifBusinessName,
-                            PhoneNumberUtil.toLocalFormat(driverPhone),customerEtaText, order.getDeliveryAddress(), trackingLink),
+                            PhoneNumberUtil.toLocalFormat(driverPhone), customerEtaText, order.getDeliveryAddress(), trackingLink),
                     convoService
             );
             logger.info("[DELIVERY] ✅ Sent tracking link to customer for order #{}", orderId);
@@ -401,7 +464,6 @@ public class DeliveryOrderService {
             logger.error("[DELIVERY] ⚠️ Error sending tracking link to customer for order #{}: {}", orderId, e.getMessage());
         }
 
-        logger.info("[DELIVERY] ✅ Sent pickup confirmations for order #{}", orderId);
         return null;
     }
 
@@ -422,9 +484,10 @@ public class DeliveryOrderService {
             return null;
         }
 
-        // Check order is in correct status (PICKED_UP)
-        if (order.getDeliveryStatus() != DeliveryStatus.PICKED_UP) {
-            logger.warn("[DELIVERY] Order #{} not in PICKED_UP status: {}", orderId, order.getDeliveryStatus());
+        // Check order is in correct status (PICKED_UP or DELIVERING)
+        if (order.getDeliveryStatus() != DeliveryStatus.PICKED_UP
+                && order.getDeliveryStatus() != DeliveryStatus.DELIVERING) {
+            logger.warn("[DELIVERY] Order #{} not in a completable status: {}", orderId, order.getDeliveryStatus());
             String msg = "🚫 משלוח #" + orderId + " לא במצב נכון לסיום\nמצב נוכחי: " + order.getDeliveryStatus();
             whatsappService.sendSafeText(driverPhone, msg);
             return null;
@@ -478,7 +541,7 @@ public class DeliveryOrderService {
                     הגיעה בהצלחה!
                     *לכתובת*: %s
                     
-                    🏍️ *Movez* דואגת שהמשלוח יגיע אליך
+                    🏍️ *RYZ* דואגת שהמשלוח יגיע אליך
                      במהירות ובבטחה 💙
                     ✅ תודה על ההזמנה ובתיאבון 😋
                     """.formatted(businessName,

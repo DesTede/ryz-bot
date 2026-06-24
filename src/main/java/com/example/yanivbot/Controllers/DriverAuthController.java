@@ -16,12 +16,16 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Random;
+import java.security.SecureRandom;
 
 @RestController
 @RequestMapping("/api/auth/driver")
 public class DriverAuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(DriverAuthController.class);
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int MAX_OTP_ATTEMPTS = 5;        // lock the code after this many wrong guesses
+    private static final int OTP_REQUEST_COOLDOWN_SECONDS = 60;  // min gap between OTP requests per phone
 
     private final DriverService driverService;
     private final DriverOtpRepository otpRepo;
@@ -53,7 +57,15 @@ public class DriverAuthController {
             return ResponseEntity.status(403).body(Map.of("error", "מספר הטלפון אינו רשום כנהג במערכת"));
         }
 
-        String code = String.format("%06d", new Random().nextInt(999999));
+        // Rate-limit: reject if a code was already issued within the cooldown window
+        DriverOtp recent = otpRepo.findTopByPhoneOrderByExpiresAtDesc(phone).orElse(null);
+        if (recent != null && recent.getCreatedAt() != null
+                && recent.getCreatedAt().isAfter(LocalDateTime.now().minusSeconds(OTP_REQUEST_COOLDOWN_SECONDS))) {
+            logger.warn("OTP request throttled for {}", PhoneNumberUtil.maskPhoneNumber(phone));
+            return ResponseEntity.status(429).body(Map.of("error", "אנא המתן רגע לפני בקשת קוד נוסף"));
+        }
+
+        String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
 
         DriverOtp otp = new DriverOtp(phone, code, expiresAt);
@@ -90,7 +102,16 @@ public class DriverAuthController {
             return ResponseEntity.status(401).body(Map.of("error", "OTP expired"));
         }
 
+        if (otp.getAttempts() >= MAX_OTP_ATTEMPTS) {
+            otp.setUsed(true);  // burn the code after too many failures
+            otpRepo.save(otp);
+            logger.warn("OTP locked after too many attempts for {}", PhoneNumberUtil.maskPhoneNumber(phone));
+            return ResponseEntity.status(429).body(Map.of("error", "יותר מדי ניסיונות. בקש קוד חדש"));
+        }
+
         if (!otp.getCode().equals(code)) {
+            otp.setAttempts(otp.getAttempts() + 1);
+            otpRepo.save(otp);
             return ResponseEntity.status(401).body(Map.of("error", "Invalid OTP"));
         }
 

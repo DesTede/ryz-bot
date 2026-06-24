@@ -58,9 +58,9 @@ public class DriverLocationController {
                   <meta name="mobile-web-app-capable" content="yes"/>
                   <meta name="apple-mobile-web-app-capable" content="yes"/>
                   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-                  <meta name="apple-mobile-web-app-title" content="Movez GPS"/>
+                  <meta name="apple-mobile-web-app-title" content="RYZ GPS"/>
                   <link rel="manifest" href="/driver/manifest.json/[DRIVER_TOKEN]"/>
-                  <title>שידור מיקום | Movez</title>
+                  <title>שידור מיקום | RYZ</title>
                   <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body {
@@ -255,8 +255,8 @@ public class DriverLocationController {
     public ResponseEntity<String> driverManifest(@PathVariable String token) {
         String manifest = """
                 {
-                  "name": "Movez - שידור מיקום",
-                  "short_name": "Movez GPS",
+                  "name": "RYZ - שידור מיקום",
+                  "short_name": "RYZ GPS",
                   "start_url": "/driver/live/[TOKEN]",
                   "display": "standalone",
                   "background_color": "#111111",

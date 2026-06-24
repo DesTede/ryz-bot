@@ -65,8 +65,8 @@ public class BusinessConversationHandler implements ConversationHandler {
     public void showBusinessMenuButtons(String phone) {
         String businessName = businessOwnerService.getBusinessName(phone);
         String greeting = (businessName != null && !businessName.isEmpty())
-                ? "🚀 שלום " + businessName + "!\nברוכים הבאים ל־Movez Business"
-                : "🚀 שלום וברוכים הבאים\nל־Movez Business";
+                ? "🚀 שלום " + businessName + "!\nברוכים הבאים ל־RYZ Business"
+                : "🚀 שלום וברוכים הבאים\nל־RYZ Business";
         
         String bodyText = greeting + "\n" +
                 "ניהול משלוחים ונסיעות בקלות ובמהירות ⚡" +

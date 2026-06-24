@@ -615,9 +615,11 @@ public class AdminController {
     // =========================================================
     // AUTH
     // =========================================================
-
     private boolean isAuthorized(String key) {
-        return adminApiKey != null && adminApiKey.equals(key);
+        return adminApiKey != null && key != null
+                && java.security.MessageDigest.isEqual(
+                adminApiKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
     
 }

@@ -3,10 +3,12 @@ package com.example.yanivbot.Entities;
 import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Data
 @Table(name = "taxi_order")
 public class TaxiOrder {
 
@@ -58,9 +60,13 @@ public class TaxiOrder {
     @Column(name = "tracking_token")
     private String trackingToken;
 
+    @Version
+    private long version;
+    
     @Column(name = "estimated_fare")
     private Double estimatedFare;
 
+    
     // Constructors
     public TaxiOrder() {
         this.createdAt = LocalDateTime.now();

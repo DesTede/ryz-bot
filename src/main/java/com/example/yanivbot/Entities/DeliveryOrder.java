@@ -43,6 +43,12 @@ public class DeliveryOrder {
     
     private boolean isDispatched;
 
+    @Version
+    private long version;
+
+    @Column(nullable = false)
+    private boolean customerAlertedStaleLocation = false;
+    
     @Column(name = "admin_last_alerted_at")
     private LocalDateTime adminLastAlertedAt;
 

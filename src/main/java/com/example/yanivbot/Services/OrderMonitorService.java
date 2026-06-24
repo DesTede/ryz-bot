@@ -81,6 +81,11 @@ public class OrderMonitorService {
                 .findByStatusAndCreatedAtBefore(TaxiOrderStatus.CREATED, cutoff);
 
         for (TaxiOrder order : unclaimedOrders) {
+            // Admin asked us to stop re-broadcasting this order
+            if (order.isRedispatchStopped()) {
+                continue;
+            }
+
             // Skip if admin was already alerted about this order
             LocalDateTime lastAlert = order.getAdminLastAlertedAt();
             if (lastAlert != null && lastAlert.isAfter(LocalDateTime.now().minusMinutes(ADMIN_REPEAT_ALERT_MINUTES))) {
@@ -111,6 +116,11 @@ public class OrderMonitorService {
                                 order.getPhone()
                         ),
                         convoService
+                );
+                whatsappService.notifyAdminsInteractiveButtons(
+                        "🛑 הפסק שליחת הודעה מחדש לנהגים #" + order.getId() + "?",
+                        convoService,
+                        new WhatsappService.InteractiveButton("stop_redispatch_taxi_" + order.getId(), "🛑 הפסק הפצה מחדש")
                 );
             } catch (Exception e) {
                 logger.error("Failed to send admin alert for taxi order #{}: {}", order.getId(), e.getMessage(), e);
@@ -158,6 +168,11 @@ public class OrderMonitorService {
                 .findByDeliveryStatusAndCreatedAtBefore(DeliveryStatus.CREATED, cutoff);
 
         for (DeliveryOrder order : unclaimedOrders) {
+            // Admin asked us to stop re-broadcasting this order
+            if (order.isRedispatchStopped()) {
+                continue;
+            }
+
             // Skip if already alerted
             LocalDateTime lastAlert = order.getAdminLastAlertedAt();
             if (lastAlert != null && lastAlert.isAfter(LocalDateTime.now().minusMinutes(ADMIN_REPEAT_ALERT_MINUTES))) {
@@ -186,15 +201,25 @@ public class OrderMonitorService {
                     "עברו כבר " + DELIVERY_ALERT_MINUTES + " דקות וההזמנה עדיין לא נאספה ⏳\n\n" +
                     "📍 *כתובת למשלוח:* " + order.getDeliveryAddress() + "\n" +
                     "📞 טלפון העסק: " + order.getBusinessPhone();
-            
-            driverService.notifyAdminsSmartMessage(
-                    adminMsg,
-                    "delivery_order_delayed_admin",
-                    List.of(String.valueOf(order.getId()), 
-                            String.valueOf(DELIVERY_ALERT_MINUTES),
-                            order.getDeliveryAddress(),
-                            order.getBusinessPhone())
-            );
+
+            try {
+                whatsappService.notifyAdminsSmartMessage(
+                        adminMsg,
+                        "delivery_order_delayed_admin",
+                        List.of(String.valueOf(order.getId()),
+                                String.valueOf(DELIVERY_ALERT_MINUTES),
+                                order.getDeliveryAddress(),
+                                order.getBusinessPhone()),
+                        convoService
+                );
+                whatsappService.notifyAdminsInteractiveButtons(
+                        "🛑 הפסק שליחת הודעה מחדש לשליחים #" + order.getId() + "?",
+                        convoService,
+                        new WhatsappService.InteractiveButton("stop_redispatch_del_" + order.getId(), "🛑 הפסק הפצה מחדש")
+                );
+            } catch (Exception e) {
+                logger.error("Failed to send admin alert for delivery order #{}: {}", order.getId(), e.getMessage(), e);
+            }
 
             // Notify business owner
             whatsappService.sendSafeText(order.getBusinessPhone(),
@@ -218,31 +243,68 @@ public class OrderMonitorService {
         }
     }
 
-    // Runs every 5 minutes — notifies customer if driver location is stale during active taxi order
+    // Runs every 5 minutes — notifies customer if driver location is stale during an active taxi or delivery order
     @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
     public void checkStaleDriverLocation() {
         LocalDateTime staleThreshold = LocalDateTime.now().minusMinutes(5);
 
-        List<TaxiOrder> activeOrders = taxiOrderRepo.findByStatusIn(
+        // --- Taxi orders ---
+        List<TaxiOrder> activeTaxi = taxiOrderRepo.findByStatusIn(
                 List.of(TaxiOrderStatus.ASSIGNED, TaxiOrderStatus.CONFIRMED));
 
-        for (TaxiOrder order : activeOrders) {
+        for (TaxiOrder order : activeTaxi) {
             if (order.getDriverPhone() == null) continue;
-            if (order.isCustomerAlertedStaleLocation()) continue;
-
-            double[] loc = driverService.getDriverLocation(order.getDriverPhone());
             Driver driver = driverService.findByPhone(order.getDriverPhone());
-            if (driver == null) continue;
-            if (driver.getLocationUpdatedAt() == null) continue;
-            if (driver.getLocationUpdatedAt().isAfter(staleThreshold)) continue;
+            if (driver == null || driver.getLocationUpdatedAt() == null) continue;
 
-            // Location is stale — notify customer
+            boolean stale = driver.getLocationUpdatedAt().isBefore(staleThreshold);
+
+            if (!stale) {
+                // Fresh again — reset so a later staleness episode can re-alert
+                if (order.isCustomerAlertedStaleLocation()) {
+                    order.setCustomerAlertedStaleLocation(false);
+                    taxiOrderRepo.save(order);
+                }
+                continue;
+            }
+
+            if (order.isCustomerAlertedStaleLocation()) continue; // already alerted this episode
+
             whatsappService.sendSafeText(order.getPhone(),
                     "⚠️ המיקום לא מתעדכן כרגע, הנהג בדרכו אליך 🚗");
-
             order.setCustomerAlertedStaleLocation(true);
             taxiOrderRepo.save(order);
-            logger.info("Stale location alert sent to customer for order #{}", order.getId());
+            logger.info("Stale location alert sent to customer for taxi order #{}", order.getId());
+        }
+
+        // --- Delivery orders ---
+        List<DeliveryOrder> activeDeliveries = deliveryOrderRepo.findByDeliveryStatusIn(
+                List.of(DeliveryStatus.ASSIGNED, DeliveryStatus.PICKED_UP, DeliveryStatus.DELIVERING));
+        for (DeliveryOrder order : activeDeliveries) {
+            if (order.getPickedUpBy() == null) continue;
+            Driver driver = driverService.findByPhone(order.getPickedUpBy());
+            if (driver == null || driver.getLocationUpdatedAt() == null) continue;
+
+            boolean stale = driver.getLocationUpdatedAt().isBefore(staleThreshold);
+
+            if (!stale) {
+                if (order.isCustomerAlertedStaleLocation()) {
+                    order.setCustomerAlertedStaleLocation(false);
+                    deliveryOrderRepo.save(order);
+                }
+                continue;
+            }
+
+            if (order.isCustomerAlertedStaleLocation()) continue;
+
+            String customer = order.getCustomerPhone();
+            if (customer != null) {
+                whatsappService.sendSafeText(customer,
+                        "⚠️ המיקום לא מתעדכן כרגע, השליח בדרך אליך 🛵");
+            }
+            order.setCustomerAlertedStaleLocation(true);
+            deliveryOrderRepo.save(order);
+            logger.info("Stale location alert sent to customer for delivery order #{}", order.getId());
         }
     }
 
@@ -268,29 +330,31 @@ public class OrderMonitorService {
             // Sustained staleness — auto clock-out and tell the driver why
             if (lastUpdate.isBefore(clockOutThreshold)) {
                 driverService.clockOut(driver.getPhone());
-                String clockOutMsg = "🔴 הוצאת מהמשמרת אוטומטית כי המיקום שלך לא התעדכן יותר מ-"
-                        + DRIVER_AUTO_CLOCKOUT_MINUTES + " דקות.\n" +
-                        "כדי לחזור לעבוד, פתח את האפליקציה והתחל משמרת מחדש 🚗";
+                String clockOutMsg = "🔴 יצאת מהמשמרת אוטומטית\n" +
+                        " כי המיקום שלך לא התעדכן כבר" + DRIVER_AUTO_CLOCKOUT_MINUTES + "דקות, \n" +
+                        " "+ "כדי לחזור לעבוד פתח את האפליקציה ושתף שוב מיקום";
                 whatsappService.sendSmartCustomerMessage(driver.getPhone(), clockOutMsg,
                         "driver_auto_clocked_out",
-                        List.of(String.valueOf(DRIVER_AUTO_CLOCKOUT_MINUTES)), convoService);
+                        List.of(driver.getName(), String.valueOf(DRIVER_AUTO_CLOCKOUT_MINUTES)), convoService);
                 logger.warn("Driver {} auto clocked-out — location stale > {} min",
                         PhoneNumberUtil.maskPhoneNumber(driver.getPhone()), DRIVER_AUTO_CLOCKOUT_MINUTES);
                 continue;
             }
 
+            
             // Stale but not long enough for clock-out — alert once, re-alert only after the gap
             LocalDateTime lastAlert = driver.getStaleLocationAlertedAt();
             if (lastAlert != null && lastAlert.isAfter(reAlertThreshold)) {
                 continue; // alerted recently, don't spam
             }
 
+            String driverName = driver.getName();
             String staleMsg = "⚠️ המיקום שלך לא מתעדכן כבר כ-" + DRIVER_STALE_LOCATION_MINUTES + " דקות.\n" +
                     "עד שהמיקום יחזור להתעדכן, לא תופיע כזמין ולא תקבל הזמנות חדשות.\n" +
                     "אנא ודא שהאפליקציה פתוחה ושיתוף המיקום פעיל 📍";
             whatsappService.sendSmartCustomerMessage(driver.getPhone(), staleMsg,
                     "driver_location_stale",
-                    List.of(String.valueOf(DRIVER_STALE_LOCATION_MINUTES)), convoService);
+                    List.of(driverName, String.valueOf(DRIVER_STALE_LOCATION_MINUTES)), convoService);
 
             driver.setStaleLocationAlertedAt(now);
             driverService.saveDriver(driver);

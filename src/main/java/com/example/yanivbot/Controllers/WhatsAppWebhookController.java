@@ -121,7 +121,9 @@ public class WhatsAppWebhookController {
             StringBuilder hex = new StringBuilder();
             for (byte b : hash) hex.append(String.format("%02x", b));
             String expected = "sha256=" + hex;
-            return expected.equals(signature);
+            return java.security.MessageDigest.isEqual(
+                    expected.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                    signature.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         } catch (Exception e) {
             logger.error("Signature validation error: {}", e.getMessage());
             return false;

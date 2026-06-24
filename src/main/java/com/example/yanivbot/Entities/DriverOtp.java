@@ -22,6 +22,12 @@ public class DriverOtp {
 
     private boolean used;
 
+    @Column(nullable = false)
+    private int attempts = 0;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
     public DriverOtp() {}
 
     public DriverOtp(String phone, String code, LocalDateTime expiresAt) {
@@ -37,4 +43,16 @@ public class DriverOtp {
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public boolean isUsed() { return used; }
     public void setUsed(boolean used) { this.used = used; }
+
+    public int getAttempts() {
+        return attempts;
+    }
+
+    public void setAttempts(int attempts) {
+        this.attempts = attempts;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

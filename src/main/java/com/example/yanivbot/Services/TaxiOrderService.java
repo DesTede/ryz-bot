@@ -140,14 +140,23 @@ public class TaxiOrderService {
             whatsappService.sendSafeText(driverPhone, alreadyTakenMsg);
             return null; // Message sent directly
         }
-        
+
         order.setStatus(TaxiOrderStatus.ASSIGNED);
         order.setDriverPhone(driverPhone);
-        
+
         //live location updates
         order.setTrackingToken(UUID.randomUUID().toString());
-        
-        taxiOrderRepo.save(order);
+
+        try {
+            taxiOrderRepo.saveAndFlush(order);
+        } catch (org.springframework.dao.OptimisticLockingFailureException e) {
+            // Another driver claimed this order at the same moment and won the race
+            logger.warn("Concurrent claim race on taxi order #{} — driver {} lost", orderId,
+                    PhoneNumberUtil.maskPhoneNumber(driverPhone));
+            String alreadyTakenMsg = "🚫 נסיעה #" + orderId + " כבר שויכה לנהג אחר\nהישאר זמין — הזמנה חדשה יכולה להגיע בכל רגע 🚀";
+            whatsappService.sendSafeText(driverPhone, alreadyTakenMsg);
+            return null;
+        }
 
         // Attempt to notify customer and other drivers, but don't let exceptions break the claim
         try {
@@ -206,7 +215,7 @@ public class TaxiOrderService {
             logger.warn("Could not update conversation state after order completion: {}", e.getMessage());
         }
 
-        String customerMsg = "✅ הנסיעה הסתיימה בהצלחה\nתודה שבחרת לנסוע ב־Movez 🙌 🚙";
+        String customerMsg = "✅ הנסיעה הסתיימה בהצלחה\nתודה שבחרת לנסוע ב־RYZ 🙌 🚙";
 
         whatsappService.sendSafeText(order.getPhone(), customerMsg);
         
@@ -233,7 +242,7 @@ public class TaxiOrderService {
         }
 
         logger.info("Order #{} cancelled by customer {}", orderId, PhoneNumberUtil.maskPhoneNumber(customerPhone));
-        return "✅ ההזמנה בוטלה בהצלחה.\nנשמח לשרת אותך שוב ב־Movez 💙";
+        return "✅ ההזמנה בוטלה בהצלחה.\nנשמח לשרת אותך שוב ב־RYZ 💙";
     }
 
     public String cancelOrderByDriver(long orderId, String driverPhone) {

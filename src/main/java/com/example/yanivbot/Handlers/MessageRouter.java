@@ -45,11 +45,11 @@ public class MessageRouter {
     private final DeliveryOrderService deliveryOrderService;
 
     private static final String WELCOME_MESSAGE = """
-              ברוכים הבאים ל־Movez — מזמינים נסיעה תוך שניות בוואטסאפ ⚡
+              ברוכים הבאים ל־RYZ — מזמינים נסיעה תוך שניות בוואטסאפ ⚡
             (לחץ 00 לאתחול)
             אז איך קוראים לך?""";
     private static final String DRIVER_WELCOME_MESSAGE = """
-            💡 ברוכים הבאים למערכת הנהגים של Movez!
+            💡 ברוכים הבאים למערכת הנהגים של RYZ!
             כדי להתחיל לקבל נסיעות לחץ על
             🟢 התחל משמרת
 
@@ -233,7 +233,7 @@ public class MessageRouter {
 
                 if (txt.startsWith("taxi_claim_") || txt.startsWith("delivery_claim_") ||
                         txt.startsWith("taxi_complete_") || txt.startsWith("taxi_cancel_driver_") ||
-                        txt.startsWith("delivery_pickup_") || txt.startsWith("delivery_complete_") ||
+                        txt.startsWith("delivery_pickup_") || txt.startsWith("delivery_delivering_") || txt.startsWith("delivery_complete_") ||
                         txt.equals("driver_show_route") ||
                         txt.startsWith("איסוף ") || txt.startsWith("נמסר ") ||
                         txt.startsWith("בדרך ")) {
@@ -306,7 +306,7 @@ public class MessageRouter {
                 logger.info("Returning customer '{}' - skipping name capture", name);
                 convoService.saveTempData(convo, name);
                 convoService.updateState(convo, ConversationState.START_MENU);
-                whatsappService.sendSafeText(phone, "ברוך שובך " + name + "! 👋\nשמחים לראות אותך שוב ב-Movez ⚡");
+                whatsappService.sendSafeText(phone, "ברוך שובך " + name + "! 👋\nשמחים לראות אותך שוב ב-RYZ ⚡");
                 showServiceMenu(phone, name);
                 return null;
             }

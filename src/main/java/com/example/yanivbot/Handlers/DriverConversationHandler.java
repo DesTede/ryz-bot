@@ -70,7 +70,12 @@ public class DriverConversationHandler implements ConversationHandler {
         // Handle delivery pickup button (delivery_pickup_123)               
         if (txt.startsWith("delivery_pickup_")) {                           
             return handleDeliveryPickup(message);                           
-        }                                                                   
+        }
+
+        // Handle delivery "on my way" button (delivery_delivering_123)
+        if (txt.startsWith("delivery_delivering_")) {
+            return handleDeliveryDelivering(message);
+        }
 
         // Handle delivery complete button (delivery_complete_123)          
         if (txt.startsWith("delivery_complete_")) {
@@ -205,6 +210,25 @@ public class DriverConversationHandler implements ConversationHandler {
         }
     }
 
+    private String handleDeliveryDelivering(IncomingMessage message) {
+        String txt = message.getText().trim();
+        try {
+            long orderId = Long.parseLong(txt.replace("delivery_delivering_", ""));
+            String result = deliveryOrderService.markDelivering(orderId, message.getPhone());
+            if (result == null) {
+                return "";
+            }
+            return result;
+        } catch (NumberFormatException e) {
+            logger.error("Error parsing delivery order ID from message: {}", txt, e);
+            return "❌ שגיאה בפורמט הזמנה. אנא נסה שוב.";
+        } catch (Exception e) {
+            logger.error("Error marking delivery on-the-way for driver {} from message {}: {}",
+                    PhoneNumberUtil.maskPhoneNumber(message.getPhone()), txt, e.getMessage(), e);
+            return "❌ שגיאה. אנא נסה שוב.";
+        }
+    }
+
     private String handleDeliveryComplete(IncomingMessage message) {
         String txt = message.getText().trim();
         try {
@@ -334,14 +358,10 @@ public class DriverConversationHandler implements ConversationHandler {
     private void showShiftStartConfirmation(String phone) {
 
         String bodyText = """
-            🟢 להתחלת המשמרת, פתח את אפליקציית Movez Driver ולחץ על "התחל משמרת".
+            🟢 להתחלת המשמרת, פתח את אפליקציית RYZ Driver ולחץ על "התחל משמרת".
        
             לאחר שתתחיל שידור מיקום באפליקציה, תתחיל לקבל הזמנות 🚀""";
-
-             
-//            📲 הורדת האפליקציה:
-//        https://expo.dev/accounts/movezbot/projects/movez-driver/builds/e464c4d8-c4f7-4ce9-af98-38e9c519ea02
-
+        
 
         whatsappService.sendSafeText(phone, bodyText);
     }

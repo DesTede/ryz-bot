@@ -49,7 +49,7 @@ public class TrackingController {
                 <head>
                   <meta charset="UTF-8"/>
                   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-                  <title>מעקב נהג | Movez</title>
+                  <title>מעקב נהג | RYZ</title>
                   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
                   <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -170,7 +170,8 @@ public class TrackingController {
         var deliveryOrder = deliveryOrderRepo.findByTrackingToken(token);
         if (deliveryOrder.isPresent()) {
             DeliveryOrder order = deliveryOrder.get();
-            boolean active = order.getDeliveryStatus() == DeliveryStatus.PICKED_UP;
+            boolean active = order.getDeliveryStatus() == DeliveryStatus.PICKED_UP
+                    || order.getDeliveryStatus() == DeliveryStatus.DELIVERING;
             response.put("active", active);
             if (active) fillDriverLocation(response, order.getPickedUpBy());
             return ResponseEntity.ok(response);

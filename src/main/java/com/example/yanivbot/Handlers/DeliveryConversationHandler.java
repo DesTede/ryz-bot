@@ -251,9 +251,16 @@ public class DeliveryConversationHandler implements ConversationHandler {
             return "📍 אנא בחר כתובת מהרשימה, או לחץ על ✏️ הזן ידנית";
         }
 
-        int index = Integer.parseInt(txt.replace("delivery_addr_", ""));
-        String address = parts[3 + (index * 2)];
-        String addressPlaceId = parts[4 + (index * 2)];
+        String address;
+        String addressPlaceId;
+        try {
+            int index = Integer.parseInt(txt.replace("delivery_addr_", ""));
+            address = parts[3 + (index * 2)];
+            addressPlaceId = parts[4 + (index * 2)];
+        } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+            logger.warn("[DELIVERY] Invalid address selection '{}' ({} tempData parts)", txt, parts.length);
+            return "📍 אנא בחר כתובת מהרשימה, או לחץ על ✏️ הזן ידנית";
+        }
 
         String tempData = customerName + "|" + customerPhone + "|" + address + "|" + addressPlaceId;
         logger.info("[DELIVERY] ✅ Address selected: '{}' | TempData: '{}'", address, tempData);
@@ -459,7 +466,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
             return """
                     ❌ ההזמנה בוטלה בהצלחה.
                     נשמח
-                    לעמוד לשירותכם שוב ב־Movez\uD83D\uDC99
+                    לעמוד לשירותכם שוב ב־RYZ\uD83D\uDC99
                     בשביל
                     להתחיל מחדש, פשוט שלחו הודעה\uD83D\uDE80""";
         }

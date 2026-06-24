@@ -136,7 +136,7 @@ public class AdminCommandHandler {
             🚀 *אנחנו שוב באוויר!*
             -------------------------
             🟢 הבוט פעיל, יציב וזמין לכולם.
-            ✅ השירות חזר לעבודה כרגיל. Movez 💙""";
+            ✅ השירות חזר לעבודה כרגיל. RYZ 💙""";
         whatsappService.notifyAdminsSmartMessage(
                 adminMessage,
                 "bot_status_on_admin",

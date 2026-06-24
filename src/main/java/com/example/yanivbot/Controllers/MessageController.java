@@ -3,12 +3,15 @@ package com.example.yanivbot.Controllers;
 import com.example.yanivbot.Entities.Conversation;
 import com.example.yanivbot.Handlers.MessageRouter;
 import com.example.yanivbot.Entities.IncomingMessage;
+import com.example.yanivbot.Entities.ProcessedMessage;
+import com.example.yanivbot.Repositories.ProcessedMessageRepository;
 import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.CustomerService;
 import com.example.yanivbot.Services.WhatsappService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -43,6 +46,9 @@ public class MessageController {
     @Autowired
     private MessageRouter messageRouter;
 
+    @Autowired
+    private ProcessedMessageRepository processedMessageRepo;
+
     /**
      * Called by WhatsAppWebhookController when Meta sends a message.
      *
@@ -56,10 +62,22 @@ public class MessageController {
             return;
         }
 
-        // Allow location messages even if text is empty
-        // Only skip if there's no text AND no location data
+        // Allow location messages even if text is empty. Only skip if there's no text AND no location data
         if ((message.getText() == null || message.getText().isBlank()) && !message.hasLocation()) {
             return;
+        }
+
+        // Idempotency: Meta delivers webhooks at-least-once and retries on slow/failed
+        // responses. Insert-first on the message id; a duplicate PK means we've already
+        // handled this message, so skip it (prevents duplicate orders/claims).
+        String messageId = message.getMessageId();
+        if (messageId != null && !messageId.isBlank()) {
+            try {
+                processedMessageRepo.save(new ProcessedMessage(messageId));
+            } catch (DataIntegrityViolationException e) {
+                logger.info("Duplicate webhook message {} ignored", messageId);
+                return;
+            }
         }
 
         try {

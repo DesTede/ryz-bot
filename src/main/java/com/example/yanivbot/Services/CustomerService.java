@@ -148,18 +148,26 @@ public class CustomerService {
         
         // Header
         csv.append("שם,טלפון,אימייל,מועד הצטרפות,הזמנות כוללות,הזמנה אחרונה\n");
-        
+
         // Data rows
         for (Customer customer : customers) {
-            csv.append(customer.getName()).append(",");
-            csv.append(customer.getPhone()).append(",");
-            csv.append(customer.getEmail() != null ? customer.getEmail() : "").append(",");
+            csv.append(csvEscape(customer.getName())).append(",");
+            csv.append(csvEscape(customer.getPhone())).append(",");
+            csv.append(csvEscape(customer.getEmail())).append(",");
             csv.append(customer.getCreatedAt()).append(",");
             csv.append(customer.getTotalOrders()).append(",");
             csv.append(customer.getLastOrderAt() != null ? customer.getLastOrderAt() : "").append("\n");
         }
-        
+
         return csv.toString();
+    }
+
+    private String csvEscape(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
     
     /**

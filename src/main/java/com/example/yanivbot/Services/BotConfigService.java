@@ -21,6 +21,30 @@ public class BotConfigService {
         this.botConfigRepo = botConfigRepo;
     }
 
+    private double parseDoubleOrDefault(String key, double defaultValue) {
+        return botConfigRepo.findById(key)
+                .map(c -> {
+                    try {
+                        return Double.parseDouble(c.getValue());
+                    } catch (NumberFormatException e) {
+                        return defaultValue;
+                    }
+                })
+                .orElse(defaultValue);
+    }
+
+    private int parseIntOrDefault(String key, int defaultValue) {
+        return botConfigRepo.findById(key)
+                .map(c -> {
+                    try {
+                        return Integer.parseInt(c.getValue());
+                    } catch (NumberFormatException e) {
+                        return defaultValue;
+                    }
+                })
+                .orElse(defaultValue);
+    }
+
     public boolean isBotActive() {
         return botConfigRepo.findById("bot.active")
                 .map(config -> config.getValue().equals("true"))
@@ -35,27 +59,19 @@ public class BotConfigService {
     }
 
     public double getTaxiBasePrice() {
-        return botConfigRepo.findById("taxi.base.price")
-                .map(c -> Double.parseDouble(c.getValue()))
-                .orElse(DEFAULT_TAXI_BASE_PRICE);
+        return parseDoubleOrDefault("taxi.base.price", DEFAULT_TAXI_BASE_PRICE);
     }
 
     public double getTaxiPricePerKm() {
-        return botConfigRepo.findById("taxi.price.per.km")
-                .map(c -> Double.parseDouble(c.getValue()))
-                .orElse(DEFAULT_TAXI_PRICE_PER_KM);
+        return parseDoubleOrDefault("taxi.price.per.km", DEFAULT_TAXI_PRICE_PER_KM);
     }
 
     public double getTaxiPricePerMinute() {
-        return botConfigRepo.findById("taxi.price.per.minute")
-                .map(c -> Double.parseDouble(c.getValue()))
-                .orElse(DEFAULT_TAXI_PRICE_PER_MINUTE);
+        return parseDoubleOrDefault("taxi.price.per.minute", DEFAULT_TAXI_PRICE_PER_MINUTE);
     }
 
     public double getTaxiVat() {
-        return botConfigRepo.findById("taxi.vat")
-                .map(c -> Double.parseDouble(c.getValue()))
-                .orElse(DEFAULT_TAXI_VAT);
+        return parseDoubleOrDefault("taxi.vat", DEFAULT_TAXI_VAT);
     }
 
     public void setTaxiBasePrice(double price) {
@@ -87,9 +103,7 @@ public class BotConfigService {
     }
 
     public int getMaxExtraDeliveryMinutes() {
-        return botConfigRepo.findById("delivery.max.extra.minutes")
-                .map(c -> Integer.parseInt(c.getValue()))
-                .orElse(DEFAULT_MAX_EXTRA_DELIVERY_MINUTES);
+        return parseIntOrDefault("delivery.max.extra.minutes", DEFAULT_MAX_EXTRA_DELIVERY_MINUTES);
     }
 
     public void setMaxExtraDeliveryMinutes(int minutes) {

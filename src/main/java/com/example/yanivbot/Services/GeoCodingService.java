@@ -43,10 +43,11 @@ public class GeoCodingService {
 
             String formattedAddress = (String) ((Map) results.get(0)).get("formatted_address");
             logger.info("geocode('{}') -> formatted_address='{}', lat={}, lng={}", address, formattedAddress, lat, lng);
-            
+
             return new double[]{lat, lng};
 
         } catch (Exception e) {
+            logger.warn("geocode failed for address='{}': {}", address, e.getMessage());
             return null;
         }
     }

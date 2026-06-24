@@ -135,10 +135,17 @@ public class TaxiConversationHandler implements ConversationHandler {
         }
 
         logger.info("TempData: {}", convo.getTempData());
-        int index = Integer.parseInt(txt.replace("pickup_", ""));
-        String pickupLocation = parts[2 + (index * 2)];
-        String pickupPlaceId = parts[3 + (index * 2)];
-
+        String pickupLocation;
+        String pickupPlaceId;
+        try {
+            int index = Integer.parseInt(txt.replace("pickup_", ""));
+            pickupLocation = parts[2 + (index * 2)];
+            pickupPlaceId = parts[3 + (index * 2)];
+        } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+            logger.warn("Invalid pickup selection '{}' ({} tempData parts)", txt, parts.length);
+            return "📍 אנא בחר כתובת מהרשימה, או לחץ על ✏️ הזן ידנית";
+        }
+        
         convoService.saveTempData(convo, carType + "|" + pickupLocation + "|" + pickupPlaceId);
         convoService.updateState(convo, ConversationState.TAXI_DESTINATION);
         return "📍 נקודת האיסוף נקלטה ✅\nשלחו יעד נסיעה 👇\n(לא לשכוח עיר)";
@@ -202,10 +209,17 @@ public class TaxiConversationHandler implements ConversationHandler {
             return "🎯 אנא בחר יעד מהרשימה, או לחץ על ✏️ הזן ידנית";
         }
 
-        int index = Integer.parseInt(txt.replace("dest_", ""));
-        String destination = parts[4 + (index * 2)];
-        String destinationPlaceId = parts[5 + (index * 2)];
-
+        String destination;
+        String destinationPlaceId;
+        try {
+            int index = Integer.parseInt(txt.replace("dest_", ""));
+            destination = parts[4 + (index * 2)];
+            destinationPlaceId = parts[5 + (index * 2)];
+        } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+            logger.warn("Invalid destination selection '{}' ({} tempData parts)", txt, parts.length);
+            return "🎯 אנא בחר יעד מהרשימה, או לחץ על ✏️ הזן ידנית";
+        }
+        
         convoService.saveTempData(convo, carType + "|" + pickupLocation + "|" + pickupPlaceId + "|" + destination + "|" + destinationPlaceId);
         convoService.updateState(convo, ConversationState.TAXI_NOTES);
         return "💬 רוצים להוסיף משהו לנהג?\nכתבו את ההערה כאן 👇\nאם אין הערות, השיבו 'אין'";
@@ -287,7 +301,7 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         if (txt.equals("order_confirm_no")) {
             convoService.updateState(convo, ConversationState.START);
-            whatsappService.sendSafeText(message.getPhone(), "\n❌ ההזמנה בוטלה בהצלחה.\nנשמח לעמוד לשירותכם שוב ב־Movez💙\nלהתחלת הזמנה חדשה שלחו הודעה 🚀");
+            whatsappService.sendSafeText(message.getPhone(), "\n❌ ההזמנה בוטלה בהצלחה.\nנשמח לעמוד לשירותכם שוב ב־RYZ💙\nלהתחלת הזמנה חדשה שלחו הודעה 🚀");
             convoService.saveTempData(convo,"");
             convo.setNudgedAt(0);
             convoService.save(convo);

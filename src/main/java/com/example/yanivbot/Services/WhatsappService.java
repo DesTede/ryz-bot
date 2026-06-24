@@ -503,6 +503,23 @@ public class WhatsappService {
     }
 
     /**
+     * Sends an interactive-button message to all admins who are within the 24-hour window.
+     * Used to surface action buttons (e.g. stop-redispatch) alongside template alerts.
+     */
+    public void notifyAdminsInteractiveButtons(String bodyText,
+                                               ConversationService convoService,
+                                               InteractiveButton... buttons) {
+        String adminPhonesStr = System.getenv("ADMIN_PHONES");
+        if (adminPhonesStr == null || adminPhonesStr.isEmpty()) return;
+        for (String phone : adminPhonesStr.split(",")) {
+            String trimmed = phone.trim();
+            if (convoService.isWithin24HourWindow(trimmed)) {
+                sendInteractiveButtonsSafe(trimmed, bodyText, buttons);
+            }
+        }
+    }
+
+    /**
      * Same as above but for admins
      * Caller explicitly chooses: template or regular message
      */
