@@ -55,6 +55,7 @@ public class DriverService {
         if (driver != null) {
             driver.setActive(true);
             driver.setLocationUpdatedAt(LocalDateTime.now());
+            driver.setStaleLocationAlertedAt(null);  // fresh shift — clear any prior stale alert
             driverRepo.save(driver);
             logger.info("Driver {} clocked in", PhoneNumberUtil.maskPhoneNumberWithCountryCode(phone));
         } else {

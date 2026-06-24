@@ -187,7 +187,7 @@ public class TaxiOrderService {
         TaxiOrder order = taxiOrderRepo.findById(orderId).orElse(null);
 
         if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
-        if (!order.getDriverPhone().equals(driverPhone))
+        if (!driverPhone.equals(order.getDriverPhone()))
             return "❌ הזמנה זו לא שויכה אליך.";
         if (order.getStatus() != TaxiOrderStatus.ASSIGNED && order.getStatus() != TaxiOrderStatus.CONFIRMED)
             return "❌ הזמנה #" + orderId + " לא פעילה.";

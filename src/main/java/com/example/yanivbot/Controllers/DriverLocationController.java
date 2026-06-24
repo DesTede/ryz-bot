@@ -322,6 +322,7 @@ public class DriverLocationController {
         driver.setLatitude(lat);
         driver.setLongitude(lng);
         driver.setLocationUpdatedAt(LocalDateTime.now());
+        driver.setStaleLocationAlertedAt(null);  // fresh update — clear any prior stale alert
         driverRepo.save(driver);
 
         logger.info("Location updated for driver {} via browser: {}, {}", driver.getPhone(), lat, lng);
@@ -362,6 +363,7 @@ public class DriverLocationController {
         driver.setLatitude(lat);
         driver.setLongitude(lng);
         driver.setLocationUpdatedAt(LocalDateTime.now());
+        driver.setStaleLocationAlertedAt(null);  // fresh update — clear any prior stale alert
         driverRepo.save(driver);
 
         logger.info("Location updated for driver {} via app: {}, {}", phone, lat, lng);
