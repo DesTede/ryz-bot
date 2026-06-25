@@ -89,7 +89,7 @@ public class GeoCodingService {
             String url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins=place_id:"
                     + origin.trim()
                     + "&destinations=place_id:" + destination.trim()
-                    + "&mode=driving&language=he&region=il&key=" + apiKey;
+                    + "&mode=driving&language=he&region=il&departure_time=now&key=" + apiKey;
             
             Map<?, ?> response = restTemplate.getForObject(url, Map.class);
 
@@ -113,8 +113,8 @@ public class GeoCodingService {
             Map<?, ?> distanceMap = (Map<?, ?>) element.get("distance");
             if (distanceMap == null) return null;
 
-            Map<?, ?> durationMap = (Map<?, ?>) element.get("duration");
-            if (distanceMap == null || durationMap == null) 
+            Map<?, ?> durationMap = (Map<?, ?>) element.get("duration_in_traffic");
+            if (durationMap == null)
                 return null;
 
             Object distanceValue = distanceMap.get("value");
