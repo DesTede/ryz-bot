@@ -33,6 +33,7 @@ public class GeoCodingService {
 
             Map response = restTemplate.getForObject(url, Map.class);
 
+            if (response == null) return null;
             List results = (List) response.get("results");
             if (results == null || results.isEmpty()) return null;
 
@@ -60,6 +61,7 @@ public class GeoCodingService {
 
             Map response = restTemplate.getForObject(url, Map.class);
 
+            if (response == null) return null;
             List results = (List) response.get("results");
             if (results == null || results.isEmpty()) return null;
 
