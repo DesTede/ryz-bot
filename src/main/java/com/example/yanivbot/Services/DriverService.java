@@ -544,8 +544,8 @@ public class DriverService {
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         double distance = EARTH_RADIUS_KM * c;
 
-        logger.debug("Distance from ({}, {}) to ({}, {}): {:.2f} km",
-                lat1, lon1, lat2, lon2, distance);
+        logger.debug("Distance from ({}, {}) to ({}, {}): {} km",
+                lat1, lon1, lat2, lon2, String.format("%.2f", distance));
 
         return distance;
     }

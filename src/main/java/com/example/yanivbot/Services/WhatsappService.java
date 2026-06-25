@@ -469,12 +469,6 @@ public class WhatsappService {
             message.put("template", template);
 
             // Log the message structure
-            logger.debug("Message structure: {}", message);
-            
-            logger.info("DEBUG: Sending template '{}' to {}", templateName, phone);
-            logger.info("DEBUG: Variables count: {}", variables.size());
-            logger.info("DEBUG: Variables: {}", variables);
-            logger.info("DEBUG: Full message object: {}", message);
             
             sendMessageToWhatsAppAPI(message);
 
@@ -505,12 +499,7 @@ public class WhatsappService {
     private void sendMessageToWhatsAppAPI(Map<String, Object> message) {
 //            String url = "https://graph.facebook.com/v18.0/" + phoneNumberId + "/messages";
         String url = "https://graph.facebook.com/" + apiVersion + "/" + phoneNumberId + "/messages";
-
-        logger.info("DEBUG API CALL:");
-        logger.info("  URL: {}", url);
-        logger.info("  Token: Bearer {}...{}", accessToken.substring(0, 10), accessToken.substring(accessToken.length()-10));
-        logger.info("  Phone ID: {}", phoneNumberId);
-
+        
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + accessToken);
         headers.setContentType(MediaType.APPLICATION_JSON);

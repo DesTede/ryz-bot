@@ -84,7 +84,7 @@ public class GeoCodingService {
     public TripInfo getTripInfo(String origin, String destination) {
         try {
             if (origin == null || destination == null) {
-                System.err.println("Distance Matrix error: origin or destination is null");
+                logger.info("Distance Matrix error: origin or destination is null");
                 return null;
             }
 
@@ -125,7 +125,7 @@ public class GeoCodingService {
             if (distanceValue instanceof Number && durationValue instanceof Number) {
                 double distanceKm = ((Number) distanceValue).doubleValue() / 1000.0;
                 double durationMinutes = ((Number) durationValue).doubleValue() / 60.0;
-                System.err.println("Distance: " + distanceKm + "km | Duration: " + durationMinutes + "min");
+                logger.error("Distance: {}km | Duration: {}min", distanceKm, durationMinutes);
                 return new TripInfo(distanceKm, durationMinutes);
             }
 
