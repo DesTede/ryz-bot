@@ -87,7 +87,7 @@ public class TaxiOrderService {
                 order.getId(),
                 order.getPickUpLocation(),
                 order.getDestination(),
-                order.getNotes().isEmpty() ? "אין" : order.getNotes(),
+                (order.getNotes() == null || order.getNotes().isEmpty()) ? "אין" : order.getNotes(),
                 fareText
         );
 

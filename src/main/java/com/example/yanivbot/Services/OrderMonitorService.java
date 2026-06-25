@@ -246,7 +246,7 @@ public class OrderMonitorService {
     // Runs every 5 minutes — notifies customer if driver location is stale during an active taxi or delivery order
     @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
     public void checkStaleDriverLocation() {
-        LocalDateTime staleThreshold = LocalDateTime.now().minusMinutes(5);
+        LocalDateTime staleThreshold = LocalDateTime.now().minusMinutes(DRIVER_STALE_LOCATION_MINUTES);
 
         // --- Taxi orders ---
         List<TaxiOrder> activeTaxi = taxiOrderRepo.findByStatusIn(

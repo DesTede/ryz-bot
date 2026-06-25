@@ -129,14 +129,24 @@ public class MessageRouter {
 
         // Customer cancelling an order
         if (txt.startsWith("taxi_cancel_customer_")) {
-            long orderId = Long.parseLong(txt.replace("taxi_cancel_customer_", ""));
-            return taxiOrderService.cancelOrderByCustomer(orderId, phone);
+            try {
+                long orderId = Long.parseLong(txt.replace("taxi_cancel_customer_", ""));
+                return taxiOrderService.cancelOrderByCustomer(orderId, phone);
+            } catch (NumberFormatException e) {
+                logger.warn("Invalid taxi cancel button payload: {}", txt);
+                return null;
+            }
         }
 
         // Business owner cancelling a delivery order
         if (txt.startsWith("delivery_cancel_business_")) {
-            long orderId = Long.parseLong(txt.replace("delivery_cancel_business_", ""));
-            return deliveryOrderService.cancelDeliveryOrderByBusiness(orderId, phone);
+            try {
+                long orderId = Long.parseLong(txt.replace("taxi_cancel_customer_", ""));
+                return taxiOrderService.cancelOrderByCustomer(orderId, phone);
+            } catch (NumberFormatException e) {
+                logger.warn("Invalid taxi cancel button payload: {}", txt);
+                return null;
+            }
         }
 
         // Reset conversation if user sends "00" or "התחל מחדש"

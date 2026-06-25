@@ -38,9 +38,14 @@ public class WhatsappService {
     private String apiVersion;
 
     private final RestTemplate restTemplate = new RestTemplate();
+    private final TwilioSmsService twilioSmsService;
 
-    
-    public WhatsappService() {
+    // Retry config for WhatsApp Cloud API sends
+    private static final int MAX_SEND_ATTEMPTS = 3;
+    private static final long RETRY_DELAY_MS = 1000;
+
+    public WhatsappService(TwilioSmsService twilioSmsService) {
+        this.twilioSmsService = twilioSmsService;
     }
 
     /**
@@ -108,12 +113,13 @@ public class WhatsappService {
             return null;
         }
     }
-    
+
 
     /**
-     * Send text message
+     * Send text message.
+     * @return true if WhatsApp accepted the message, false otherwise
      */
-    public void sendText(String phone, String message) {
+    public boolean sendText(String phone, String message) {
         try {
             JSONObject payload = new JSONObject();
             payload.put("messaging_product", "whatsapp");
@@ -126,9 +132,10 @@ public class WhatsappService {
             text.put("body", message);
             payload.put("text", text);
 
-            sendRequest(payload);
+            return sendRequest(payload);
         } catch (Exception e) {
             logger.error("Error sending text to {}: {}", phone, e.getMessage());
+            return false;
         }
     }
 
@@ -140,6 +147,20 @@ public class WhatsappService {
             sendText(phone, message);
         } catch (Exception e) {
             logger.error("Error in sendSafeText to {}: {}", phone, e.getMessage());
+        }
+    }
+
+    /**
+     * Send a critical text message: try WhatsApp (with retries), and if that
+     * fails, fall back to Twilio SMS. Use only for delivery-critical alerts
+     * (driver dispatch, stale-location, auto clock-out) - not for chat replies.
+     */
+    public void sendCriticalText(String phone, String message) {
+        boolean sent = sendText(phone, message);
+        if (!sent) {
+            logger.warn("WhatsApp delivery failed for critical message to {} - falling back to SMS",
+                    PhoneNumberUtil.maskPhoneNumber(phone));
+            twilioSmsService.sendSms(phone, message);
         }
     }
 
@@ -226,28 +247,58 @@ public class WhatsappService {
     }
 
     /**
-     * Send request to WhatsApp API
+     * Send request to WhatsApp API, with retries on transient failures.
+     * Retries on connection errors and 5xx/429 responses; 4xx (other than 429)
+     * are treated as permanent and not retried.
+     *
+     * @return true if a 200 response was received, false otherwise
      */
-    private void sendRequest(JSONObject payload) throws Exception {
+    private boolean sendRequest(JSONObject payload) throws Exception {
         String url = "https://graph.facebook.com/" + apiVersion + "/" + phoneNumberId + "/messages";
 
-        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Authorization", "Bearer " + accessToken);
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setDoOutput(true);
+        Exception lastError = null;
+        for (int attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt++) {
+            try {
+                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+                conn.setDoOutput(true);
 
-        try (OutputStream os = conn.getOutputStream()) {
-            byte[] input = payload.toString().getBytes(StandardCharsets.UTF_8);
-            os.write(input, 0, input.length);
+                try (OutputStream os = conn.getOutputStream()) {
+                    byte[] input = payload.toString().getBytes(StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
+                }
+
+                int responseCode = conn.getResponseCode();
+                conn.disconnect();
+
+                if (responseCode == 200) {
+                    return true;
+                }
+
+                logger.error("WhatsApp API error: {} (attempt {}/{})", responseCode, attempt, MAX_SEND_ATTEMPTS);
+
+                // 4xx (except 429 rate-limit) won't fix itself - stop retrying
+                if (responseCode < 500 && responseCode != 429) {
+                    return false;
+                }
+            } catch (Exception e) {
+                lastError = e;
+                logger.warn("WhatsApp send attempt {}/{} failed: {}", attempt, MAX_SEND_ATTEMPTS, e.getMessage());
+            }
+
+            if (attempt < MAX_SEND_ATTEMPTS) {
+                Thread.sleep(RETRY_DELAY_MS);
+            }
         }
 
-        int responseCode = conn.getResponseCode();
-        if (responseCode != 200) {
-            logger.error("WhatsApp API error: {} - {}", responseCode, conn.getResponseMessage());
+        if (lastError != null) {
+            throw lastError;
         }
-
-        conn.disconnect();
+        return false;
     }
     
     /**
@@ -280,7 +331,7 @@ public class WhatsappService {
     public void sendInteractiveButtonsSafe(String phone, String bodyText, InteractiveButton... buttons) {
         try {
             logger.info("Sending interactive buttons to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), bodyText);
-            sendInteractiveButtons(phone, bodyText, buttons);
+            sendInteractiveButtonsSafe(phone, bodyText, buttons);
             logger.info("Interactive buttons sent successfully to {}", PhoneNumberUtil.maskPhoneNumber(phone));
         } catch (Exception e) {
             logger.error("Error sending interactive buttons to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage(), e);
@@ -452,32 +503,47 @@ public class WhatsappService {
      * @param message Message object to send
      */
     private void sendMessageToWhatsAppAPI(Map<String, Object> message) {
-        try {
 //            String url = "https://graph.facebook.com/v18.0/" + phoneNumberId + "/messages";
-            String url = "https://graph.facebook.com/" + apiVersion + "/" + phoneNumberId + "/messages";
-            
-            logger.info("DEBUG API CALL:");
-            logger.info("  URL: {}", url);
-            logger.info("  Token: Bearer {}...{}", accessToken.substring(0, 10), accessToken.substring(accessToken.length()-10));
-            logger.info("  Phone ID: {}", phoneNumberId);
-            
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + accessToken);
-            headers.setContentType(MediaType.APPLICATION_JSON);
+        String url = "https://graph.facebook.com/" + apiVersion + "/" + phoneNumberId + "/messages";
 
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(message, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+        logger.info("DEBUG API CALL:");
+        logger.info("  URL: {}", url);
+        logger.info("  Token: Bearer {}...{}", accessToken.substring(0, 10), accessToken.substring(accessToken.length()-10));
+        logger.info("  Phone ID: {}", phoneNumberId);
 
-            if (response.getStatusCode().isError()) {
-                throw new RuntimeException("WhatsApp API returned error: " + response.getBody());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + accessToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(message, headers);
+
+        RuntimeException lastError = null;
+        for (int attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt++) {
+            try {
+                ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+
+                if (response.getStatusCode().isError()) {
+                    throw new RuntimeException("WhatsApp API returned error: " + response.getBody());
+                }
+
+                logger.info("✅ Message sent to WhatsApp API successfully");
+                return;
+
+            } catch (Exception e) {
+                lastError = new RuntimeException("Failed to send message to WhatsApp API", e);
+                logger.warn("WhatsApp template send attempt {}/{} failed: {}", attempt, MAX_SEND_ATTEMPTS, e.getMessage());
+                if (attempt < MAX_SEND_ATTEMPTS) {
+                    try {
+                        Thread.sleep(RETRY_DELAY_MS);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
             }
-
-            logger.info("✅ Message sent to WhatsApp API successfully");
-
-        } catch (Exception e) {
-            logger.error("❌ API call failed: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to send message to WhatsApp API", e);
         }
+
+        logger.error("❌ API call failed after {} attempts", MAX_SEND_ATTEMPTS);
+        throw lastError;
     }
 
     /**
@@ -637,7 +703,11 @@ public class WhatsappService {
             logger.info("✅ OTP template sent to {}", PhoneNumberUtil.maskPhoneNumber(phone));
         } catch (Exception e) {
             logger.error("❌ Error sending OTP template to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage(), e);
-            throw new RuntimeException("Failed to send OTP template", e);
+            boolean smsSent = twilioSmsService.sendSms(phone, "קוד הכניסה שלך ל-RYZ: " + code);
+            if (!smsSent) {
+                throw new RuntimeException("Failed to send OTP template", e);
+            }
+            logger.info("✅ OTP delivered via SMS fallback to {}", PhoneNumberUtil.maskPhoneNumber(phone));
         }
     }
 
@@ -675,7 +745,12 @@ public class WhatsappService {
             logger.info("✅ Shift started template sent to {}", PhoneNumberUtil.maskPhoneNumber(phone));
         } catch (Exception e) {
             logger.error("❌ Error sending shift started template to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage(), e);
-            throw new RuntimeException("Failed to send shift started template", e);
+            boolean smsSent = twilioSmsService.sendSms(phone,
+                    "🟢 הכל מוכן " + driverName + "! המשמרת התחילה. נסיעות חדשות בדרך אליך 🚖");
+            if (!smsSent) {
+                throw new RuntimeException("Failed to send shift started template", e);
+            }
+            logger.info("✅ Shift-started delivered via SMS fallback to {}", PhoneNumberUtil.maskPhoneNumber(phone));
         }
     }
 }

@@ -319,6 +319,10 @@ public class DriverConversationHandler implements ConversationHandler {
                     "לא ניתן לסיים משמרת עם הזמנה פעילה.\n" +
                     "אנא סיים את הנסיעה תחילה ואז סיים משמרת.";
         }
+        // NEW — add after the existing taxi check
+        if (driverService.hasActiveDeliveryOrders(phone)) {
+            return "⚠️ יש לך משלוח פעיל. לא ניתן לסיים משמרת עם משלוח פעיל.\nאנא סיים את המשלוח תחילה.";
+        }
 
         driverService.clockOut(phone);
         convoService.updateState(convo, ConversationState.START);

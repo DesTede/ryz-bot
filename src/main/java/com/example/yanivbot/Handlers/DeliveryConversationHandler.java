@@ -132,7 +132,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
             logger.info("[DELIVERY] ✅ Returning customer found: '{}' | Address: '{}'", prevName, prevAddress);
             convoService.saveTempData(convo, customerPhone + "|" + prevName + "|" + prevAddress + "|" + prevPlaceId);
             convoService.updateState(convo, ConversationState.DELIVERY_AWAITING_CUSTOMER_CONFIRM);
-            whatsappService.sendInteractiveButtons(
+            whatsappService.sendInteractiveButtonsSafe(
                     message.getPhone(),
                     "📋 הלקוח הזה הזמין אצלכם בעבר:\n👤 שם: " + prevName + "\n📍 כתובת: " + prevAddress + "\nהפרטים עדיין נכונים?",
                     new WhatsappService.InteractiveButton("customer_confirm_yes", "✅ כן, נכון"),
@@ -383,7 +383,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
             convoService.updateState(convo, ConversationState.DELIVERY_AWAITING_CONFIRMATION);
 
             // Send confirmation with YES/NO buttons
-            whatsappService.sendInteractiveButtons(
+            whatsappService.sendInteractiveButtonsSafe(
                     message.getPhone(),
                     confirmation,
                     new WhatsappService.InteractiveButton("delivery_confirm_yes", "אישור משלוח ✅"),
@@ -477,7 +477,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
     private void showReadyTimeButton(String phone) {
         String bodyText = "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו: \nאו הקלידו זמן הכנה";
 
-        whatsappService.sendInteractiveButtons(
+        whatsappService.sendInteractiveButtonsSafe(
                 phone,
                 bodyText,
                 new WhatsappService.InteractiveButton("delivery_ready_now", "⏱️ מוכנה")

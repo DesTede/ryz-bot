@@ -1,10 +1,8 @@
 package com.example.yanivbot.Services;
 
-import com.example.yanivbot.Entities.Business;
-import com.example.yanivbot.Entities.Customer;
-import com.example.yanivbot.Entities.DeliveryOrder;
-import com.example.yanivbot.Entities.Driver;
+import com.example.yanivbot.Entities.*;
 import com.example.yanivbot.Models.DeliveryStatus;
+import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Repositories.BusinessRepository;
 import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
@@ -143,7 +141,7 @@ public class DeliveryOrderService {
                 PhoneNumberUtil.toLocalFormat(order.getBusinessPhone()),
                 order.getDeliveryAddress(),
                 order.getDeliveryFee(),
-                order.getNotes().isEmpty() ? "אין" : order.getNotes(),
+                (order.getNotes() == null || order.getNotes().isEmpty()) ? "אין" : order.getNotes(),
                 order.getId()
         );
 
@@ -173,18 +171,18 @@ public class DeliveryOrderService {
         logger.info("[DELIVERY] Driver {} attempting to claim delivery order #{}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone), orderId);
 
         // Get the driver to check their type
-        com.example.yanivbot.Entities.Driver driver = driverService.findByPhone(driverPhone);
+        Driver driver = driverService.findByPhone(driverPhone);
         if (driver == null) {
             logger.warn("[DELIVERY] Driver {} not found", PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone));
             return "❌ הנהג לא רשום במערכת.";
         }
 
         // Check if BOTH/TAXI driver has active taxi order - blocks everything
-        if (driver.getType() == com.example.yanivbot.Models.DriverType.BOTH ||
-                driver.getType() == com.example.yanivbot.Models.DriverType.TAXI) {
+        if (driver.getType() == DriverType.BOTH ||
+                driver.getType() == DriverType.TAXI) {
 
             if (driverService.hasActiveTaxiOrder(driverPhone)) {
-                com.example.yanivbot.Entities.TaxiOrder activeTaxi = driverService.getActiveTaxiOrder(driverPhone);
+                TaxiOrder activeTaxi = driverService.getActiveTaxiOrder(driverPhone);
                 logger.warn("[DELIVERY] BOTH driver {} blocked - has active taxi order #{}", PhoneNumberUtil.maskPhoneNumberWithCountryCode(driverPhone), activeTaxi.getId());
 
                 String msg = "⚠️ שים לב\nיש לך נסיעה פעילה #" + activeTaxi.getId() + " בדרך\nסיים אותה קודם לאחר מכן תוכל לקבל משלוחים";
@@ -194,8 +192,8 @@ public class DeliveryOrderService {
         }
 
         // Check if DELIVERY or BOTH driver has reached delivery order limit
-        if (driver.getType() == com.example.yanivbot.Models.DriverType.DELIVERY ||
-                driver.getType() == com.example.yanivbot.Models.DriverType.BOTH) {
+        if (driver.getType() == DriverType.DELIVERY ||
+                driver.getType() == DriverType.BOTH) {
 
             if (!driverService.canClaimMoreDeliveries(driverPhone)) {
                 int activeCount = driverService.getActiveDeliveryCount(driverPhone);
@@ -788,60 +786,6 @@ public class DeliveryOrderService {
         } catch (Exception e) {
             logger.error("[ROUTE] Feasibility check failed for order #{}: {}", newOrder.getId(), e.getMessage(), e);
             return true;
-        }
-    }
-    /**
-     * Generate a real-time Google Maps link for driver location
-     *
-     * The link uses the driver's current coordinates and updates dynamically
-     * when the customer opens it in their browser.
-     *
-     * Format: maps.google.com/?q=latitude,longitude
-     *
-     * @param driverPhone Driver's phone number
-     * @return Google Maps URL with driver's current location
-     */
-    private String generateGoogleMapsLink(String driverPhone) {
-        try {
-            logger.debug("Generating maps link for driver {}",
-                    PhoneNumberUtil.maskPhoneNumber(driverPhone));
-
-            // Fetch driver from database
-            Driver driver = driverService.findByPhone(driverPhone);
-
-            if (driver == null) {
-                logger.warn("Driver {} not found in database",
-                        PhoneNumberUtil.maskPhoneNumber(driverPhone));
-                return "https://maps.google.com";
-            }
-
-            // Check if driver has valid location
-            if (driver.getLatitude() == 0 || driver.getLongitude() == 0) {
-                logger.warn("Driver {} has no location data (lat/lng = 0)",
-                        PhoneNumberUtil.maskPhoneNumber(driverPhone));
-                return "https://maps.google.com";
-            }
-
-            // Generate Google Maps link with current coordinates
-            // Format: https://maps.google.com/?q=latitude,longitude
-            String mapsLink = String.format(
-                    "https://maps.google.com/?q=%.6f,%.6f",
-                    driver.getLatitude(),
-                    driver.getLongitude()
-            );
-
-            logger.info("✅ Generated maps link for driver {}: lat={}, lng={}",
-                    PhoneNumberUtil.maskPhoneNumber(driverPhone),
-                    driver.getLatitude(),
-                    driver.getLongitude());
-
-            return mapsLink;
-
-        } catch (Exception e) {
-            logger.error("⚠️ Error generating maps link for driver {}: {}",
-                    PhoneNumberUtil.maskPhoneNumber(driverPhone),
-                    e.getMessage(), e);
-            return "https://maps.google.com";
         }
     }
 }

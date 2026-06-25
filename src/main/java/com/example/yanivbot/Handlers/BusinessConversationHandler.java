@@ -41,7 +41,7 @@ public class BusinessConversationHandler implements ConversationHandler {
             // Business owner ordering taxi - treat as customer
             convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
             // Send car type selection buttons
-            whatsappService.sendInteractiveButtons(
+            whatsappService.sendInteractiveButtonsSafe(
                     message.getPhone(),
                     "מעולה 👍\nעכשיו בחרו את סוג הרכב:",
                     new WhatsappService.InteractiveButton("taxi_car_type_motorcycle", "אופנוע 🏍️"),
@@ -73,7 +73,7 @@ public class BusinessConversationHandler implements ConversationHandler {
                 "\nמה תרצו לעשות? 👇\n" +
                 "(לחץ 00 לאתחול מחדש)";
         
-        whatsappService.sendInteractiveButtons(
+        whatsappService.sendInteractiveButtonsSafe(
                 phone,
                 bodyText,
                 new WhatsappService.InteractiveButton("business_delivery_option", "🛵 1️⃣ יצירת משלוח"),
