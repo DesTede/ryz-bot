@@ -292,20 +292,39 @@ public class TaxiOrderService {
                         driver.getCarColor());
             }
 
+            // ETA: driver current location → customer pickup
+            String etaText = "";
+            try {
+                double[] driverLoc = driverService.getDriverLocation(order.getDriverPhone());
+                double[] pickupCoords = (order.getPickUpPlaceId() != null && !order.getPickUpPlaceId().isEmpty())
+                        ? geoCodingService.geocodeByPlaceId(order.getPickUpPlaceId())
+                        : geoCodingService.geocode(order.getPickUpLocation());
+                if (driverLoc != null && pickupCoords != null) {
+                    GeoCodingService.TripInfo trip = geoCodingService.getTripInfoByCoords(
+                            driverLoc[0], driverLoc[1], pickupCoords[0], pickupCoords[1]);
+                    if (trip != null && trip.durationMinutes > 0) {
+                        etaText = "\n⏱️ זמן הגעה משוער: כ-" + (int) Math.round(trip.durationMinutes) + " דקות";
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("ETA calculation failed for taxi order #{}: {}", order.getId(), e.getMessage());
+            }
+
             String msg = """
-            ✅ *הנהג בדרכו אליך*
-            -------------------------
-            👤 שם הנהג: %s
-            -------------------------
-            📞 טלפון: %s%s
-            -------------------------
-            📍 איסוף: %s
-            🎯 יעד: %s
-            -------------------------
-            """.formatted(
+        ✅ *הנהג בדרכו אליך*
+        -------------------------
+        👤 שם הנהג: %s
+        -------------------------
+        📞 טלפון: %s%s%s
+        -------------------------
+        📍 איסוף: %s
+        🎯 יעד: %s
+        -------------------------
+        """.formatted(
                     driverName,
                     driverPhone,
                     vehicleInfo,
+                    etaText,
                     order.getPickUpLocation(),
                     order.getDestination()
             );
@@ -347,6 +366,10 @@ public class TaxiOrderService {
             return "כרגע לא ניתן להציג את מיקום הנהג\n📍 המיקום יתעדכן בקרוב.";
         }
 
+        if (activeOrder.getTrackingToken() != null) {
+            String trackingLink = shortLinkService.createShortLink(baseUrl + "/track/" + activeOrder.getTrackingToken());
+            return "🗺️ מעקב חי אחר הנהג:\n" + trackingLink;
+        }
         String locationLink = whatsappService.generateGoogleMapsLink(driverLocation[0], driverLocation[1]);
         return "🗺️ מיקום הנהג: " + locationLink;
     }
