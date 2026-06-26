@@ -1748,8 +1748,8 @@
           <td style="font-family:var(--mono);font-size:12px">${formatPhone(b.phone)}</td>
           <td style="font-size:13px;color:var(--muted)">${b.address||'—'}</td>
           <td><span class="badge ${b.active ? 'badge-green' : 'badge-muted'}" style="cursor:pointer" onclick="toggleBusinessActive('${b.phone}', this)">${b.active ? 'פעיל' : 'לא פעיל'}</span></td>          <td>
-            <button class="action-btn" onclick="openEditBusiness('${b.phone}','${b.name||''}','${b.address||''}','${b.addressPlaceId||''}')">עריכה</button>
-            <button class="action-btn danger" onclick="deleteBusiness('${b.phone}','${b.name||b.phone}')">מחק</button>
+            onclick="openEditBusiness('${b.phone}','${(b.name||'').replace(/'/g,"\\\\'")}','${(b.address||'').replace(/'/g,"\\\\'")}','${b.addressPlaceId||''}')">
+            onclick="deleteBusiness('${b.phone}','${(b.name||b.phone).replace(/'/g,"\\\\'")}')">
           </td>
         </tr>`).join('') : '<tr><td colspan="5" class="empty">אין עסקים רשומים</td></tr>';
         } catch(e) { tb.innerHTML = `<tr><td colspan="5" class="empty">שגיאה</td></tr>`; }
