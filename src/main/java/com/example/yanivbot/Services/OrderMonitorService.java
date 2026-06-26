@@ -331,7 +331,7 @@ public class OrderMonitorService {
             if (lastUpdate.isBefore(clockOutThreshold)) {
                 driverService.clockOut(driver.getPhone());
                 String clockOutMsg = "🔴 יצאת מהמשמרת אוטומטית\n" +
-                        " כי המיקום שלך לא התעדכן כבר" + DRIVER_AUTO_CLOCKOUT_MINUTES + "דקות, \n" +
+                        " כי המיקום שלך לא התעדכן כבר " + DRIVER_AUTO_CLOCKOUT_MINUTES + "דקות. \n" +
                         " "+ "כדי לחזור לעבוד פתח את האפליקציה ושתף שוב מיקום";
                 whatsappService.sendSmartCustomerMessage(driver.getPhone(), clockOutMsg,
                         "driver_auto_clocked_out",

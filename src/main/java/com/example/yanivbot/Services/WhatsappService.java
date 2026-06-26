@@ -330,13 +330,11 @@ public class WhatsappService {
      */
     public void sendInteractiveButtonsSafe(String phone, String bodyText, InteractiveButton... buttons) {
         try {
-            // NEW
             logger.info("Sending interactive buttons to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), bodyText);
             sendInteractiveButtons(phone, bodyText, buttons);
             logger.info("Interactive buttons sent successfully to {}", PhoneNumberUtil.maskPhoneNumber(phone));
         } catch (Exception e) {
             logger.error("Error sending interactive buttons to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage(), e);
-            // Fall back to sending as regular text
             logger.warn("Falling back to text-only message");
             sendSafeText(phone, bodyText);
         }
