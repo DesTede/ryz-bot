@@ -73,7 +73,7 @@ public class MessageController {
         String messageId = message.getMessageId();
         if (messageId != null && !messageId.isBlank()) {
             try {
-                processedMessageRepo.save(new ProcessedMessage(messageId));
+                processedMessageRepo.saveAndFlush(new ProcessedMessage(messageId));
             } catch (DataIntegrityViolationException e) {
                 logger.info("Duplicate webhook message {} ignored", messageId);
                 return;
