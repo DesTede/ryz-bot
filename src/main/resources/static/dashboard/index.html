@@ -1744,14 +1744,15 @@
         try {
             const businesses = await api('/admin/businesses');
             tb.innerHTML = businesses.length ? businesses.map(b => `<tr>
-          <td style="font-weight:600">${b.name||'—'}</td>
-          <td style="font-family:var(--mono);font-size:12px">${formatPhone(b.phone)}</td>
-          <td style="font-size:13px;color:var(--muted)">${b.address||'—'}</td>
-          <td><span class="badge ${b.active ? 'badge-green' : 'badge-muted'}" style="cursor:pointer" onclick="toggleBusinessActive('${b.phone}', this)">${b.active ? 'פעיל' : 'לא פעיל'}</span></td>          <td>
-            onclick="openEditBusiness('${b.phone}','${(b.name||'').replace(/'/g,"\\\\'")}','${(b.address||'').replace(/'/g,"\\\\'")}','${b.addressPlaceId||''}')">
-            onclick="deleteBusiness('${b.phone}','${(b.name||b.phone).replace(/'/g,"\\\\'")}')">
-          </td>
-        </tr>`).join('') : '<tr><td colspan="5" class="empty">אין עסקים רשומים</td></tr>';
+      <td style="font-weight:600">${b.name||'—'}</td>
+      <td style="font-family:var(--mono);font-size:12px">${formatPhone(b.phone)}</td>
+      <td style="font-size:13px;color:var(--muted)">${b.address||'—'}</td>
+      <td><span class="badge ${b.active ? 'badge-green' : 'badge-muted'}" style="cursor:pointer" onclick="toggleBusinessActive('${b.phone}', this)">${b.active ? 'פעיל' : 'לא פעיל'}</span></td>
+      <td>
+        <button class="action-btn" onclick="openEditBusiness('${b.phone}','${(b.name||'').replace(/'/g,"\\\\'").replace(/"/g,'&quot;')}','${(b.address||'').replace(/'/g,"\\\\'").replace(/"/g,'&quot;')}','${b.addressPlaceId||''}')">עריכה</button>
+        <button class="action-btn danger" onclick="deleteBusiness('${b.phone}','${(b.name||b.phone).replace(/'/g,"\\\\'").replace(/"/g,'&quot;')}')">מחק</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="5" class="empty">אין עסקים רשומים</td></tr>';
         } catch(e) { tb.innerHTML = `<tr><td colspan="5" class="empty">שגיאה</td></tr>`; }
     }
 
