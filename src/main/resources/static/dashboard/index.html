@@ -1756,6 +1756,7 @@
         } catch(e) { tb.innerHTML = `<tr><td colspan="5" class="empty">שגיאה</td></tr>`; }
     }
 
+    
     async function toggleBusinessActive(phone, el) {
         try {
             const res = await api(`/admin/businesses/${phone}/toggle-active`, 'POST');
