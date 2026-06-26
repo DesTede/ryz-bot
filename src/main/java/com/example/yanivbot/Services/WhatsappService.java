@@ -330,8 +330,9 @@ public class WhatsappService {
      */
     public void sendInteractiveButtonsSafe(String phone, String bodyText, InteractiveButton... buttons) {
         try {
+            // NEW
             logger.info("Sending interactive buttons to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), bodyText);
-            sendInteractiveButtonsSafe(phone, bodyText, buttons);
+            sendInteractiveButtons(phone, bodyText, buttons);
             logger.info("Interactive buttons sent successfully to {}", PhoneNumberUtil.maskPhoneNumber(phone));
         } catch (Exception e) {
             logger.error("Error sending interactive buttons to {}: {}", PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage(), e);
