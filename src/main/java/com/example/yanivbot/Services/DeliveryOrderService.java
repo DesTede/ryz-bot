@@ -617,7 +617,7 @@ public class DeliveryOrderService {
         for (int i = 1; i < orderedStops.size(); i++) {
             double[] coords = orderedStops.get(i);
             for (StopEntry e : originalEntries) {
-                if (e.coords == coords) { ordered.add(e); break; }
+                if (e.coords[0] == coords[0] && e.coords[1] == coords[1]) { ordered.add(e); break; }
             }
         }
         // Scan and fix: for each drop, ensure its pickup precedes it
@@ -701,7 +701,9 @@ public class DeliveryOrderService {
                     + " (" + toPickup + " לאיסוף, " + enRoute + " בדרך ללקוח)"
                     + "\n⏱️ זמן כולל משוער: ~" + totalMin + " דקות (" + totalStops + " עצירות)"
                     + "\n" + stopType + ":"
+                    + " "
                     + "\n🗺️ Google Maps: " + nextMaps
+                    + " "
                     + "\n🔵 Waze: " + nextWaze;
 
         } catch (Exception e) {
