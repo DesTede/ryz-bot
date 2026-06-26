@@ -71,7 +71,7 @@ public class DeliveryOrderService {
 
         DeliveryOrder order = new DeliveryOrder();
         order.setBusinessPhone(businessPhone);
-        order.setCustomerPhone(customerPhone);
+        order.setCustomerPhone(PhoneNumberUtil.normalizePhone(customerPhone));
         order.setDeliveryAddress(address);
         order.setDeliveryAddressPlaceId(addressPlaceId);
         order.setReadyInMinutes(readyInMinutes);
