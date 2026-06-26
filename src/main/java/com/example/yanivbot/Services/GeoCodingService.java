@@ -280,7 +280,10 @@ public class GeoCodingService {
             if (optimizedIndices != null && waypoints.size() > 1) {
                 List<double[]> intermediates = new ArrayList<>(waypoints.subList(0, waypoints.size() - 1));
                 for (Object idx : optimizedIndices) {
-                    orderedStops.add(intermediates.get(((Number) idx).intValue()));
+                    int i = ((Number) idx).intValue();
+                    if (i >= 0 && i < intermediates.size()) {
+                        orderedStops.add(intermediates.get(i));
+                    }
                 }
             }
             orderedStops.add(destination);
