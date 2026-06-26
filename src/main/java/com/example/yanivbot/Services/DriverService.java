@@ -238,6 +238,8 @@ public class DriverService {
             );
         }
     }
+    
+    
 
     /**
      * Dispatch to all available drivers (no location filtering)
@@ -406,6 +408,10 @@ public class DriverService {
             );
         }
     }
+
+    /**
+     * adding another check for 1, 2, adn 5
+     */
 
     /**
      * Dispatch delivery order to all available drivers (no location filtering)

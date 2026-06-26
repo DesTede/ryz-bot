@@ -71,8 +71,15 @@ public class WhatsAppWebhookController {
             @RequestHeader(value = "X-Hub-Signature-256", required = false) String signature,
             @RequestBody String rawBody) {
 
-        logger.info("===== WEBHOOK CALLED =====");
-        logger.info("Payload: {}", rawBody);
+        if (rawBody.contains("\"statuses\"") && !rawBody.contains("\"messages\"")) {
+            // Status-only webhook (sent/delivered/read) — log a single compact line
+            String status = rawBody.contains("\"read\"") ? "read"
+                    : rawBody.contains("\"delivered\"") ? "delivered"
+                    : rawBody.contains("\"sent\"") ? "sent" : "status";
+            logger.debug("Webhook [{}] — status update only, skipping", status);
+        } else {
+            logger.debug("Webhook received — processing message");
+        }
 
         if (!isValidSignature(signature, rawBody)) {
             logger.warn("Invalid webhook signature — request rejected");

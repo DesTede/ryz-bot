@@ -265,7 +265,8 @@ public class TaxiConversationHandler implements ConversationHandler {
             };
 
             if (tripInfo != null && tripInfo.distanceKm > 0) {
-                estimatedFare = (basePrice + (tripInfo.distanceKm * pricePerKm) + (tripInfo.durationMinutes * pricePerMinute)) * carTypeModifier * (1 + vat);
+                estimatedFare = (basePrice + (tripInfo.distanceKm * pricePerKm) + 
+                        (tripInfo.durationMinutes * pricePerMinute)) * carTypeModifier * (1 + vat);
                 logger.info("Fare calculated: ₪{} for {}km / {}min (Vehicle Type: {})",
                         String.format("%.2f", estimatedFare),
                         String.format("%.1f", tripInfo.distanceKm),

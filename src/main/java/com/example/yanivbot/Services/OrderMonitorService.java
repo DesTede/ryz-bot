@@ -67,6 +67,8 @@ public class OrderMonitorService {
         checkUnclaimedTaxiOrders();
         checkUnclaimedDeliveryOrders();
     }
+    
+    // FIRST 1 KM, 10 seco; SECOND 2 KM; THIRD 5 KM
 
     /**
      * Check unclaimed taxi orders
