@@ -700,10 +700,8 @@ public class DeliveryOrderService {
             return "\n\n📦 משלוחים פעילים: " + activeOrders.size()
                     + " (" + toPickup + " לאיסוף, " + enRoute + " בדרך ללקוח)"
                     + "\n⏱️ זמן כולל משוער: ~" + totalMin + " דקות (" + totalStops + " עצירות)"
-                    + "\n" + stopType + ":"
-                    + " "
-                    + "\n🗺️ Google Maps: " + nextMaps
-                    + " "
+                    + "\n\n" + stopType + ":"
+                    + "\n\n🗺️ Google Maps: " + nextMaps
                     + "\n🔵 Waze: " + nextWaze;
 
         } catch (Exception e) {
