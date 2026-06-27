@@ -96,11 +96,8 @@ public class OrderMonitorService {
             int currentIndex = driverService.findStepIndexForRadius(order.getLastDispatchRadiusKm());
             int lastIndex = driverService.getRadiusStepCount() - 1;
 
-            // Not yet at max radius — expand to the next ring (cascade instantly skips empty rings)
+            // Not yet at max radius — try to expand to the next ring (cascade instantly skips empty rings)
             if (currentIndex >= 0 && currentIndex < lastIndex) {
-                logger.info("Taxi order #{} unclaimed in {}km radius - expanding to next radius",
-                        order.getId(), order.getLastDispatchRadiusKm());
-
                 String msg = """
                                      🚖 נסיעה חדשה זמינה עבורך
                         🆔 מספר הזמנה: %s
@@ -117,7 +114,14 @@ public class OrderMonitorService {
                         "🎯 לאן: " + order.getDestination() + "\n" +
                         "📞 לקוח: " + order.getPhone();
 
-                driverService.expandTaxiDispatch(order.getId(), currentIndex + 1, msg, orderDetails, order.getRequestedCarType());
+                boolean expanded = driverService.expandTaxiDispatch(order.getId(), currentIndex + 1, msg, orderDetails, order.getRequestedCarType());
+                if (expanded) {
+                    logger.info("Taxi order #{} expanded outward from {}km radius", order.getId(), order.getLastDispatchRadiusKm());
+                } else {
+                    // No eligible drivers available to expand to (all stale/busy, or no coords) — escalate to admin
+                    logger.warn("Taxi order #{} could not expand (no eligible drivers) - alerting admins", order.getId());
+                    alertAdminTaxiDelayed(order);
+                }
                 continue;
             }
 
@@ -191,14 +195,17 @@ public class OrderMonitorService {
             int lastIndex = driverService.getRadiusStepCount() - 1;
 
             if (currentIndex >= 0 && currentIndex < lastIndex) {
-                logger.info("Delivery order #{} unclaimed in {}km radius - expanding to next radius",
-                        order.getId(), order.getLastDispatchRadiusKm());
-
                 String msg = buildDispatchMessage(order);
                 String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
                         "📞 עסק: " + order.getBusinessPhone();
 
-                driverService.expandDeliveryDispatch(order.getId(), currentIndex + 1, msg, orderDetails);
+                boolean expanded = driverService.expandDeliveryDispatch(order.getId(), currentIndex + 1, msg, orderDetails);
+                if (expanded) {
+                    logger.info("Delivery order #{} expanded outward from {}km radius", order.getId(), order.getLastDispatchRadiusKm());
+                } else {
+                    logger.warn("Delivery order #{} could not expand (no eligible drivers) - alerting admins", order.getId());
+                    alertAdminDeliveryDelayed(order);
+                }
                 continue;
             }
 
