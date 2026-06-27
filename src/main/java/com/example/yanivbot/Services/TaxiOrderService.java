@@ -63,7 +63,7 @@ public class TaxiOrderService {
         // Prevent duplicate orders
         if (hasActiveOrder(customerPhone)) {
             logger.warn("Duplicate order attempt by {} — already has active order", customerPhone);
-            whatsappService.sendSafeText(customerPhone, "⚠️ יש לך הזמנה פעילה כבר במערכת. אנא המתן לנהג שיאסוף אותך.");
+            whatsappService.sendSafeText(customerPhone, "⚠️ יש לך כבר הזמנה פעילה במערכת.\nניתן לבצע הזמנה אחת בכל פעם — אנא המתן לסיום ההזמנה הנוכחית לפני שתבצע חדשה 🚕");
             return false;
         }
 
