@@ -33,6 +33,10 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
+        html {
+            overflow-x: hidden;
+        }
+        
         body {
             background: var(--bg);
             color: var(--text);
@@ -452,6 +456,7 @@
             bottom: 90px !important;
             left: 50%;
             transform: translateX(-50%) translateY(80px);
+            max-width: 90vw;
             background: var(--surface2);
             border: 1px solid var(--border);
             border-radius: 10px;
