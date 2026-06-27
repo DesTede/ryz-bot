@@ -249,7 +249,7 @@ public class OrderMonitorService {
 
         // Notify business owner
         whatsappService.sendSafeText(order.getBusinessPhone(),
-                "⚠️ טרם נמצא שליח להזמנה #" + order.getId() + ". אנו ממשיכים לחפש...");
+                "⚠️ טרם נמצא שליח להזמנה מס" + order.getId() + ". אנו ממשיכים לחפש...");
 
         order.setAdminLastAlertedAt(LocalDateTime.now());
         deliveryOrderRepo.save(order);
