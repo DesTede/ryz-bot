@@ -1954,14 +1954,14 @@
     // ══════════════════════════════════════════════════════════════
     function showLogin() {
         document.getElementById('login-overlay').style.display = 'flex';
-        document.querySelector('.sidebar').style.visibility = 'hidden';
-        document.querySelector('.main').style.visibility = 'hidden';
+        document.querySelector('.sidebar').style.display = 'none';
+        document.querySelector('.main').style.display = 'none';
     }
 
     function hideLogin() {
         document.getElementById('login-overlay').style.display = 'none';
-        document.querySelector('.sidebar').style.visibility = 'visible';
-        document.querySelector('.main').style.visibility = 'visible';
+        document.querySelector('.sidebar').style.display = '';
+        document.querySelector('.main').style.display = '';
         // Reset iOS zoom after password input focus
         const viewport = document.querySelector('meta[name="viewport"]');
         viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0');
