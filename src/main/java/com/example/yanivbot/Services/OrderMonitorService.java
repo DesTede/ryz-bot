@@ -241,7 +241,7 @@ public class OrderMonitorService {
             whatsappService.notifyAdminsInteractiveButtons(
                     "🛑 הפסק שליחת הודעה מחדש לשליחים #" + order.getId() + "?",
                     convoService,
-                    new WhatsappService.InteractiveButton("stop_redispatch_del_" + order.getId(), "🛑 הפסק הפצה מחדש")
+                    new WhatsappService.InteractiveButton("stop_redispatch_del_" + order.getId(), "🛑 הפסק הפצה מחדש לנהגים")
             );
         } catch (Exception e) {
             logger.error("Failed to send admin alert for delivery order #{}: {}", order.getId(), e.getMessage(), e);
