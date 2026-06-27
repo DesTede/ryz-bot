@@ -57,8 +57,21 @@ public class DeliveryOrder {
 
     @Column(name = "admin_alerted_no_drivers", nullable = false)
     private boolean adminAlertedNoDrivers = false;
-    
 
+    // ===== Expanding-radius cascade tracking =====
+    @Column(name = "last_dispatch_radius_km", nullable = false)
+    private double lastDispatchRadiusKm = 0;
+
+    @Column(name = "last_dispatched_at")
+    private LocalDateTime lastDispatchedAt;
+
+    @Column(name = "dispatch_origin_lat", nullable = false)
+    private double dispatchOriginLat = 0;
+
+    @Column(name = "dispatch_origin_lng", nullable = false)
+    private double dispatchOriginLng = 0;
+
+    
     public DeliveryOrder() {
     }
 
@@ -195,8 +208,47 @@ public class DeliveryOrder {
         return deliveryAddressPlaceId;
     }
 
+    public long getVersion() {
+        return version;
+    }
+
+    public boolean isCustomerAlertedStaleLocation() {
+        return customerAlertedStaleLocation;
+    }
+
     public void setDeliveryAddressPlaceId(String deliveryAddressPlaceId) {
         this.deliveryAddressPlaceId = deliveryAddressPlaceId;
     }
-    
+
+    public double getDispatchOriginLng() {
+        return dispatchOriginLng;
+    }
+
+    public void setDispatchOriginLng(double dispatchOriginLng) {
+        this.dispatchOriginLng = dispatchOriginLng;
+    }
+
+    public double getDispatchOriginLat() {
+        return dispatchOriginLat;
+    }
+
+    public void setDispatchOriginLat(double dispatchOriginLat) {
+        this.dispatchOriginLat = dispatchOriginLat;
+    }
+
+    public LocalDateTime getLastDispatchedAt() {
+        return lastDispatchedAt;
+    }
+
+    public void setLastDispatchedAt(LocalDateTime lastDispatchedAt) {
+        this.lastDispatchedAt = lastDispatchedAt;
+    }
+
+    public double getLastDispatchRadiusKm() {
+        return lastDispatchRadiusKm;
+    }
+
+    public void setLastDispatchRadiusKm(double lastDispatchRadiusKm) {
+        this.lastDispatchRadiusKm = lastDispatchRadiusKm;
+    }
 }

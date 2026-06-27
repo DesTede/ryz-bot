@@ -176,13 +176,15 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String prevAddress = parts.length > 2 ? parts[2] : "";
         String prevPlaceId = parts.length > 3 ? parts[3] : "";
 
-        if (txt.equals("customer_confirm_yes")) {
-            logger.info("[DELIVERY] ✅ Customer confirmed previous details");
-            convoService.saveTempData(convo, prevName + "|" + customerPhone + "|" + prevAddress + "|" + prevPlaceId);
-            convoService.updateState(convo, ConversationState.DELIVERY_READY_TIME);
-            showReadyTimeButton(message.getPhone());
-            return null;
-        } else if (txt.equals("customer_confirm_no")) {
+        // Normalize typed input so small variations (spaces, punctuation, case) still match
+        String normalized = txt.trim().toLowerCase().replaceAll("[!.,]", "");
+
+        boolean isNo = txt.equals("customer_confirm_no")
+                || normalized.equals("לא")
+                || normalized.equals("בטל")
+                || normalized.equals("no");
+
+        if (isNo) {
             // Details wrong - ask for new name (phone stays)
             logger.info("[DELIVERY] ❌ Customer details rejected - asking for new name");
             convoService.saveTempData(convo, customerPhone);
@@ -190,6 +192,21 @@ public class DeliveryConversationHandler implements ConversationHandler {
             return "👤 מה שם הלקוח?";
         }
 
+        boolean isYes = txt.equals("customer_confirm_yes")
+                || normalized.equals("כן")
+                || normalized.equals("אשר")
+                || normalized.equals("yes")
+                || normalized.equals("ok");
+
+        if (!isYes) {
+            logger.warn("[DELIVERY] User typed free text '{}' instead of pressing a confirmation button", txt);
+            return "לא זיהיתי את התשובה 🤔\nאנא לחצו על אחד הכפתורים: ✅ כן או ❌ לא";
+        }
+
+        logger.info("[DELIVERY] ✅ Customer confirmed previous details");
+        convoService.saveTempData(convo, prevName + "|" + customerPhone + "|" + prevAddress + "|" + prevPlaceId);
+        convoService.updateState(convo, ConversationState.DELIVERY_READY_TIME);
+        showReadyTimeButton(message.getPhone());
         return null;
     }
     
@@ -417,46 +434,15 @@ public class DeliveryConversationHandler implements ConversationHandler {
         String txt = message.getText().trim();
         String tempData = convo.getTempData();
 
-        if (txt.equals("delivery_confirm_yes")) {
-            String[] parts = tempData.split("\\|", -1);
-            if (parts.length >= 7) {
-                String businessPhone = message.getPhone();
-                String customerName = parts[0];
-                String customerPhone = parts[1];
-                String address = parts[2];
-                String addressPlaceId = parts[3];
-                int readyInMinutes = Integer.parseInt(parts[4]);
-                double price = Double.parseDouble(parts[5]);
-                String notesStr = parts[6];
+        // Normalize typed input so small variations (spaces, punctuation, case) still match
+        String normalized = txt.trim().toLowerCase().replaceAll("[!.,]", "");
 
-                logger.info("[DELIVERY] ✅ User confirmed order - creating delivery order...");
+        boolean isNo = txt.equals("delivery_confirm_no")
+                || normalized.equals("לא")
+                || normalized.equals("בטל")
+                || normalized.equals("no");
 
-                deliveryOrderService.createDeliveryOrder(
-                        businessPhone,
-                        customerName,
-                        customerPhone,
-                        address,
-                        addressPlaceId,
-                        readyInMinutes,
-                        price,
-                        notesStr
-                );
-
-                convoService.updateState(convo, ConversationState.START);
-                convoService.saveTempData(convo, "");
-                convo.setNudgedAt(0);
-                convoService.save(convo);
-
-                logger.info("[DELIVERY] ✅ Order created successfully - DeliveryOrderService will send confirmation");
-                return null;
-            }else {
-                convoService.updateState(convo, ConversationState.START);
-                convoService.saveTempData(convo, "");
-                convo.setNudgedAt(0);
-                convoService.save(convo);
-                return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
-            }
-        } else if (txt.equals("delivery_confirm_no")) {
+        if (isNo) {
             // Cancel order
             logger.info("[DELIVERY] ❌ User cancelled order");
             convoService.updateState(convo, ConversationState.START);
@@ -466,12 +452,60 @@ public class DeliveryConversationHandler implements ConversationHandler {
             return """
                     ❌ ההזמנה בוטלה בהצלחה.
                     נשמח
-                    לעמוד לשירותכם שוב ב־RYZ\uD83D\uDC99
+                    לעמוד לשירותכם שוב ב־RYZ💙
                     בשביל
-                    להתחיל מחדש, פשוט שלחו הודעה\uD83D\uDE80""";
+                    להתחיל מחדש, פשוט שלחו הודעה🚀""";
         }
 
-        return null;
+        boolean isYes = txt.equals("delivery_confirm_yes")
+                || normalized.equals("כן")
+                || normalized.equals("אשר")
+                || normalized.equals("yes")
+                || normalized.equals("ok");
+
+        if (!isYes) {
+            logger.warn("[DELIVERY] User typed free text '{}' instead of pressing a confirmation button", txt);
+            return "לא זיהיתי את התשובה 🤔\nאנא לחצו על אחד הכפתורים: ✅ כן - אשר או ❌ לא - בטל";
+        }
+
+        String[] parts = tempData.split("\\|", -1);
+        if (parts.length >= 7) {
+            String businessPhone = message.getPhone();
+            String customerName = parts[0];
+            String customerPhone = parts[1];
+            String address = parts[2];
+            String addressPlaceId = parts[3];
+            int readyInMinutes = Integer.parseInt(parts[4]);
+            double price = Double.parseDouble(parts[5]);
+            String notesStr = parts[6];
+
+            logger.info("[DELIVERY] ✅ User confirmed order - creating delivery order...");
+
+            deliveryOrderService.createDeliveryOrder(
+                    businessPhone,
+                    customerName,
+                    customerPhone,
+                    address,
+                    addressPlaceId,
+                    readyInMinutes,
+                    price,
+                    notesStr
+            );
+
+            convoService.updateState(convo, ConversationState.START);
+            convoService.saveTempData(convo, "");
+            convo.setNudgedAt(0);
+            convoService.save(convo);
+
+            logger.info("[DELIVERY] ✅ Order created successfully - DeliveryOrderService will send confirmation");
+            return null;
+        } else {
+            convoService.updateState(convo, ConversationState.START);
+            convoService.saveTempData(convo, "");
+            convo.setNudgedAt(0);
+            convoService.save(convo);
+            return "❌ שגיאה בעת יצירת ההזמנה. אנא נסה שוב.";
+        }
     }
 
     private void showReadyTimeButton(String phone) {

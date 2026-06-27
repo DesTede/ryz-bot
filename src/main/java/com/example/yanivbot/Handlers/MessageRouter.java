@@ -92,8 +92,7 @@ public class MessageRouter {
         String phone = message.getPhone();
         ConversationState state = convo.getState();
 
-        // Update 24h window on every inbound message
-        convoService.updateLastMessageTime(convo);
+        
 
         logger.info("========== ROUTE START ==========");
         logger.info("Phone: {}", phone);
@@ -171,14 +170,17 @@ public class MessageRouter {
                 convoService.updateState(convo, ConversationState.START);
                 convoService.saveTempData(convo, "");
                 convo.setNudgedAt(0);
+                convoService.updateLastMessageTime(convo);
                 convoService.save(convo);
                 return """
-                            ⏱️ עבר קצת זמן, אז איפסנו את השיחה
-                            שלח כל הודעה כדי להתחיל מחדש 🚀
-                            """;
+                ⏱️ עבר קצת זמן, אז איפסנו את השיחה
+                שלח כל הודעה כדי להתחיל מחדש 🚀
+                """;
             }
         }
 
+        // Update 24h window on every inbound message
+        convoService.updateLastMessageTime(convo);
 
         // ===== START STATE =====
         if (state == ConversationState.START) {

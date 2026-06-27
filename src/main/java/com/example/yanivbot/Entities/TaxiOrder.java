@@ -66,6 +66,19 @@ public class TaxiOrder {
     @Column(name = "estimated_fare")
     private Double estimatedFare;
 
+    // ===== Expanding-radius cascade tracking =====
+    @Column(name = "last_dispatch_radius_km", nullable = false)
+    private double lastDispatchRadiusKm = 0;
+
+    @Column(name = "last_dispatched_at")
+    private LocalDateTime lastDispatchedAt;
+
+    @Column(name = "dispatch_origin_lat", nullable = false)
+    private double dispatchOriginLat = 0;
+
+    @Column(name = "dispatch_origin_lng", nullable = false)
+    private double dispatchOriginLng = 0;
+
     
     // Constructors
     public TaxiOrder() {
@@ -210,4 +223,41 @@ public class TaxiOrder {
     public void setPickUpPlaceId(String pickUpPlaceId) {
         this.pickUpPlaceId = pickUpPlaceId;
     }
+
+    public double getLastDispatchRadiusKm() {
+        return lastDispatchRadiusKm;
+    }
+
+    public void setLastDispatchRadiusKm(double lastDispatchRadiusKm) {
+        this.lastDispatchRadiusKm = lastDispatchRadiusKm;
+    }
+
+    public LocalDateTime getLastDispatchedAt() {
+        return lastDispatchedAt;
+    }
+
+    public void setLastDispatchedAt(LocalDateTime lastDispatchedAt) {
+        this.lastDispatchedAt = lastDispatchedAt;
+    }
+
+    public double getDispatchOriginLat() {
+        return dispatchOriginLat;
+    }
+
+    public void setDispatchOriginLat(double dispatchOriginLat) {
+        this.dispatchOriginLat = dispatchOriginLat;
+    }
+
+    public double getDispatchOriginLng() {
+        return dispatchOriginLng;
+    }
+
+    public void setDispatchOriginLng(double dispatchOriginLng) {
+        this.dispatchOriginLng = dispatchOriginLng;
+    }
+
+    public long getVersion() {
+        return version;
+    }
 }
+

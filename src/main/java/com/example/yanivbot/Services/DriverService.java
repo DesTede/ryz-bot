@@ -25,9 +25,9 @@ public class DriverService {
 
     private static final Logger logger = LoggerFactory.getLogger(DriverService.class);
 
-    @Value("${dispatch.radius.km}")
-    private double dispatchRadiusKm;
-    
+    @Value("${dispatch.radius.steps}")
+    private String radiusStepsRaw;
+
     @Value("${driver.max-active-deliveries}")
     private int maxActiveDeliveries;
     
@@ -149,6 +149,7 @@ public class DriverService {
      * Only sends to active drivers with valid location data
      * Excludes drivers who already have an active order (ASSIGNED or CONFIRMED)
      */
+    
     public void dispatchToClosestDrivers(DriverType type, String message, double latitude, double longitude,
                                          String orderDetails, long orderId, CarType... carTypes) {
         List<Driver> availableDrivers = getActiveDrivers(type);
@@ -215,28 +216,12 @@ public class DriverService {
             return;
         }
 
-        // Filter by distance - only include drivers within radius
-        List<Driver> nearbyDrivers = availableDrivers.stream()
-                .filter(driver -> driver.getLatitude() != 0 && driver.getLongitude() != 0) // Must have location
-                .filter(driver -> calculateDistance(latitude, longitude, driver.getLatitude(), driver.getLongitude()) <= dispatchRadiusKm)
-                .toList();
+        // Store the dispatch origin on the order so the scheduler can re-cascade later without re-geocoding
+        storeDispatchOrigin(orderId, type, latitude, longitude);
 
-        if (nearbyDrivers.isEmpty()) {
-            logger.warn("No drivers within {}km radius for order #{}", dispatchRadiusKm, orderId);
-            alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
-            return;
-        }
-
-        logger.info("Dispatching to {} drivers within {}km radius for order #{}", nearbyDrivers.size(), dispatchRadiusKm, orderId);
-
-        // Send to all drivers within radius as INTERACTIVE BUTTON
-        for (Driver driver : nearbyDrivers) {
-            whatsappService.sendInteractiveButtonsSafe(
-                    driver.getPhone(),
-                    message,
-                    new WhatsappService.InteractiveButton("taxi_claim_" + orderId, "✅ קבל נסיעה #" + orderId)
-            );
-        }
+        // Expanding-radius cascade, starting from the smallest radius (step index 0)
+        cascadeToRadiusSteps(type, message, latitude, longitude, orderDetails, orderId, 0,
+                availableDrivers, "taxi_claim_" + orderId, "✅ קבל נסיעה #" + orderId);
     }
     
     
@@ -356,25 +341,21 @@ public class DriverService {
             alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
             return;
         }
-        
+
         // Filter out drivers who have reached delivery limit or have active taxi orders
         availableDrivers = availableDrivers.stream()
                 .filter(driver -> {
-                    // For BOTH drivers: check if they have an active taxi order
-                    if (driver.getType() == DriverType.BOTH) {                          // ← NEW
-                        if (hasActiveTaxiOrder(driver.getPhone())) {                    // ← NEW
+                    if (driver.getType() == DriverType.BOTH) {
+                        if (hasActiveTaxiOrder(driver.getPhone())) {
                             logger.debug("Driver {} skipped - has active taxi order", PhoneNumberUtil.maskPhoneNumberWithCountryCode(driver.getPhone()));
-                            return false;                                               // ← NEW
-                        }                                                               // ← NEW
-                    }                                                                   // ← NEW
-
-                    // Check delivery order limit                                        // ← NEW
-                    if (!canClaimMoreDeliveries(driver.getPhone())) {                   // ← NEW
-                        int activeCount = getActiveDeliveryCount(driver.getPhone());    // ← NEW
+                            return false;
+                        }
+                    }
+                    if (!canClaimMoreDeliveries(driver.getPhone())) {
+                        int activeCount = getActiveDeliveryCount(driver.getPhone());
                         logger.debug("Driver {} skipped - reached delivery limit ({}/{})", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()), activeCount, maxActiveDeliveries);
-                        return false;                                                   // ← NEW
-                    }                                                                   // ← NEW
-
+                        return false;
+                    }
                     return true;
                 })
                 .toList();
@@ -385,33 +366,13 @@ public class DriverService {
             return;
         }
 
-        // Filter by distance - only include drivers within radius
-        List<Driver> nearbyDrivers = availableDrivers.stream()
-                .filter(driver -> driver.getLatitude() != 0 && driver.getLongitude() != 0)
-                .filter(driver -> calculateDistance(latitude, longitude, driver.getLatitude(), driver.getLongitude()) <= dispatchRadiusKm)
-                .toList();
+        // Store the dispatch origin on the order so the scheduler can re-cascade later without re-geocoding
+        storeDispatchOrigin(orderId, DriverType.DELIVERY, latitude, longitude);
 
-        if (nearbyDrivers.isEmpty()) {
-            logger.warn("No delivery drivers within {}km radius for order #{}", dispatchRadiusKm, orderId);
-            alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
-            return;
-        }
-
-        logger.info("Dispatching delivery to {} drivers within {}km radius for order #{}", nearbyDrivers.size(), dispatchRadiusKm, orderId);
-
-        // Send to all drivers within radius as INTERACTIVE BUTTON
-        for (Driver driver : nearbyDrivers) {
-            whatsappService.sendInteractiveButtonsSafe(
-                    driver.getPhone(),
-                    message,
-                    new WhatsappService.InteractiveButton("delivery_claim_" + orderId, "✅ \uD83D\uDE80 אני לוקח #" + orderId)
-            );
-        }
+        // Expanding-radius cascade, starting from the smallest radius (step index 0)
+        cascadeToRadiusSteps(DriverType.DELIVERY, message, latitude, longitude, orderDetails, orderId, 0,
+                availableDrivers, "delivery_claim_" + orderId, "✅ \uD83D\uDE80 אני לוקח #" + orderId);
     }
-
-    /**
-     * adding another check for 1, 2, adn 5
-     */
 
     /**
      * Dispatch delivery order to all available drivers (no location filtering)
@@ -439,36 +400,26 @@ public class DriverService {
                 })
                 .toList();
 
-        if (availableDrivers.isEmpty()) {
-            logger.warn("No drivers with fresh location for order #{}", orderId);
-            alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
-            return;
-        }
-        
         // Filter out drivers who have reached delivery limit or have active taxi orders
         availableDrivers = availableDrivers.stream()
                 .filter(driver -> {
-                    // For BOTH drivers: check if they have an active taxi order
-                    if (driver.getType() == DriverType.BOTH) {                          
-                        if (hasActiveTaxiOrder(driver.getPhone())) {                    
+                    if (driver.getType() == DriverType.BOTH) {
+                        if (hasActiveTaxiOrder(driver.getPhone())) {
                             logger.debug("Driver {} skipped - has active taxi order", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()));
-                            return false;                                              
-                        }                                                              
-                    }                                                                  
-
-                    // Check delivery order limit                                     
-                    if (!canClaimMoreDeliveries(driver.getPhone())) {                  
-                        int activeCount = getActiveDeliveryCount(driver.getPhone());   
-                        logger.debug("Driver {} skipped - reached delivery limit ({}/{})", driver.getPhone(), activeCount, maxActiveDeliveries);
-                        return false;                                                  
-                    }                                                                  
-
+                            return false;
+                        }
+                    }
+                    if (!canClaimMoreDeliveries(driver.getPhone())) {
+                        int activeCount = getActiveDeliveryCount(driver.getPhone());
+                        logger.debug("Driver {} skipped - reached delivery limit ({}/{})", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()), activeCount, maxActiveDeliveries);
+                        return false;
+                    }
                     return true;
                 })
                 .toList();
 
         if (availableDrivers.isEmpty()) {
-            logger.warn("No available delivery drivers for order #{} (all at capacity or have active taxi)", orderId);
+            logger.warn("No available delivery drivers for order #{} (all at capacity, stale, or have active taxi)", orderId);
             alertAdminIfNoDriversAvailable(orderId, DriverType.DELIVERY, orderDetails);
             return;
         }
@@ -554,6 +505,230 @@ public class DriverService {
                 lat1, lon1, lat2, lon2, String.format("%.2f", distance));
 
         return distance;
+    }
+
+    /**
+     * Parses dispatch.radius.steps from application.properties into a double array (in given order).
+     * Example: "1,2,3" → [1.0, 2.0, 3.0]. Shared by taxi + delivery.
+     */
+    private double[] parseRadiusSteps() {
+        try {
+            String[] parts = radiusStepsRaw.split(",");
+            double[] steps = new double[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                steps[i] = Double.parseDouble(parts[i].trim());
+            }
+            return steps;
+        } catch (Exception e) {
+            logger.warn("Failed to parse dispatch.radius.steps '{}', falling back to default [1,2,3]", radiusStepsRaw);
+            return new double[]{1.0, 2.0, 3.0};
+        }
+    }
+
+    /**
+     * Returns the number of configured radius steps (used by the scheduler to know when the max is reached).
+     */
+    public int getRadiusStepCount() {
+        return parseRadiusSteps().length;
+    }
+
+    /**
+     * Finds the step index whose km matches a stored lastDispatchRadiusKm value.
+     * Returns the largest index whose step km is <= the given radius (with small epsilon), or -1 if none.
+     */
+    public int findStepIndexForRadius(double radiusKm) {
+        double[] steps = parseRadiusSteps();
+        int idx = -1;
+        for (int i = 0; i < steps.length; i++) {
+            if (steps[i] <= radiusKm + 0.0001) {
+                idx = i;
+            }
+        }
+        return idx;
+    }
+
+    /**
+     * Persist the dispatch origin coordinates on the order so the scheduler can re-cascade
+     * later without re-geocoding the address.
+     */
+    private void storeDispatchOrigin(long orderId, DriverType type, double latitude, double longitude) {
+        if (type == DriverType.TAXI) {
+            taxiOrderRepo.findById(orderId).ifPresent(order -> {
+                order.setDispatchOriginLat(latitude);
+                order.setDispatchOriginLng(longitude);
+                taxiOrderRepo.save(order);
+            });
+        } else {
+            deliveryOrderRepo.findById(orderId).ifPresent(order -> {
+                order.setDispatchOriginLat(latitude);
+                order.setDispatchOriginLng(longitude);
+                deliveryOrderRepo.save(order);
+            });
+        }
+    }
+
+    /**
+     * Record which radius an order was just dispatched to, and when. Drives the scheduler's
+     * 2-minute expansion timer.
+     */
+    private void recordDispatchRadius(long orderId, DriverType type, double radiusKm) {
+        if (type == DriverType.TAXI) {
+            taxiOrderRepo.findById(orderId).ifPresent(order -> {
+                order.setLastDispatchRadiusKm(radiusKm);
+                order.setLastDispatchedAt(LocalDateTime.now());
+                taxiOrderRepo.save(order);
+            });
+        } else {
+            deliveryOrderRepo.findById(orderId).ifPresent(order -> {
+                order.setLastDispatchRadiusKm(radiusKm);
+                order.setLastDispatchedAt(LocalDateTime.now());
+                deliveryOrderRepo.save(order);
+            });
+        }
+    }
+
+    /**
+     * Core expanding-radius cascade (Option B — instantly skips empty rings).
+     * <p>
+     * Starting from {@code startStepIndex}, walks the configured radius steps outward. The first
+     * step that contains at least one eligible driver becomes the dispatch radius: the claim button
+     * is sent to ALL eligible drivers within that radius (cumulative from step 0 — inner-ring drivers
+     * get a fresh button too). Empty rings are skipped instantly with no waiting. The order's
+     * lastDispatchRadiusKm + lastDispatchedAt are recorded.
+     * <p>
+     * If no step from startStepIndex to the end contains any driver, the admin "no drivers" alert fires.
+     *
+     * @param availableDrivers the already-filtered eligible driver pool (active, fresh, not busy, etc.)
+     */
+    private void cascadeToRadiusSteps(DriverType type, String message, double originLat, double originLng,
+                                      String orderDetails, long orderId, int startStepIndex,
+                                      List<Driver> availableDrivers, String claimButtonId, String claimButtonLabel) {
+        double[] steps = parseRadiusSteps();
+
+        for (int i = Math.max(0, startStepIndex); i < steps.length; i++) {
+            final double r = steps[i];
+            List<Driver> nearbyDrivers = availableDrivers.stream()
+                    .filter(driver -> driver.getLatitude() != 0 && driver.getLongitude() != 0)
+                    .filter(driver -> calculateDistance(originLat, originLng, driver.getLatitude(), driver.getLongitude()) <= r)
+                    .toList();
+
+            if (!nearbyDrivers.isEmpty()) {
+                logger.info("Dispatching {} order #{} to {} drivers within {}km radius (step {})",
+                        type, orderId, nearbyDrivers.size(), r, i);
+                for (Driver driver : nearbyDrivers) {
+                    whatsappService.sendInteractiveButtonsSafe(
+                            driver.getPhone(),
+                            message,
+                            new WhatsappService.InteractiveButton(claimButtonId, claimButtonLabel)
+                    );
+                }
+                recordDispatchRadius(orderId, type, r);
+                return;
+            }
+            logger.warn("No {} drivers within {}km radius for order #{} (step {}), skipping to next radius...",
+                    type, r, orderId, i);
+        }
+
+        // Exhausted all radii from startStepIndex onward — record the max radius reached and alert admin
+        if (steps.length > 0) {
+            recordDispatchRadius(orderId, type, steps[steps.length - 1]);
+        }
+        logger.warn("No {} drivers found in any radius for order #{} - alerting admin", type, orderId);
+        alertAdminIfNoDriversAvailable(orderId, type, orderDetails);
+    }
+
+    /**
+     * Scheduler entry point: re-cascade a taxi order starting from a given radius step index.
+     * Rebuilds the eligible-driver pool fresh (availability changes over time), then cascades.
+     * Returns true if the order was (re)dispatched to a radius, false if no eligible pool / no coords.
+     */
+    public boolean expandTaxiDispatch(long orderId, int startStepIndex, String message, String orderDetails, CarType... carTypes) {
+        Optional<TaxiOrder> orderOpt = taxiOrderRepo.findById(orderId);
+        if (orderOpt.isEmpty()) return false;
+        TaxiOrder order = orderOpt.get();
+
+        if (order.getDispatchOriginLat() == 0 && order.getDispatchOriginLng() == 0) {
+            return false; // no stored origin — cannot cascade by radius
+        }
+
+        List<Driver> pool = buildTaxiPool(orderId, orderDetails, carTypes);
+        if (pool.isEmpty()) {
+            return false; // buildTaxiPool already alerted admin if truly nobody
+        }
+
+        cascadeToRadiusSteps(DriverType.TAXI, message, order.getDispatchOriginLat(), order.getDispatchOriginLng(),
+                orderDetails, orderId, startStepIndex, pool, "taxi_claim_" + orderId, "✅ קבל נסיעה #" + orderId);
+        return true;
+    }
+
+    /**
+     * Scheduler entry point: re-cascade a delivery order starting from a given radius step index.
+     */
+    public boolean expandDeliveryDispatch(long orderId, int startStepIndex, String message, String orderDetails) {
+        Optional<DeliveryOrder> orderOpt = deliveryOrderRepo.findById(orderId);
+        if (orderOpt.isEmpty()) return false;
+        DeliveryOrder order = orderOpt.get();
+
+        if (order.getDispatchOriginLat() == 0 && order.getDispatchOriginLng() == 0) {
+            return false; // no stored origin — cannot cascade by radius
+        }
+
+        List<Driver> pool = buildDeliveryPool(orderId, orderDetails);
+        if (pool.isEmpty()) {
+            return false; // buildDeliveryPool already alerted admin if truly nobody
+        }
+
+        cascadeToRadiusSteps(DriverType.DELIVERY, message, order.getDispatchOriginLat(), order.getDispatchOriginLng(),
+                orderDetails, orderId, startStepIndex, pool, "delivery_claim_" + orderId, "✅ \uD83D\uDE80 אני לוקח #" + orderId);
+        return true;
+    }
+
+    /**
+     * Builds the eligible TAXI driver pool: active + (car type) + fresh location + not currently busy.
+     * Mirrors the filters in dispatchToClosestDrivers. Returns empty list if nobody qualifies.
+     */
+    private List<Driver> buildTaxiPool(long orderId, String orderDetails, CarType... carTypes) {
+        List<Driver> availableDrivers = getActiveDrivers(DriverType.TAXI);
+        if (availableDrivers.isEmpty()) return List.of();
+
+        if (carTypes.length > 0) {
+            CarType requiredCarType = carTypes[0];
+            availableDrivers = availableDrivers.stream()
+                    .filter(d -> d.getCarType() != null && d.getCarType() == requiredCarType)
+                    .toList();
+        }
+        availableDrivers = availableDrivers.stream()
+                .filter(this::isLocationFresh)
+                .toList();
+        availableDrivers = availableDrivers.stream()
+                .filter(driver -> taxiOrderRepo
+                        .findByDriverPhoneAndStatusIn(driver.getPhone(),
+                                List.of(TaxiOrderStatus.ASSIGNED, TaxiOrderStatus.CONFIRMED))
+                        .isEmpty())
+                .toList();
+        return availableDrivers;
+    }
+
+    /**
+     * Builds the eligible DELIVERY driver pool: active + fresh location + (BOTH: no active taxi) + capacity.
+     * Mirrors the filters in dispatchDeliveryToClosestDrivers. Returns empty list if nobody qualifies.
+     */
+    private List<Driver> buildDeliveryPool(long orderId, String orderDetails) {
+        List<Driver> availableDrivers = getActiveDrivers(DriverType.DELIVERY);
+        if (availableDrivers.isEmpty()) return List.of();
+
+        availableDrivers = availableDrivers.stream()
+                .filter(this::isLocationFresh)
+                .toList();
+        availableDrivers = availableDrivers.stream()
+                .filter(driver -> {
+                    if (driver.getType() == DriverType.BOTH && hasActiveTaxiOrder(driver.getPhone())) {
+                        return false;
+                    }
+                    return canClaimMoreDeliveries(driver.getPhone());
+                })
+                .toList();
+        return availableDrivers;
     }
 
     /**

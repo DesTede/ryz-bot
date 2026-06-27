@@ -300,7 +300,15 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         logger.info("TaxiConfirmation | Message: '{}'", txt);
 
-        if (txt.equals("order_confirm_no")) {
+        // Normalize typed input so small variations (spaces, punctuation, case) still match
+        String normalized = txt.trim().toLowerCase().replaceAll("[!.,]", "");
+
+        boolean isNo = txt.equals("order_confirm_no")
+                || normalized.equals("לא")
+                || normalized.equals("בטל")
+                || normalized.equals("no");
+
+        if (isNo) {
             convoService.updateState(convo, ConversationState.START);
             whatsappService.sendSafeText(message.getPhone(), "\n❌ ההזמנה בוטלה בהצלחה.\nנשמח לעמוד לשירותכם שוב ב־RYZ💙\nלהתחלת הזמנה חדשה שלחו הודעה 🚀");
             convoService.saveTempData(convo,"");
@@ -309,9 +317,15 @@ public class TaxiConversationHandler implements ConversationHandler {
             return null;
         }
 
-        if (!txt.equals("order_confirm_yes") && !txt.equals("כן")) {
-            logger.warn("Invalid confirmation response: '{}'", txt);
-            return "אנא בחר: אשר (כן) או בטל (בטל)";
+        boolean isYes = txt.equals("order_confirm_yes")
+                || normalized.equals("כן")
+                || normalized.equals("אשר")
+                || normalized.equals("yes")
+                || normalized.equals("ok");
+
+        if (!isYes) {
+            logger.warn("User typed free text '{}' instead of pressing a confirmation button", txt);
+            return "לא זיהיתי את התשובה 🤔\nאנא לחצו על אחד הכפתורים: ✅ כן - אשר או ❌ לא - בטל";
         }
 
         String orderData = convo.getTempData();

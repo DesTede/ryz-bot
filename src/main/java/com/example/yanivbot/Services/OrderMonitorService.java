@@ -6,13 +6,13 @@ import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DeliveryStatus;
-import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -32,17 +32,28 @@ public class OrderMonitorService {
     private final BusinessOwnerService businessOwnerService;
     private final GeoCodingService geoCodingService;
     private final ConversationService convoService;
+    
+    @Value("${monitor.taxi.alert.minutes}")
+    private int TAXI_ALERT_MINUTES;
 
-    private static final int TAXI_ALERT_MINUTES = 5;
-    private static final int DELIVERY_ALERT_MINUTES = 10;
+    @Value("${monitor.delivery.alert.minutes}")
+    private int DELIVERY_ALERT_MINUTES;
 
-    private static final int ADMIN_REPEAT_ALERT_MINUTES = 5;
-    // Active-driver stale-location handling (change these to tune timing)
-    private static final int DRIVER_STALE_LOCATION_MINUTES = 5;   // location considered stale after this
-    private static final int DRIVER_STALE_REALERT_MINUTES = 15;   // re-alert driver only after this gap
-    private static final int DRIVER_AUTO_CLOCKOUT_MINUTES = 20;   // auto clock-out after sustained staleness
+    @Value("${monitor.admin.repeat.alert.minutes}")
+    private int ADMIN_REPEAT_ALERT_MINUTES;
 
+    // Active-driver stale-location handling (tune via application.properties)
+    @Value("${monitor.driver.stale.location.minutes}")
+    private int DRIVER_STALE_LOCATION_MINUTES;   // location considered stale after this
 
+    @Value("${monitor.driver.stale.realert.minutes}")
+    private int DRIVER_STALE_REALERT_MINUTES;    // re-alert driver only after this gap
+
+    @Value("${monitor.driver.auto.clockout.minutes}")
+    private int DRIVER_AUTO_CLOCKOUT_MINUTES;    // auto clock-out after sustained staleness
+    
+    @Value("${dispatch.unclaimed.expand.minutes}")
+    private int DISPATCH_UNCLAIMED_EXPAND_MINUTES;
 
 
 
@@ -61,188 +72,181 @@ public class OrderMonitorService {
         this.convoService = convoService;
     }
 
-    // Runs every X minute — checks unclaimed orders
-    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
+    // Runs every 30 seconds — expands unclaimed orders to the next radius, or alerts admin once max radius is exhausted.
+    // Replaces the old fixed-interval re-dispatch: the expanding-radius cascade now owns the full unclaimed lifecycle.
+    @Scheduled(fixedDelay = 30, timeUnit = TimeUnit.SECONDS)
     public void checkUnclaimedOrders() {
-        checkUnclaimedTaxiOrders();
-        checkUnclaimedDeliveryOrders();
+        expandUnclaimedTaxiOrders();
+        expandUnclaimedDeliveryOrders();
     }
-    
-    // FIRST 1 KM, 10 seco; SECOND 2 KM; THIRD 5 KM
 
     /**
-     * Check unclaimed taxi orders
-     * <p>
-     * Prevents duplicate alerts:
-     * - adminAlertedNoDrivers: Set by DriverService when no drivers are initially available
-     * - adminAlerted: Set here after TAXI_ALERT_MINUTES to prevent repeated alerts
+     * For each unclaimed taxi order whose current radius has gone stale (DISPATCH_UNCLAIMED_EXPAND_MINUTES),
+     * expand to the next radius. If already at the max radius, fire the admin "delayed" alert once.
      */
-    private void checkUnclaimedTaxiOrders() {
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(TAXI_ALERT_MINUTES);
-        List<TaxiOrder> unclaimedOrders = taxiOrderRepo
-                .findByStatusAndCreatedAtBefore(TaxiOrderStatus.CREATED, cutoff);
+    private void expandUnclaimedTaxiOrders() {
+        LocalDateTime expandCutoff = LocalDateTime.now().minusMinutes(DISPATCH_UNCLAIMED_EXPAND_MINUTES);
 
-        for (TaxiOrder order : unclaimedOrders) {
-            // Admin asked us to stop re-broadcasting this order
-            if (order.isRedispatchStopped()) {
+        for (TaxiOrder order : taxiOrderRepo.findByStatus(TaxiOrderStatus.CREATED)) {
+            if (order.isRedispatchStopped()) continue;          // admin halted expansion
+            if (order.getDriverPhone() != null) continue;       // already claimed
+            if (order.getLastDispatchedAt() == null) continue;  // never cascaded (e.g. no-coords path)
+            if (order.getLastDispatchedAt().isAfter(expandCutoff)) continue; // current radius still fresh
+
+            int currentIndex = driverService.findStepIndexForRadius(order.getLastDispatchRadiusKm());
+            int lastIndex = driverService.getRadiusStepCount() - 1;
+
+            // Not yet at max radius — expand to the next ring (cascade instantly skips empty rings)
+            if (currentIndex >= 0 && currentIndex < lastIndex) {
+                logger.info("Taxi order #{} unclaimed in {}km radius - expanding to next radius",
+                        order.getId(), order.getLastDispatchRadiusKm());
+
+                String msg = """
+                                     🚖 נסיעה חדשה זמינה עבורך
+                        🆔 מספר הזמנה: %s
+                        📍 נקודת איסוף: %s
+                        🎯 יעד הנסיעה: %s
+                        📝 פרטים נוספים: %s
+                        """.formatted(
+                        order.getId(),
+                        order.getPickUpLocation(),
+                        order.getDestination(),
+                        (order.getNotes() == null || order.getNotes().isEmpty()) ? "אין" : order.getNotes()
+                );
+                String orderDetails = "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
+                        "🎯 לאן: " + order.getDestination() + "\n" +
+                        "📞 לקוח: " + order.getPhone();
+
+                driverService.expandTaxiDispatch(order.getId(), currentIndex + 1, msg, orderDetails, order.getRequestedCarType());
                 continue;
             }
 
-            // Skip if admin was already alerted about this order
-            LocalDateTime lastAlert = order.getAdminLastAlertedAt();
-            if (lastAlert != null && lastAlert.isAfter(LocalDateTime.now().minusMinutes(ADMIN_REPEAT_ALERT_MINUTES))) {
-                logger.debug("Order #{} alerted recently, skipping", order.getId());
-                continue;
-            }
+            // Already at (or beyond) the max radius — alert admin once
+            alertAdminTaxiDelayed(order);
+        }
+    }
 
-            logger.warn("Order #{} unclaimed for {} minutes - alerting admins",
-                    order.getId(), TAXI_ALERT_MINUTES);
+    /**
+     * Admin "taxi unclaimed too long" alert + stop-redispatch button. Fires once per ADMIN_REPEAT_ALERT_MINUTES window.
+     */
+    private void alertAdminTaxiDelayed(TaxiOrder order) {
+        LocalDateTime lastAlert = order.getAdminLastAlertedAt();
+        if (lastAlert != null && lastAlert.isAfter(LocalDateTime.now().minusMinutes(ADMIN_REPEAT_ALERT_MINUTES))) {
+            return; // alerted recently
+        }
 
-            // Notify admins - "Order unclaimed for X minutes" alert
-            String adminMsg ="⏰ *מונית מחכה יותר מדי זמן!* (#" + order.getId() + ")\n" +
-                    "כבר " + TAXI_ALERT_MINUTES + " דקות שאף נהג לא לקח את הנסיעה 😱\n\n" +
-                    "📍 *איסוף:* " + order.getPickUpLocation() + "\n" +
-                    "🎯 *יעד:* " + order.getDestination() + "\n" +
-                    "📞 *לקוח:* " + order.getPhone();
+        logger.warn("Taxi order #{} exhausted all radii - alerting admins", order.getId());
 
+        String adminMsg = "⏰ *מונית מחכה יותר מדי זמן!* (#" + order.getId() + ")\n" +
+                "עברנו על כל אזורי החיפוש ואף נהג עדיין לא לקח את הנסיעה 😱\n\n" +
+                "📍 *איסוף:* " + order.getPickUpLocation() + "\n" +
+                "🎯 *יעד:* " + order.getDestination() + "\n" +
+                "📞 *לקוח:* " + order.getPhone();
 
-            try {
-                whatsappService.notifyAdminsSmartMessage(
-                        adminMsg,
-                        "taxi_order_delayed_admin",
-                        List.of(
-                                String.valueOf(order.getId()),
-                                String.valueOf(TAXI_ALERT_MINUTES),
-                                order.getPickUpLocation(),
-                                order.getDestination(),
-                                order.getPhone()
-                        ),
-                        convoService
-                );
-                whatsappService.notifyAdminsInteractiveButtons(
-                        "🛑 הפסק שליחת הודעה מחדש לנהגים #" + order.getId() + "?",
-                        convoService,
-                        new WhatsappService.InteractiveButton("stop_redispatch_taxi_" + order.getId(), "🛑 הפסק הפצה מחדש")
-                );
-            } catch (Exception e) {
-                logger.error("Failed to send admin alert for taxi order #{}: {}", order.getId(), e.getMessage(), e);
-            }
-            
-            // Notify customer
-            whatsappService.sendSafeText(order.getPhone(),
-                    "⚠️ טרם נמצא נהג להזמנתך. אנו ממשיכים לחפש...");
-
-            // Re-broadcast to drivers with same format as initial dispatch (button style)
-            String msg = """
-                                 🚖 נסיעה חדשה זמינה עבורך
-                    🆔 מספר הזמנה: %s
-                    📍 נקודת איסוף: %s
-                    🎯 יעד הנסיעה: %s
-                    📝 פרטים נוספים: %s
-                    """.formatted(
-                            order.getId(),
+        try {
+            whatsappService.notifyAdminsSmartMessage(
+                    adminMsg,
+                    "taxi_order_delayed_admin",
+                    List.of(
+                            String.valueOf(order.getId()),
+                            String.valueOf(TAXI_ALERT_MINUTES),
                             order.getPickUpLocation(),
                             order.getDestination(),
-                            (order.getNotes() == null || order.getNotes().isEmpty()) ? "אין" : order.getNotes()
-
+                            order.getPhone()
+                    ),
+                    convoService
             );
+            whatsappService.notifyAdminsInteractiveButtons(
+                    "🛑 הפסק שליחת הודעה מחדש לנהגים #" + order.getId() + "?",
+                    convoService,
+                    new WhatsappService.InteractiveButton("stop_redispatch_taxi_" + order.getId(), "🛑 הפסק הפצה מחדש")
+            );
+        } catch (Exception e) {
+            logger.error("Failed to send admin alert for taxi order #{}: {}", order.getId(), e.getMessage(), e);
+        }
 
-            String orderDetails = "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
-                    "🎯 לאן: " + order.getDestination() + "\n" +
-                    "📞 לקוח: " + order.getPhone();
+        // Notify customer
+        whatsappService.sendSafeText(order.getPhone(),
+                "⚠️ טרם נמצא נהג להזמנתך. אנו ממשיכים לחפש...");
 
-            // Re-dispatch using same method as initial dispatch (sends buttons, not text)
-            
-            driverService.dispatchToDrivers(DriverType.TAXI, msg, orderDetails, order.getId(),order.getRequestedCarType());
+        order.setAdminLastAlertedAt(LocalDateTime.now());
+        taxiOrderRepo.save(order);
+    }
 
-            // Mark as alerted to prevent sending this alert again
-            order.setAdminLastAlertedAt(LocalDateTime.now());
-            taxiOrderRepo.save(order);
+    /**
+     * For each unclaimed delivery order whose current radius has gone stale, expand to the next radius.
+     * If already at the max radius, fire the admin "delayed" alert once.
+     */
+    private void expandUnclaimedDeliveryOrders() {
+        LocalDateTime expandCutoff = LocalDateTime.now().minusMinutes(DISPATCH_UNCLAIMED_EXPAND_MINUTES);
+
+        for (DeliveryOrder order : deliveryOrderRepo.findByDeliveryStatus(DeliveryStatus.CREATED)) {
+            if (order.isRedispatchStopped()) continue;
+            if (order.getPickedUpBy() != null) continue;
+            if (!order.isDispatched()) continue;
+            if (order.getLastDispatchedAt() == null) continue;
+            if (order.getLastDispatchedAt().isAfter(expandCutoff)) continue;
+
+            int currentIndex = driverService.findStepIndexForRadius(order.getLastDispatchRadiusKm());
+            int lastIndex = driverService.getRadiusStepCount() - 1;
+
+            if (currentIndex >= 0 && currentIndex < lastIndex) {
+                logger.info("Delivery order #{} unclaimed in {}km radius - expanding to next radius",
+                        order.getId(), order.getLastDispatchRadiusKm());
+
+                String msg = buildDispatchMessage(order);
+                String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
+                        "📞 עסק: " + order.getBusinessPhone();
+
+                driverService.expandDeliveryDispatch(order.getId(), currentIndex + 1, msg, orderDetails);
+                continue;
+            }
+
+            alertAdminDeliveryDelayed(order);
         }
     }
 
     /**
-     * Check unclaimed delivery orders
+     * Admin "delivery unclaimed too long" alert + stop-redispatch button. Fires once per ADMIN_REPEAT_ALERT_MINUTES window.
      */
-    private void checkUnclaimedDeliveryOrders() {
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(DELIVERY_ALERT_MINUTES);
-        List<DeliveryOrder> unclaimedOrders = deliveryOrderRepo
-                .findByDeliveryStatusAndCreatedAtBefore(DeliveryStatus.CREATED, cutoff);
-
-        for (DeliveryOrder order : unclaimedOrders) {
-            // Admin asked us to stop re-broadcasting this order
-            if (order.isRedispatchStopped()) {
-                continue;
-            }
-
-            // Skip if already alerted
-            LocalDateTime lastAlert = order.getAdminLastAlertedAt();
-            if (lastAlert != null && lastAlert.isAfter(LocalDateTime.now().minusMinutes(ADMIN_REPEAT_ALERT_MINUTES))) {
-                logger.debug("Delivery order #{} alerted recently, skipping", order.getId());
-                continue;
-            }
-
-            // Skip if already claimed
-            if (order.getPickedUpBy() != null) {
-                logger.debug("Delivery order #{} already claimed, skipping", order.getId());
-                continue;
-            }
-
-            // Skip if not yet dispatched
-            if (!order.isDispatched()) {
-                logger.debug("Delivery order #{} not yet dispatched, skipping", order.getId());
-                continue;
-            }
-
-            logger.warn("Delivery order #{} unclaimed for {} minutes - alerting admins",
-                    order.getId(), DELIVERY_ALERT_MINUTES);
-
-            
-            // Notify admins - "Order unclaimed for X minutes" alert
-            String adminMsg = "\uD83C\uDF55\uD83C\uDF54 *משלוח תקוע באוויר!* (#" + order.getId() + ")\n" +
-                    "עברו כבר " + DELIVERY_ALERT_MINUTES + " דקות וההזמנה עדיין לא נאספה ⏳\n\n" +
-                    "📍 *כתובת למשלוח:* " + order.getDeliveryAddress() + "\n" +
-                    "📞 טלפון העסק: " + order.getBusinessPhone();
-
-            try {
-                whatsappService.notifyAdminsSmartMessage(
-                        adminMsg,
-                        "delivery_order_delayed_admin",
-                        List.of(String.valueOf(order.getId()),
-                                String.valueOf(DELIVERY_ALERT_MINUTES),
-                                order.getDeliveryAddress(),
-                                order.getBusinessPhone()),
-                        convoService
-                );
-                whatsappService.notifyAdminsInteractiveButtons(
-                        "🛑 הפסק שליחת הודעה מחדש לשליחים #" + order.getId() + "?",
-                        convoService,
-                        new WhatsappService.InteractiveButton("stop_redispatch_del_" + order.getId(), "🛑 הפסק הפצה מחדש")
-                );
-            } catch (Exception e) {
-                logger.error("Failed to send admin alert for delivery order #{}: {}", order.getId(), e.getMessage(), e);
-            }
-
-            // Notify business owner
-            whatsappService.sendSafeText(order.getBusinessPhone(),
-                    "⚠️ טרם נמצא שליח להזמנה #" + order.getId() + ". אנו ממשיכים לחפש...");
-
-            // Re-dispatch to drivers
-            String businessAddress = businessOwnerService.getBusinessAddress(order.getBusinessPhone());
-            double[] coords = businessAddress != null ? geoCodingService.geocode(businessAddress) : null;
-            String msg = buildDispatchMessage(order);
-            String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
-                    "📞 עסק: " + order.getBusinessPhone();
-            if (coords != null) {
-                driverService.dispatchToClosestDrivers(DriverType.DELIVERY, msg, coords[0], coords[1], orderDetails, order.getId());
-            } else {
-                driverService.dispatchToDrivers(DriverType.DELIVERY, msg, orderDetails, order.getId());
-            }
-            
-            // Mark as alerted to prevent sending this alert again
-            order.setAdminLastAlertedAt(LocalDateTime.now());
-            deliveryOrderRepo.save(order);
+    private void alertAdminDeliveryDelayed(DeliveryOrder order) {
+        LocalDateTime lastAlert = order.getAdminLastAlertedAt();
+        if (lastAlert != null && lastAlert.isAfter(LocalDateTime.now().minusMinutes(ADMIN_REPEAT_ALERT_MINUTES))) {
+            return;
         }
+
+        logger.warn("Delivery order #{} exhausted all radii - alerting admins", order.getId());
+
+        String adminMsg = "\uD83C\uDF55\uD83C\uDF54 *משלוח תקוע באוויר!* (#" + order.getId() + ")\n" +
+                "עברנו על כל אזורי החיפוש וההזמנה עדיין לא נאספה ⏳\n\n" +
+                "📍 *כתובת למשלוח:* " + order.getDeliveryAddress() + "\n" +
+                "📞 טלפון העסק: " + order.getBusinessPhone();
+
+        try {
+            whatsappService.notifyAdminsSmartMessage(
+                    adminMsg,
+                    "delivery_order_delayed_admin",
+                    List.of(String.valueOf(order.getId()),
+                            String.valueOf(DELIVERY_ALERT_MINUTES),
+                            order.getDeliveryAddress(),
+                            order.getBusinessPhone()),
+                    convoService
+            );
+            whatsappService.notifyAdminsInteractiveButtons(
+                    "🛑 הפסק שליחת הודעה מחדש לשליחים #" + order.getId() + "?",
+                    convoService,
+                    new WhatsappService.InteractiveButton("stop_redispatch_del_" + order.getId(), "🛑 הפסק הפצה מחדש")
+            );
+        } catch (Exception e) {
+            logger.error("Failed to send admin alert for delivery order #{}: {}", order.getId(), e.getMessage(), e);
+        }
+
+        // Notify business owner
+        whatsappService.sendSafeText(order.getBusinessPhone(),
+                "⚠️ טרם נמצא שליח להזמנה #" + order.getId() + ". אנו ממשיכים לחפש...");
+
+        order.setAdminLastAlertedAt(LocalDateTime.now());
+        deliveryOrderRepo.save(order);
     }
 
     // Runs every 5 minutes — notifies customer if driver location is stale during an active taxi or delivery order
