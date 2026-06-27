@@ -339,13 +339,20 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         try {
             logger.info("Creating taxi order for customer {}", message.getPhone());
-            taxiOrderService.createTaxiOrder(message.getPhone(), pickupLocation, pickupPlaceId, destination, notes, CarType.valueOf(carType), estimatedFare);
-            
+            boolean created = taxiOrderService.createTaxiOrder(message.getPhone(), pickupLocation, pickupPlaceId, destination, notes, CarType.valueOf(carType), estimatedFare);
+
             convoService.updateState(convo, ConversationState.START);
-            logger.info("Taxi order created successfully");
             convoService.saveTempData(convo,"");
             convo.setNudgedAt(0);
             convoService.save(convo);
+
+            if (!created) {
+                // Duplicate active order — createTaxiOrder already sent the "you already have an order" notice
+                logger.info("Taxi order not created (customer already has an active order)");
+                return null;
+            }
+
+            logger.info("Taxi order created successfully");
             return "✅ ההזמנה אושרה! מחפשים נהג קרוב אליך";
         } catch (Exception e) {
             logger.error("Failed to create taxi order for {}: {}", message.getPhone(), e.getMessage(), e);

@@ -421,7 +421,7 @@
         .address-suggestion-item:hover { background: var(--accent-glow); color: var(--accent); }
         .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
         .btn-primary {
-            background: linear-gradient(135deg, #C9A84C, #a8863a);
+            background: linear-gradient(135deg, #F3D060, #D4AF37);
             color: #0a0a0a;
             border: none;
             border-radius: 8px;
@@ -447,7 +447,7 @@
         /* ── TOAST ── */
         .toast {
             position: fixed;
-            bottom: 24px;
+            bottom: 90px !important;
             left: 50%;
             transform: translateX(-50%) translateY(80px);
             background: var(--surface2);
@@ -635,6 +635,12 @@
 
             /* Login overlay */
             #login-overlay { padding: 20px; }
+            
+            /* Toast above bottom nav */
+            .toast { bottom: 90px !important; }
+
+            /* Larger touch targets for action buttons */
+            .action-btn { padding: 7px 14px; font-size: 12px; }
         }
 
         @media (min-width: 769px) {
@@ -648,7 +654,7 @@
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img id="sidebar-logo-img" src="/dashboard/logo2.png" alt="RYZ"/>
-        <div class="sub">admin dashboard</div>
+        <div class="sub">לוח ניהול</div>
     </div>
 
     <div class="sidebar-nav">
@@ -1076,9 +1082,9 @@
         <input class="modal-input" id="add-driver-phone" placeholder="0501234567" type="tel"/>
         <div class="modal-label">סוג נהג *</div>
         <select class="modal-input" id="add-driver-type">
-            <option value="TAXI">🚕 מונית (TAXI)</option>
-            <option value="DELIVERY">🛵 משלוחים (DELIVERY)</option>
-            <option value="BOTH">🚗 שניהם (BOTH)</option>
+            <option value="TAXI">🚕 מונית </option>
+            <option value="DELIVERY">🛵 משלוחים </option>
+            <option value="BOTH">🚗 שניהם </option>
         </select>
         <div class="modal-label">סוג רכב</div>
         <select class="modal-input" id="add-driver-cartype">
@@ -1743,16 +1749,26 @@
         tb.innerHTML = '<tr class="loading-row"><td colspan="5">טוען... <span class="spinner"></span></td></tr>';
         try {
             const businesses = await api('/admin/businesses');
-            tb.innerHTML = businesses.length ? businesses.map(b => `<tr>
+            tb.innerHTML = businesses.length ? businesses.map(b => {
+                const esc = s => (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+                return `<tr>
       <td style="font-weight:600">${b.name||'—'}</td>
       <td style="font-family:var(--mono);font-size:12px">${formatPhone(b.phone)}</td>
       <td style="font-size:13px;color:var(--muted)">${b.address||'—'}</td>
-      <td><span class="badge ${b.active ? 'badge-green' : 'badge-muted'}" style="cursor:pointer" onclick="toggleBusinessActive('${b.phone}', this)">${b.active ? 'פעיל' : 'לא פעיל'}</span></td>
+      <td><span class="badge ${b.active ? 'badge-green' : 'badge-muted'}" style="cursor:pointer"
+            data-phone="${esc(b.phone)}"
+            onclick="toggleBusinessActive(this.dataset.phone, this)">${b.active ? 'פעיל' : 'לא פעיל'}</span></td>
       <td>
-        <button class="action-btn" onclick="openEditBusiness('${b.phone}','${(b.name||'').replace(/'/g,"\\\\'").replace(/"/g,'&quot;')}','${(b.address||'').replace(/'/g,"\\\\'").replace(/"/g,'&quot;')}','${b.addressPlaceId||''}')">עריכה</button>
-        <button class="action-btn danger" onclick="deleteBusiness('${b.phone}','${(b.name||b.phone).replace(/'/g,"\\\\'").replace(/"/g,'&quot;')}')">מחק</button>
+        <button class="action-btn"
+            data-phone="${esc(b.phone)}" data-name="${esc(b.name||'')}"
+            data-address="${esc(b.address||'')}" data-placeid="${esc(b.addressPlaceId||'')}"
+            onclick="openEditBusiness(this.dataset.phone,this.dataset.name,this.dataset.address,this.dataset.placeid)">עריכה</button>
+        <button class="action-btn danger"
+            data-phone="${esc(b.phone)}" data-name="${esc(b.name||b.phone)}"
+            onclick="deleteBusiness(this.dataset.phone,this.dataset.name)">מחק</button>
       </td>
-    </tr>`).join('') : '<tr><td colspan="5" class="empty">אין עסקים רשומים</td></tr>';
+    </tr>`;
+            }).join('') : '<tr><td colspan="5" class="empty">אין עסקים רשומים</td></tr>';
         } catch(e) { tb.innerHTML = `<tr><td colspan="5" class="empty">שגיאה</td></tr>`; }
     }
 
@@ -2018,6 +2034,9 @@
     </button>
     <button class="mobile-nav-item" onclick="showPage('drivers')" id="mnav-drivers">
         <span class="icon">🚗</span>נהגים
+    </button>
+    <button class="mobile-nav-item" onclick="showPage('businesses')" id="mnav-businesses">
+        <span class="icon">🏪</span>עסקים
     </button>
     <button class="mobile-nav-item" onclick="showPage('settings')" id="mnav-settings">
         <span class="icon">⚙️</span>הגדרות

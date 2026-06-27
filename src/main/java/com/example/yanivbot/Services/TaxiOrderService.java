@@ -45,20 +45,28 @@ public class TaxiOrderService {
         this.shortLinkService = shortLinkService;
     }
 
-    public void createTaxiOrder(String customerPhone, String pickUp, String pickUpPlaceId, 
-                                String destination, String notes, CarType carType, Double estimatedFare) {
-
-
-        // Prevent duplicate orders
+    /**
+     * Returns true if the customer already has a taxi order that is still active
+     * (CREATED, ASSIGNED, or CONFIRMED). A customer may only have one active order at a time.
+     */
+    public boolean hasActiveOrder(String customerPhone) {
         List<TaxiOrder> existing = taxiOrderRepo.findByPhoneAndStatus(customerPhone, TaxiOrderStatus.CREATED);
         existing.addAll(taxiOrderRepo.findByPhoneAndStatus(customerPhone, TaxiOrderStatus.ASSIGNED));
         existing.addAll(taxiOrderRepo.findByPhoneAndStatus(customerPhone, TaxiOrderStatus.CONFIRMED));
-        if (!existing.isEmpty()) {
+        return !existing.isEmpty();
+    }
+
+    public boolean createTaxiOrder(String customerPhone, String pickUp, String pickUpPlaceId,
+                                   String destination, String notes, CarType carType, Double estimatedFare) {
+
+
+        // Prevent duplicate orders
+        if (hasActiveOrder(customerPhone)) {
             logger.warn("Duplicate order attempt by {} — already has active order", customerPhone);
             whatsappService.sendSafeText(customerPhone, "⚠️ יש לך הזמנה פעילה כבר במערכת. אנא המתן לנהג שיאסוף אותך.");
-            return;
+            return false;
         }
-        
+
         // Save customer
         customerService.recordTaxiOrder(customerPhone);
 
@@ -70,6 +78,7 @@ public class TaxiOrderService {
 
         broadcastToDrivers(taxiOrder);
         // Don't send message here - the handler will send it
+        return true;
     }
 
     public void broadcastToDrivers(TaxiOrder order) {

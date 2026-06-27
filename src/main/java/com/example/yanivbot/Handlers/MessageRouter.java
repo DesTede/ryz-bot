@@ -361,6 +361,13 @@ public class MessageRouter {
 
             if (txt.equals("start_service_taxi")) {
                 logger.info("Customer selected TAXI service");
+
+                // Block up front: a customer may only have one active order at a time
+                if (taxiOrderService.hasActiveOrder(phone)) {
+                    logger.info("Customer {} tried to start a taxi order but already has an active one", PhoneNumberUtil.maskPhoneNumber(phone));
+                    return "⚠️ יש לך כבר הזמנה פעילה במערכת.\nניתן לבצע הזמנה אחת בכל פעם — אנא המתן לסיום ההזמנה הנוכחית לפני שתבצע חדשה 🚕";
+                }
+
                 convoService.updateState(convo, ConversationState.TAXI_CAR_TYPE);
 
                 String bodyText = "מעולה 👍\nעכשיו בחרו את סוג הרכב:";
