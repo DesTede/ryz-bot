@@ -888,6 +888,9 @@
                 <button class="btn-primary" onclick="openModal('add-driver-modal')">+ הוסף נהג</button>
             </div>
         </div>
+        <div style="margin-bottom:14px">
+            <input class="search-input" placeholder="חיפוש לפי שם / טלפון / רכב..." id="driver-search" oninput="searchDrivers()" style="width:100%;max-width:400px"/>
+        </div>
         <div class="drivers-grid" id="drivers-grid">
             <div style="color:var(--muted);font-family:var(--mono);font-size:12px">טוען נהגים...</div>
         </div>
@@ -922,6 +925,9 @@
             </div>
         </div>
         <div class="table-wrap">
+            <div class="table-toolbar">
+                <input class="search-input" placeholder="חיפוש לפי שם / טלפון / כתובת..." id="biz-search" oninput="searchBusinesses()"/>
+            </div>
             <table>
                 <thead><tr>
                     <th>שם עסק</th><th>טלפון</th><th>כתובת</th><th>פעיל</th><th>פעולות</th>
@@ -1188,6 +1194,8 @@
     let allDeliveryOrders = [];
     let allDrivers = [];
     let allCustomers = [];
+    let allBusinesses = [];
+    let driverBusyPhones = new Set();
     let currentReassignId = null;
     let currentReassignType = null;
     let currentDriverPhone = null;
@@ -1663,37 +1671,61 @@
             const [drivers, liveData] = await Promise.all([api('/admin/drivers'), api('/admin/orders/live')]);
             allDrivers = drivers;
 
-            const busyPhones = new Set([
+            driverBusyPhones = new Set([
                 ...(liveData.taxi||[]).filter(o=>o.driverPhone).map(o=>o.driverPhone),
                 ...(liveData.delivery||[]).filter(o=>o.pickedUpBy).map(o=>o.pickedUpBy),
             ]);
 
-            grid.innerHTML = drivers.length ? drivers.map(d => {
-                const busy = busyPhones.has(d.phone);
-                return `<div class="driver-card ${d.active?'':'inactive'}">
-        <div class="driver-card-header">
-          <div>
-            <div class="driver-name">${d.name||'—'}</div>
-            <div class="driver-phone">${formatPhone(d.phone)}</div>
-          </div>
-          ${busy ? '<span class="badge badge-orange">בהזמנה</span>' : d.active ? '<span class="badge badge-green">פעיל</span>' : '<span class="badge badge-muted">לא פעיל</span>'}
-        </div>
-        <div class="driver-meta">
-          <span class="badge badge-muted">${driverTypeLabel(d.type)}</span>
-          ${d.carType?`<span class="badge badge-muted">${carTypeLabel(d.carType)}</span>`:''}
-          ${d.carModel?`<span class="badge badge-muted">${d.carModel}</span>`:''}
-          ${d.carColor?`<span class="badge badge-muted">${d.carColor}</span>`:''}
-        </div>
-        ${d.locationUpdatedAt?`<div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:8px">📍 עדכון אחרון: ${minutesAgo(d.locationUpdatedAt)} לפני</div>`:''}
-        <div class="driver-actions">
-            <button class="action-btn" onclick="toggleDriver('${d.phone}')">${d.active?'כבה':'הפעל'}</button>
-            <button class="action-btn" onclick="openDriverOrders('${d.phone}','${d.name||d.phone}')">היסטוריה</button>
-            <button class="action-btn" onclick="openEditDriver('${d.phone}','${d.name||''}','${d.type||''}','${d.carType||''}','${d.carModel||''}','${d.carColor||''}')">עריכה</button>
-            <button class="action-btn danger" onclick="deleteDriver('${d.phone}','${d.name||d.phone}')">מחק</button>
-        </div>
-      </div>`;
-            }).join('') : '<div class="empty">אין נהגים רשומים</div>';
+            const q = (document.getElementById('driver-search')?.value || '').trim().toLowerCase();
+            const list = q ? filterDriverList(allDrivers, q) : allDrivers;
+            renderDrivers(list);
         } catch(e) { grid.innerHTML = '<div class="empty">שגיאה בטעינה</div>'; }
+    }
+
+    function renderDrivers(drivers) {
+        const grid = document.getElementById('drivers-grid');
+        grid.innerHTML = drivers.length ? drivers.map(d => {
+            const busy = driverBusyPhones.has(d.phone);
+            return `<div class="driver-card ${d.active?'':'inactive'}">
+    <div class="driver-card-header">
+      <div>
+        <div class="driver-name">${d.name||'—'}</div>
+        <div class="driver-phone">${formatPhone(d.phone)}</div>
+      </div>
+      ${busy ? '<span class="badge badge-orange">בהזמנה</span>' : d.active ? '<span class="badge badge-green">פעיל</span>' : '<span class="badge badge-muted">לא פעיל</span>'}
+    </div>
+    <div class="driver-meta">
+      <span class="badge badge-muted">${driverTypeLabel(d.type)}</span>
+      ${d.carType?`<span class="badge badge-muted">${carTypeLabel(d.carType)}</span>`:''}
+      ${d.carModel?`<span class="badge badge-muted">${d.carModel}</span>`:''}
+      ${d.carColor?`<span class="badge badge-muted">${d.carColor}</span>`:''}
+    </div>
+    ${d.locationUpdatedAt?`<div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:8px">📍 עדכון אחרון: ${minutesAgo(d.locationUpdatedAt)} לפני</div>`:''}
+    <div class="driver-actions">
+        <button class="action-btn" onclick="toggleDriver('${d.phone}')">${d.active?'כבה':'הפעל'}</button>
+        <button class="action-btn" onclick="openDriverOrders('${d.phone}','${d.name||d.phone}')">היסטוריה</button>
+        <button class="action-btn" onclick="openEditDriver('${d.phone}','${d.name||''}','${d.type||''}','${d.carType||''}','${d.carModel||''}','${d.carColor||''}')">עריכה</button>
+        <button class="action-btn danger" onclick="deleteDriver('${d.phone}','${d.name||d.phone}')">מחק</button>
+    </div>
+  </div>`;
+        }).join('') : '<div class="empty">אין נהגים תואמים</div>';
+    }
+
+    function filterDriverList(drivers, q) {
+        return drivers.filter(d =>
+            (d.name||'').toLowerCase().includes(q) ||
+            (d.phone||'').includes(q) ||
+            (formatPhone(d.phone)||'').includes(q) ||
+            (d.carModel||'').toLowerCase().includes(q) ||
+            (d.carColor||'').toLowerCase().includes(q) ||
+            (carTypeLabel(d.carType)||'').toLowerCase().includes(q)
+        );
+    }
+
+    function searchDrivers() {
+        const q = document.getElementById('driver-search').value.trim().toLowerCase();
+        if (!q) { renderDrivers(allDrivers); return; }
+        renderDrivers(filterDriverList(allDrivers, q));
     }
 
     async function toggleDriver(phone) {
@@ -1794,28 +1826,50 @@
         const tb = document.getElementById('businesses-tbody');
         tb.innerHTML = '<tr class="loading-row"><td colspan="5">טוען... <span class="spinner"></span></td></tr>';
         try {
-            const businesses = await api('/admin/businesses');
-            tb.innerHTML = businesses.length ? businesses.map(b => {
-                const esc = s => (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-                return `<tr>
-      <td style="font-weight:600">${b.name||'—'}</td>
-      <td style="font-family:var(--mono);font-size:12px">${formatPhone(b.phone)}</td>
-      <td style="font-size:13px;color:var(--muted)">${b.address||'—'}</td>
-      <td><span class="badge ${b.active ? 'badge-green' : 'badge-muted'}" style="cursor:pointer"
-            data-phone="${esc(b.phone)}"
-            onclick="toggleBusinessActive(this.dataset.phone, this)">${b.active ? 'פעיל' : 'לא פעיל'}</span></td>
-      <td>
-        <button class="action-btn"
-            data-phone="${esc(b.phone)}" data-name="${esc(b.name||'')}"
-            data-address="${esc(b.address||'')}" data-placeid="${esc(b.addressPlaceId||'')}"
-            onclick="openEditBusiness(this.dataset.phone,this.dataset.name,this.dataset.address,this.dataset.placeid)">עריכה</button>
-        <button class="action-btn danger"
-            data-phone="${esc(b.phone)}" data-name="${esc(b.name||b.phone)}"
-            onclick="deleteBusiness(this.dataset.phone,this.dataset.name)">מחק</button>
-      </td>
-    </tr>`;
-            }).join('') : '<tr><td colspan="5" class="empty">אין עסקים רשומים</td></tr>';
+            allBusinesses = await api('/admin/businesses');
+            const q = (document.getElementById('biz-search')?.value || '').trim().toLowerCase();
+            const list = q ? filterBusinessList(allBusinesses, q) : allBusinesses;
+            renderBusinesses(list);
         } catch(e) { tb.innerHTML = `<tr><td colspan="5" class="empty">שגיאה</td></tr>`; }
+    }
+
+    function renderBusinesses(businesses) {
+        const tb = document.getElementById('businesses-tbody');
+        tb.innerHTML = businesses.length ? businesses.map(b => {
+            const esc = s => (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+            return `<tr>
+  <td style="font-weight:600">${b.name||'—'}</td>
+  <td style="font-family:var(--mono);font-size:12px">${formatPhone(b.phone)}</td>
+  <td style="font-size:13px;color:var(--muted)">${b.address||'—'}</td>
+  <td><span class="badge ${b.active ? 'badge-green' : 'badge-muted'}" style="cursor:pointer"
+        data-phone="${esc(b.phone)}"
+        onclick="toggleBusinessActive(this.dataset.phone, this)">${b.active ? 'פעיל' : 'לא פעיל'}</span></td>
+  <td>
+    <button class="action-btn"
+        data-phone="${esc(b.phone)}" data-name="${esc(b.name||'')}"
+        data-address="${esc(b.address||'')}" data-placeid="${esc(b.addressPlaceId||'')}"
+        onclick="openEditBusiness(this.dataset.phone,this.dataset.name,this.dataset.address,this.dataset.placeid)">עריכה</button>
+    <button class="action-btn danger"
+        data-phone="${esc(b.phone)}" data-name="${esc(b.name||b.phone)}"
+        onclick="deleteBusiness(this.dataset.phone,this.dataset.name)">מחק</button>
+  </td>
+</tr>`;
+        }).join('') : '<tr><td colspan="5" class="empty">אין עסקים תואמים</td></tr>';
+    }
+
+    function filterBusinessList(businesses, q) {
+        return businesses.filter(b =>
+            (b.name||'').toLowerCase().includes(q) ||
+            (b.phone||'').includes(q) ||
+            (formatPhone(b.phone)||'').includes(q) ||
+            (b.address||'').toLowerCase().includes(q)
+        );
+    }
+
+    function searchBusinesses() {
+        const q = document.getElementById('biz-search').value.trim().toLowerCase();
+        if (!q) { renderBusinesses(allBusinesses); return; }
+        renderBusinesses(filterBusinessList(allBusinesses, q));
     }
 
     
