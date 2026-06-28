@@ -351,9 +351,11 @@ public class DriverService {
                             return false;
                         }
                     }
-                    if (!canClaimMoreDeliveries(driver.getPhone())) {
-                        int activeCount = getActiveDeliveryCount(driver.getPhone());
-                        logger.debug("Driver {} skipped - reached delivery limit ({}/{})", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()), activeCount, maxActiveDeliveries);
+                    // NEW POLICY: any driver with active orders is invisible to normal dispatch.
+                    // They can only claim additional orders via the pickup-time list (after אספתי).
+                    int activeCount = getActiveDeliveryCount(driver.getPhone());
+                    if (activeCount > 0) {
+                        logger.debug("Driver {} skipped - has {} active order(s); pickup-time list only", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()), activeCount);
                         return false;
                     }
                     return true;
@@ -409,9 +411,11 @@ public class DriverService {
                             return false;
                         }
                     }
-                    if (!canClaimMoreDeliveries(driver.getPhone())) {
-                        int activeCount = getActiveDeliveryCount(driver.getPhone());
-                        logger.debug("Driver {} skipped - reached delivery limit ({}/{})", PhoneNumberUtil.maskPhoneNumber(driver.getPhone()), activeCount, maxActiveDeliveries);
+                    // NEW POLICY: any driver with active orders is invisible to normal dispatch.
+                    // They can only claim additional orders via the pickup-time list (after אספתי).
+                    int activeCount = getActiveDeliveryCount(driver.getPhone());
+                    if (activeCount > 0) {
+                        logger.debug("Driver {} skipped - has {} active order(s); pickup-time list only", driver.getPhone(), activeCount);
                         return false;
                     }
                     return true;
@@ -505,6 +509,17 @@ public class DriverService {
                 lat1, lon1, lat2, lon2, String.format("%.2f", distance));
 
         return distance;
+    }
+
+    /** Public helper exposing the largest configured radius step (km). Used by pickup-time list. */
+    public double getDispatchRadiusKm() {
+        double[] steps = parseRadiusSteps();
+        return steps[steps.length - 1];
+    }
+
+    /** Public haversine distance in km between two coords. */
+    public double distanceKm(double lat1, double lon1, double lat2, double lon2) {
+        return calculateDistance(lat1, lon1, lat2, lon2);
     }
 
     /**
@@ -725,7 +740,9 @@ public class DriverService {
                     if (driver.getType() == DriverType.BOTH && hasActiveTaxiOrder(driver.getPhone())) {
                         return false;
                     }
-                    return canClaimMoreDeliveries(driver.getPhone());
+                    // NEW POLICY: any driver with active orders is invisible to normal dispatch (incl. radius cascade).
+                    // They can only claim additional orders via the pickup-time list (after אספתי).
+                    return getActiveDeliveryCount(driver.getPhone()) == 0;
                 })
                 .toList();
         return availableDrivers;

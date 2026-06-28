@@ -377,6 +377,9 @@ public class DeliveryOrderService {
         String businessMsg = "🛵 השליח אסף את ההזמנה ויוצא לדרך!\nמעדכנים שמשלוח #" + order.getId() + " נאסף מהעסק שלך עכשיו וטס ללקוח 🔥";
         whatsappService.sendSafeText(order.getBusinessPhone(), businessMsg);
 
+        // NEW: at pickup moment, offer driver any unclaimed nearby orders (radius from this business)
+        sendPickupTimeUnclaimedList(driverPhone, order);
+        
         logger.info("[DELIVERY] ✅ Sent pickup confirmations for order #{}", orderId);
         return null;
     }
@@ -588,6 +591,86 @@ public class DeliveryOrderService {
     private String mapsNavLink(double destLat, double destLng) {
         return shortLinkService.createShortLink(
                 "https://www.google.com/maps/dir/?api=1&destination=" + destLat + "," + destLng);
+    }
+
+    /**
+     * After a driver presses אספתי, offer them any unclaimed delivery orders whose pickup business
+     * is within the dispatch radius of the business they just picked up from. The driver-side
+     * capacity cap (driver.max-active-deliveries) is still enforced by claimDeliveryOrder.
+     */
+    private void sendPickupTimeUnclaimedList(String driverPhone, DeliveryOrder justPickedUp) {
+        // Hard ceiling: if driver is already at the 3-cap (including the order just picked up), skip the list.
+        if (!driverService.canClaimMoreDeliveries(driverPhone)) {
+            logger.debug("[PICKUP-LIST] Driver {} already at max-active-deliveries — skipping list",
+                    PhoneNumberUtil.maskPhoneNumber(driverPhone));
+            return;
+        }
+
+        // Resolve the just-picked-up business's coords (anchor of the radius).
+        Business anchorBusiness = businessRepo.findByPhone(justPickedUp.getBusinessPhone()).orElse(null);
+        if (anchorBusiness == null) {
+            logger.warn("[PICKUP-LIST] Anchor business {} not found for order #{}",
+                    PhoneNumberUtil.maskPhoneNumber(justPickedUp.getBusinessPhone()), justPickedUp.getId());
+            return;
+        }
+        double[] anchorCoords = resolveCoords(anchorBusiness.getAddressPlaceId(), anchorBusiness.getAddress());
+        if (anchorCoords == null) {
+            logger.warn("[PICKUP-LIST] Could not geocode anchor business for order #{}", justPickedUp.getId());
+            return;
+        }
+
+        double radiusKm = driverService.getDispatchRadiusKm();
+
+        // Find unclaimed CREATED orders that were actually dispatched.
+        List<DeliveryOrder> unclaimed = deliveryOrderRepo
+                .findByDeliveryStatusAndPickedUpByIsNull(DeliveryStatus.CREATED)
+                .stream()
+                .filter(DeliveryOrder::isDispatched)
+                .filter(o -> o.getId() != justPickedUp.getId()) // safety: exclude self
+                .toList();
+
+        // Filter by radius from the anchor business to each candidate's pickup business.
+        List<DeliveryOrder> nearby = new ArrayList<>();
+        for (DeliveryOrder candidate : unclaimed) {
+            Business candidateBusiness = businessRepo.findByPhone(candidate.getBusinessPhone()).orElse(null);
+            if (candidateBusiness == null) continue;
+            double[] candidateCoords = resolveCoords(candidateBusiness.getAddressPlaceId(), candidateBusiness.getAddress());
+            if (candidateCoords == null) continue;
+            double dist = driverService.distanceKm(anchorCoords[0], anchorCoords[1], candidateCoords[0], candidateCoords[1]);
+            if (dist <= radiusKm) {
+                nearby.add(candidate);
+            }
+        }
+
+        if (nearby.isEmpty()) {
+            whatsappService.sendSafeText(driverPhone, "אין כרגע משלוחים נוספים באזור");
+            logger.info("[PICKUP-LIST] No nearby unclaimed orders for driver {} after pickup of #{}",
+                    PhoneNumberUtil.maskPhoneNumber(driverPhone), justPickedUp.getId());
+            return;
+        }
+
+        // WhatsApp interactive list caps at 10 rows per section.
+        List<DeliveryOrder> rows = nearby.size() > 10 ? nearby.subList(0, 10) : nearby;
+
+        List<WhatsappService.InteractiveButton> items = new ArrayList<>();
+        for (DeliveryOrder o : rows) {
+            Business b = businessRepo.findByPhone(o.getBusinessPhone()).orElse(null);
+            String bizName = (b != null && b.getName() != null) ? b.getName() : "עסק";
+            String title = "#" + o.getId() + " " + bizName;          // capped at 24 by WhatsappService
+            String description = "מסירה: " + o.getDeliveryAddress(); // capped at 72 by WhatsappService
+            items.add(new WhatsappService.InteractiveButton(
+                    "delivery_claim_" + o.getId(), title, description));
+        }
+
+        whatsappService.sendInteractiveList(
+                driverPhone,
+                "🚀 משלוחים נוספים פתוחים באזור — תרצה לקחת עוד אחד?",
+                "בחר משלוח",
+                "פתוחים באזור",
+                items
+        );
+        logger.info("[PICKUP-LIST] Sent {} unclaimed-order list to driver {} after pickup of #{}",
+                rows.size(), PhoneNumberUtil.maskPhoneNumber(driverPhone), justPickedUp.getId());
     }
 
     /** Waze navigation link to coords; driver's live position is the origin. */
