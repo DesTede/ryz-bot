@@ -303,21 +303,21 @@ public class TaxiOrderService {
 
             // ETA: driver current location → customer pickup
             String etaText = "";
-            try {
-                double[] driverLoc = driverService.getDriverLocation(order.getDriverPhone());
-                double[] pickupCoords = (order.getPickUpPlaceId() != null && !order.getPickUpPlaceId().isEmpty())
-                        ? geoCodingService.geocodeByPlaceId(order.getPickUpPlaceId())
-                        : geoCodingService.geocode(order.getPickUpLocation());
-                if (driverLoc != null && pickupCoords != null) {
-                    GeoCodingService.TripInfo trip = geoCodingService.getTripInfoByCoords(
-                            driverLoc[0], driverLoc[1], pickupCoords[0], pickupCoords[1]);
-                    if (trip != null && trip.durationMinutes > 0) {
-                        etaText = "\n⏱️ זמן הגעה משוער: כ-" + (int) Math.round(trip.durationMinutes) + " דקות";
-                    }
-                }
-            } catch (Exception e) {
-                logger.warn("ETA calculation failed for taxi order #{}: {}", order.getId(), e.getMessage());
-            }
+//            try {
+//                double[] driverLoc = driverService.getDriverLocation(order.getDriverPhone());
+//                double[] pickupCoords = (order.getPickUpPlaceId() != null && !order.getPickUpPlaceId().isEmpty())
+//                        ? geoCodingService.geocodeByPlaceId(order.getPickUpPlaceId())
+//                        : geoCodingService.geocode(order.getPickUpLocation());
+//                if (driverLoc != null && pickupCoords != null) {
+//                    GeoCodingService.TripInfo trip = geoCodingService.getTripInfoByCoords(
+//                            driverLoc[0], driverLoc[1], pickupCoords[0], pickupCoords[1]);
+//                    if (trip != null && trip.durationMinutes > 0) {
+//                        etaText = "\n⏱️ זמן הגעה משוער: כ-" + (int) Math.round(trip.durationMinutes) + " דקות";
+//                    }
+//                }
+//            } catch (Exception e) {
+//                logger.warn("ETA calculation failed for taxi order #{}: {}", order.getId(), e.getMessage());
+//            }
 
             String msg = """
         ✅ *הנהג בדרכו אליך*

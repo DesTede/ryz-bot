@@ -119,19 +119,53 @@ public class DeliveryOrderService {
 
     public void broadcastToDrivers(DeliveryOrder order) {
         String businessName = "RYZ";
+        Business businessEntity = null;
         try {
             var business = businessRepo.findByPhone(order.getBusinessPhone());
             if (business.isPresent()) {
-                businessName = business.get().getName();  // ✅ Get actual name
+                businessEntity = business.get();
+                businessName = businessEntity.getName();  // ✅ Get actual name
             }
         } catch (Exception e) {
             logger.warn("Could not fetch business name...", e);
         }
+
+        // Resolve delivery coords (used for both dispatch radius + aerial distance)
+        double[] coords = (order.getDeliveryAddressPlaceId() != null && !order.getDeliveryAddressPlaceId().isEmpty())
+                ? geoCodingService.geocodeByPlaceId(order.getDeliveryAddressPlaceId())
+                : geoCodingService.geocode(order.getDeliveryAddress());
+
+        // Compute aerial distance business → delivery (hide full address until claim)
+        String destInfo;
+        try {
+            double[] businessCoords = (businessEntity != null)
+                    ? resolveCoords(businessEntity.getAddressPlaceId(), businessEntity.getAddress())
+                    : null;
+            if (businessCoords != null && coords != null) {
+                double distKm = driverService.distanceKm(
+                        businessCoords[0], businessCoords[1],
+                        coords[0], coords[1]);
+                destInfo = "📏 מרחק לכתובת מסירה: ~" + String.format("%.1f", distKm) + " ק\"מ";
+            } else {
+                // Fallback: partial address (city/area only — last comma segment)
+                String addr = order.getDeliveryAddress();
+                String partial = addr;
+                if (addr != null && addr.contains(",")) {
+                    String[] parts = addr.split(",");
+                    partial = parts[parts.length - 1].trim();
+                }
+                destInfo = "📍 אזור מסירה: " + partial;
+            }
+        } catch (Exception e) {
+            logger.warn("[DELIVERY] Distance calc failed for dispatch of order #{}: {}", order.getId(), e.getMessage());
+            destInfo = "📍 אזור מסירה: " + order.getDeliveryAddress();
+        }
+
         String msg = """
         🚚 הזמנת משלוח חדשה
         בית עסק: %s
         📞 טלפון העסק: %s
-        📍 יעד משלוח: %s
+        %s
         💰 סכום: ₪%s
         📝 הערות: %s
         🆔 מספר הזמנה: %s
@@ -139,15 +173,11 @@ public class DeliveryOrderService {
         """.formatted(
                 businessName,
                 PhoneNumberUtil.toLocalFormat(order.getBusinessPhone()),
-                order.getDeliveryAddress(),
+                destInfo,
                 order.getDeliveryFee(),
                 (order.getNotes() == null || order.getNotes().isEmpty()) ? "אין" : order.getNotes(),
                 order.getId()
         );
-
-        double[] coords = (order.getDeliveryAddressPlaceId() != null && !order.getDeliveryAddressPlaceId().isEmpty())
-                ? geoCodingService.geocodeByPlaceId(order.getDeliveryAddressPlaceId())
-                : geoCodingService.geocode(order.getDeliveryAddress());
 
         if (coords != null) {
             driverService.dispatchDeliveryToClosestDrivers(msg, coords[0], coords[1],
@@ -428,13 +458,7 @@ public class DeliveryOrderService {
                 new WhatsappService.InteractiveButton("driver_show_route", "📍 הצג מסלול")
         );
 
-        // Now notify the customer with the live tracking link + ETA
         try {
-            double[] deliveryCoords = resolveCoords(order.getDeliveryAddressPlaceId(), order.getDeliveryAddress());
-            Integer deliveryEta = (deliveryCoords != null && deliveringDriver != null)
-                    ? etaMinutes(deliveringDriver.getLatitude(), deliveringDriver.getLongitude(), deliveryCoords[0], deliveryCoords[1])
-                    : null;
-
             Customer customer = customerService.getCustomer(order.getCustomerPhone());
             String customerName = customer != null ? customer.getName() : "לקוח";
 
@@ -443,12 +467,11 @@ public class DeliveryOrderService {
                     ? customerBusiness.getName() : "העסק";
 
             String trackingLink = shortLinkService.createShortLink(baseUrl + "/track/" + order.getTrackingToken());
-            String customerEtaText = (deliveryEta != null) ? "כ-" + deliveryEta + " " : "בקרוב";
 
             String customerMsg = "🛵 ההזמנה שלך בדרך!\n\n" +
                     "👤 " + customerName + ", ההזמנה מ-" + notifBusinessName + " יצאה לדרך.\n" +
                     "📞 טלפון שליח: " + PhoneNumberUtil.toLocalFormat(driverPhone) + "\n" +
-                    "⏱️ זמן הגעה משוער: " + customerEtaText + "\n" +
+//                    "⏱️ זמן הגעה משוער: " + customerEtaText + "\n" +
                     "📍 כתובת מסירה: " + order.getDeliveryAddress() + "\n\n" +
                     "🗺️ מעקב חי אחר השליח:\n" + trackingLink;
 
@@ -457,7 +480,7 @@ public class DeliveryOrderService {
                     customerMsg,
                     "delivery_status_delivering",
                     Arrays.asList(customerName, notifBusinessName,
-                            PhoneNumberUtil.toLocalFormat(driverPhone), customerEtaText, order.getDeliveryAddress(), trackingLink),
+                            PhoneNumberUtil.toLocalFormat(driverPhone), order.getDeliveryAddress(), trackingLink),
                     convoService
             );
             logger.info("[DELIVERY] ✅ Sent tracking link to customer for order #{}", orderId);
