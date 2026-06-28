@@ -828,12 +828,11 @@
                 <div class="table-toolbar">
                     <input class="search-input" placeholder="חיפוש לפי טלפון / נהג..." id="taxi-search" oninput="filterTaxiOrders()"/>
                     <select class="filter-select" id="taxi-status-filter" onchange="filterTaxiOrders()">
-                        <option value="">כל הסטטוסים</option>
-                        <option value="CREATED">CREATED</option>
-                        <option value="ASSIGNED">ASSIGNED</option>
-                        <option value="CONFIRMED">CONFIRMED</option>
-                        <option value="COMPLETED">COMPLETED</option>
-                        <option value="CANCELLED">CANCELLED</option>
+                        <option value="CREATED">נוצרה</option>
+                        <option value="ASSIGNED">משויכת לנהג</option>
+                        <option value="CONFIRMED">אושרה</option>
+                        <option value="COMPLETED">הושלמה</option>
+                        <option value="CANCELLED">בוטלה</option>
                     </select>
                 </div>
                 <table>
@@ -851,12 +850,12 @@
                     <input class="search-input" placeholder="חיפוש לפי טלפון / עסק..." id="del-search" oninput="filterDeliveryOrders()"/>
                     <select class="filter-select" id="del-status-filter" onchange="filterDeliveryOrders()">
                         <option value="">כל הסטטוסים</option>
-                        <option value="CREATED">CREATED</option>
-                        <option value="ASSIGNED">ASSIGNED</option>
-                        <option value="PICKED_UP">PICKED_UP</option>
-                        <option value="DELIVERING">DELIVERING</option>
-                        <option value="DELIVERED">DELIVERED</option>
-                        <option value="CANCELLED">CANCELLED</option>
+                        <option value="CREATED">נוצרה</option>
+                        <option value="ASSIGNED">שויכה לשליח</option>
+                        <option value="PICKED_UP">נאספה</option>
+                        <option value="DELIVERING">בדרך</option>
+                        <option value="DELIVERED">נמסרה</option>
+                        <option value="CANCELLED">בוטלה</option>
                     </select>
                 </div>
                 <table>
@@ -1293,7 +1292,11 @@
             CREATED:   'badge-yellow', ASSIGNED:  'badge-blue',
             CONFIRMED: 'badge-orange', COMPLETED: 'badge-green', CANCELLED: 'badge-muted'
         };
-        return `<span class="badge ${map[s]||'badge-muted'}">${s}</span>`;
+        const labels = {
+            CREATED: 'נוצרה', ASSIGNED: 'שויך נהג',
+            CONFIRMED: 'אושרה', COMPLETED: 'הושלמה', CANCELLED: 'בוטלה'
+        };
+        return `<span class="badge ${map[s]||'badge-muted'}">${labels[s]||s}</span>`;
     }
 
     function deliveryStatusBadge(s) {
@@ -1302,7 +1305,19 @@
             PICKED_UP: 'badge-orange', DELIVERING:'badge-purple',
             DELIVERED: 'badge-green',  CANCELLED: 'badge-muted'
         };
-        return `<span class="badge ${map[s]||'badge-muted'}">${s}</span>`;
+        const labels = {
+            CREATED: 'נוצרה', ASSIGNED: 'שויך שליח',
+            PICKED_UP: 'נאסף', DELIVERING: 'בדרך',
+            DELIVERED: 'נמסר', CANCELLED: 'בוטלה'
+        };
+        return `<span class="badge ${map[s]||'badge-muted'}">${labels[s]||s}</span>`;
+    }
+
+    function driverTypeLabel(t) {
+        return {TAXI:'מונית', DELIVERY:'משלוח', BOTH:'שניהם'}[t] || t || '—';
+    }
+    function carTypeLabel(t) {
+        return {PRIVATE_CAR:'מכונית פרטית', MOTORCYCLE:'אופנוע', MINIVAN:'מינוואן'}[t] || t || '—';
     }
 
     function truncate(str, n=20) {
@@ -1532,7 +1547,7 @@
     <td style="font-family:var(--mono);font-size:12px">${o.phone}</td>
     <td style="font-size:12px;color:var(--muted)">${truncate(o.pickUpLocation,20)}</td>
     <td style="font-size:12px;color:var(--muted)">${truncate(o.destination,20)}</td>
-    <td style="font-size:12px">${o.requestedCarType||'—'}</td>
+    <td style="font-size:12px">${carTypeLabel(o.requestedCarType)||'—'}</td>
     <td style="font-family:var(--mono);font-size:12px">${o.driverPhone||'—'}</td>
     <td>${taxiStatusBadge(o.status)}</td>
     <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${fmtDate(o.createdAt)}</td>
@@ -1640,8 +1655,8 @@
           ${busy ? '<span class="badge badge-orange">בהזמנה</span>' : d.active ? '<span class="badge badge-green">פעיל</span>' : '<span class="badge badge-muted">לא פעיל</span>'}
         </div>
         <div class="driver-meta">
-          <span class="badge badge-muted">${d.type||'—'}</span>
-          ${d.carType?`<span class="badge badge-muted">${d.carType}</span>`:''}
+          <span class="badge badge-muted">${driverTypeLabel(d.type)}</span>
+          ${d.carType?`<span class="badge badge-muted">${carTypeLabel(d.carType)}</span>`:''}
           ${d.carModel?`<span class="badge badge-muted">${d.carModel}</span>`:''}
           ${d.carColor?`<span class="badge badge-muted">${d.carColor}</span>`:''}
         </div>
