@@ -51,6 +51,11 @@ public class DriverConversationHandler implements ConversationHandler {
             return handleTaxiOrderClaim(message);
         }
 
+        // Handle taxi driver arrived button (taxi_arrived_123)
+        if (txt.startsWith("taxi_arrived_")) {
+            return handleTaxiOrderArrived(message);
+        }
+
         // Handle taxi order completion button (taxi_complete_123)
         if (txt.startsWith("taxi_complete_")) {
             return handleTaxiOrderCompletion(message);
@@ -138,6 +143,19 @@ public class DriverConversationHandler implements ConversationHandler {
             logger.error("Error claiming taxi order for driver {} from message {}: {}",
                     message.getPhone(), txt, e.getMessage(), e);
             return "❌ שגיאה בקבלת הנסיעה. אנא נסה שוב.";
+        }
+    }
+
+    private String handleTaxiOrderArrived(IncomingMessage message) {
+        String txt = message.getText().trim();
+        try {
+            long orderId = Long.parseLong(txt.replace("taxi_arrived_", ""));
+            String result = taxiOrderService.markArrived(orderId, message.getPhone());
+            if (result == null) return "";
+            return result;
+        } catch (Exception e) {
+            logger.error("Error marking taxi order arrived: {}", e.getMessage(), e);
+            return "❌ שגיאה. אנא נסה שוב.";
         }
     }
 

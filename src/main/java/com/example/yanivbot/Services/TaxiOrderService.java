@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -152,6 +153,7 @@ public class TaxiOrderService {
 
         order.setStatus(TaxiOrderStatus.ASSIGNED);
         order.setDriverPhone(driverPhone);
+        order.setClaimedAt(LocalDateTime.now());
 
         //live location updates
         order.setTrackingToken(UUID.randomUUID().toString());
@@ -173,7 +175,7 @@ public class TaxiOrderService {
         } catch (Exception e) {
             logger.warn("Error notifying taxi customer for order #{}: {}", orderId, e.getMessage(), e);
         }
-        
+
         String confirmationMsg = """
                     
                     🔥 *נסיעה חדשה התקבלה!*
@@ -182,18 +184,48 @@ public class TaxiOrderService {
                     -------------------------
                     📞 טלפון נוסע: %s
                     -------------------------
-                    🏁 *בסיום לחץ לסיום נסיעה*
+                    📍 *בהגעה ללקוח לחץ "הגעתי ללקוח"*
                     -------------------------
                     🚗 *סע בזהירות!* 🙌
                     
                     """.formatted(
-                            orderId,
-                            PhoneNumberUtil.toLocalFormat(order.getPhone())                           
-                            );
+                orderId,
+                PhoneNumberUtil.toLocalFormat(order.getPhone())
+        );
 
         whatsappService.sendInteractiveButtonsSafe(
                 driverPhone,
                 confirmationMsg,
+                new WhatsappService.InteractiveButton("taxi_arrived_" + orderId, "📍 הגעתי ללקוח"),
+                new WhatsappService.InteractiveButton("taxi_cancel_driver_" + orderId, "🚫 בטל נסיעה")
+        );
+
+        return null; // Message already sent via button
+    }
+
+    /**
+     * Driver pressed "הגעתי ללקוח" — taxi reached pickup point.
+     * Status: ASSIGNED → CONFIRMED. Stamps arrivedAt. Sends "נסיעה הסתיימה" button.
+     */
+    public String markArrived(long orderId, String driverPhone) {
+        TaxiOrder order = taxiOrderRepo.findById(orderId).orElse(null);
+
+        if (order == null) return "❌ הזמנה #" + orderId + " לא נמצאה.";
+        if (!driverPhone.equals(order.getDriverPhone()))
+            return "❌ הזמנה זו לא שויכה אליך.";
+        if (order.getStatus() != TaxiOrderStatus.ASSIGNED)
+            return "❌ הזמנה #" + orderId + " לא במצב נכון.";
+
+        order.setStatus(TaxiOrderStatus.CONFIRMED);
+        order.setArrivedAt(LocalDateTime.now());
+        taxiOrderRepo.save(order);
+        logger.info("[TAXI] Order #{} marked ARRIVED by driver {}", orderId,
+                PhoneNumberUtil.maskPhoneNumber(driverPhone));
+
+        String msg = "📍 *הגעת ללקוח*\nכשהנסיעה תסתיים לחץ על הכפתור 👇";
+        whatsappService.sendInteractiveButtonsSafe(
+                driverPhone,
+                msg,
                 new WhatsappService.InteractiveButton("taxi_complete_" + orderId, "✅ נסיעה הסתיימה"),
                 new WhatsappService.InteractiveButton("taxi_cancel_driver_" + orderId, "🚫 בטל נסיעה")
         );
@@ -211,6 +243,7 @@ public class TaxiOrderService {
             return "❌ הזמנה #" + orderId + " לא פעילה.";
 
         order.setStatus(TaxiOrderStatus.COMPLETED);
+        order.setCompletedAt(LocalDateTime.now());
         taxiOrderRepo.save(order);
 
         
@@ -269,6 +302,8 @@ public class TaxiOrderService {
         order.setStatus(TaxiOrderStatus.CREATED);
         order.setDriverPhone(null);
         order.setTrackingToken(null);
+        order.setClaimedAt(null);
+        order.setArrivedAt(null);
         taxiOrderRepo.save(order);
 
         // Notify customer

@@ -190,7 +190,7 @@ public class MessageRouter {
             // customer name or a business-menu selection - used below to safely bypass
             // both the business-owner check and the WELCOME_SENT bridge guard.
             boolean isUnambiguousDriverCommand = txt.startsWith("taxi_claim_") || txt.startsWith("delivery_claim_") ||
-                    txt.startsWith("taxi_complete_") || txt.startsWith("taxi_cancel_driver_") ||
+                    txt.startsWith("taxi_arrived_") || txt.startsWith("taxi_complete_") || txt.startsWith("taxi_cancel_driver_") ||
                     txt.startsWith("delivery_pickup_") || txt.startsWith("delivery_complete_") ||
                     txt.equals("driver_show_route") ||
                     txt.startsWith("איסוף ") || txt.startsWith("נמסר ") || txt.startsWith("בדרך ") ||
@@ -244,7 +244,7 @@ public class MessageRouter {
                 }
 
                 if (txt.startsWith("taxi_claim_") || txt.startsWith("delivery_claim_") ||
-                        txt.startsWith("taxi_complete_") || txt.startsWith("taxi_cancel_driver_") ||
+                        txt.startsWith("taxi_arrived_") || txt.startsWith("taxi_complete_") || txt.startsWith("taxi_cancel_driver_") ||
                         txt.startsWith("delivery_pickup_") || txt.startsWith("delivery_delivering_") || txt.startsWith("delivery_complete_") ||
                         txt.equals("driver_show_route") ||
                         txt.startsWith("איסוף ") || txt.startsWith("נמסר ") ||

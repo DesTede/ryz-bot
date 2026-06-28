@@ -66,6 +66,16 @@ public class TaxiOrder {
     @Column(name = "estimated_fare")
     private Double estimatedFare;
 
+    // ===== Timing tracking (for arrival duration metrics) =====
+    @Column(name = "claimed_at")
+    private LocalDateTime claimedAt;
+
+    @Column(name = "arrived_at")
+    private LocalDateTime arrivedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
     // ===== Expanding-radius cascade tracking =====
     @Column(name = "last_dispatch_radius_km", nullable = false)
     private double lastDispatchRadiusKm = 0;
@@ -258,6 +268,34 @@ public class TaxiOrder {
 
     public long getVersion() {
         return version;
+    }
+
+    public void setVersion(long version) {
+        this.version = version;
+    }
+
+    public LocalDateTime getClaimedAt() {
+        return claimedAt;
+    }
+
+    public void setClaimedAt(LocalDateTime claimedAt) {
+        this.claimedAt = claimedAt;
+    }
+
+    public LocalDateTime getArrivedAt() {
+        return arrivedAt;
+    }
+
+    public void setArrivedAt(LocalDateTime arrivedAt) {
+        this.arrivedAt = arrivedAt;
+    }
+
+    public LocalDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
     }
 }
 

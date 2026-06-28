@@ -11,6 +11,7 @@ import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -443,6 +444,7 @@ public class DeliveryOrderService {
         }
 
         order.setDeliveryStatus(DeliveryStatus.DELIVERING);
+        order.setOnTheWayAt(LocalDateTime.now());
         deliveryOrderRepo.save(order);
         logger.info("[DELIVERY] ✅ Order #{} marked as DELIVERING by driver {}", orderId,
                 PhoneNumberUtil.maskPhoneNumber(driverPhone));
@@ -529,6 +531,7 @@ public class DeliveryOrderService {
 
         // Update order status
         order.setDeliveryStatus(DeliveryStatus.DELIVERED);
+        order.setDeliveredAt(LocalDateTime.now());
         deliveryOrderRepo.save(order);
         logger.info("[DELIVERY] ✅ Order #{} marked as DELIVERED by driver {}", orderId,
                 PhoneNumberUtil.maskPhoneNumber(driverPhone));

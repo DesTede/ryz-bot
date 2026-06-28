@@ -71,6 +71,12 @@ public class DeliveryOrder {
     @Column(name = "dispatch_origin_lng", nullable = false)
     private double dispatchOriginLng = 0;
 
+    // ===== Timing tracking (for arrival duration metrics) =====
+    @Column(name = "on_the_way_at")
+    private LocalDateTime onTheWayAt;
+
+    @Column(name = "delivered_at")
+    private LocalDateTime deliveredAt;
     
     public DeliveryOrder() {
     }
@@ -251,4 +257,25 @@ public class DeliveryOrder {
     public void setLastDispatchRadiusKm(double lastDispatchRadiusKm) {
         this.lastDispatchRadiusKm = lastDispatchRadiusKm;
     }
+
+    public void setCustomerAlertedStaleLocation(boolean customerAlertedStaleLocation) {
+        this.customerAlertedStaleLocation = customerAlertedStaleLocation;
+    }
+
+    public LocalDateTime getOnTheWayAt() {
+        return onTheWayAt;
+    }
+
+    public void setOnTheWayAt(LocalDateTime onTheWayAt) {
+        this.onTheWayAt = onTheWayAt;
+    }
+
+    public LocalDateTime getDeliveredAt() {
+        return deliveredAt;
+    }
+
+    public void setDeliveredAt(LocalDateTime deliveredAt) {
+        this.deliveredAt = deliveredAt;
+    }
+    
 }

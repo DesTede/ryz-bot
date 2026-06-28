@@ -837,9 +837,9 @@
                 </div>
                 <table>
                     <thead><tr>
-                        <th>#</th><th>לקוח</th><th>איסוף</th><th>יעד</th><th>רכב</th><th>נהג</th><th>סטטוס</th><th>נוצר</th><th>פעולות</th>
+                        <th>#</th><th>לקוח</th><th>איסוף</th><th>יעד</th><th>רכב</th><th>נהג</th><th>סטטוס</th><th>נוצר</th><th>זמן הגעה</th><th>פעולות</th>
                     </tr></thead>
-                    <tbody id="all-taxi-tbody"><tr class="loading-row"><td colspan="9">טוען...</td></tr></tbody>
+                    <tbody id="all-taxi-tbody"><tr class="loading-row"><td colspan="10">טוען...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -860,9 +860,9 @@
                 </div>
                 <table>
                     <thead><tr>
-                        <th>#</th><th>עסק</th><th>לקוח</th><th>כתובת</th><th>שליח</th><th>סטטוס</th><th>מחיר</th><th>הערות</th><th>נוצר</th><th>פעולות</th>
+                        <th>#</th><th>עסק</th><th>לקוח</th><th>כתובת</th><th>שליח</th><th>סטטוס</th><th>מחיר</th><th>הערות</th><th>נוצר</th><th>זמן הגעה</th><th>פעולות</th>
                     </tr></thead>
-                    <tbody id="all-delivery-tbody"><tr class="loading-row"><td colspan="10">טוען...</td></tr></tbody>
+                    <tbody id="all-delivery-tbody"><tr class="loading-row"><td colspan="11">טוען...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -1287,6 +1287,17 @@
         return Math.floor(diff/60) + 'ש׳ ' + (diff%60) + 'ד׳';
     }
 
+    function fmtDuration(start, end) {
+        if (!start || !end) return '—';
+        const ms = new Date(end) - new Date(start);
+        if (ms < 0) return '—';
+        const totalSec = Math.floor(ms / 1000);
+        const min = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        if (min < 60) return min + ' דק׳ ' + sec + ' שנ׳';
+        return Math.floor(min/60) + 'ש׳ ' + (min%60) + 'ד׳';
+    }
+
     function taxiStatusBadge(s) {
         const map = {
             CREATED:   'badge-yellow', ASSIGNED:  'badge-blue',
@@ -1551,11 +1562,12 @@
     <td style="font-family:var(--mono);font-size:12px">${o.driverPhone||'—'}</td>
     <td>${taxiStatusBadge(o.status)}</td>
     <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${fmtDate(o.createdAt)}</td>
+    <td style="font-family:var(--mono);font-size:11px">${fmtDuration(o.claimedAt, o.arrivedAt)}</td>
     <td>
       <button class="action-btn" onclick="openReassign('taxi',${o.id})">שיוך</button>
       ${o.status!=='COMPLETED'&&o.status!=='CANCELLED'?`<button class="action-btn danger" onclick="cancelOrder('taxi',${o.id})">ביטול</button>`:''}
     </td>
-  </tr>`).join('') : '<tr><td colspan="9" class="empty">אין הזמנות</td></tr>';
+  </tr>`).join('') : '<tr><td colspan="10" class="empty">אין הזמנות</td></tr>';
     }
 
     function renderDeliveryOrders(orders) {
@@ -1570,11 +1582,12 @@
     <td style="font-family:var(--mono)">₪${o.deliveryFee}</td>
     <td style="font-size:12px;color:var(--muted)">${truncate(o.notes,18)}</td>
     <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${fmtDate(o.createdAt)}</td>
+    <td style="font-family:var(--mono);font-size:11px">${fmtDuration(o.onTheWayAt, o.deliveredAt)}</td>
     <td>
       <button class="action-btn" onclick="openReassign('delivery',${o.id})">שיוך</button>
       ${o.deliveryStatus!=='DELIVERED'&&o.deliveryStatus!=='CANCELLED'?`<button class="action-btn danger" onclick="cancelOrder('delivery',${o.id})">ביטול</button>`:''}
     </td>
-  </tr>`).join('') : '<tr><td colspan="10" class="empty">אין הזמנות</td></tr>';
+  </tr>`).join('') : '<tr><td colspan="11" class="empty">אין הזמנות</td></tr>';
     }
 
     function filterTaxiOrders() {
