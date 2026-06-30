@@ -168,7 +168,6 @@ public class DeliveryOrderService {
         📞 טלפון העסק: %s
         %s
         💰 סכום: ₪%s
-        📝 הערות: %s
         🆔 מספר הזמנה: %s
         ✅ לקבלת המשלוח לחץ על הכפתור למטה
         """.formatted(
@@ -176,7 +175,7 @@ public class DeliveryOrderService {
                 PhoneNumberUtil.toLocalFormat(order.getBusinessPhone()),
                 destInfo,
                 order.getDeliveryFee(),
-                (order.getNotes() == null || order.getNotes().isEmpty()) ? "אין" : order.getNotes(),
+//                (order.getNotes() == null || order.getNotes().isEmpty()) ? "אין" : order.getNotes(),
                 order.getId()
         );
 
@@ -286,19 +285,36 @@ public class DeliveryOrderService {
 
         // v2 Trip planning: next stop + order summary
         String pickupNav = buildDriverNavBlock(driverPhone);
-        
-        // Send confirmation to driver with order details
+
+        // Privacy: hide customer address until pickup — show only drive time business → customer
+        Integer bizToDeliveryEta = null;
+        try {
+            double[] bizCoords = (business != null)
+                    ? resolveCoords(business.getAddressPlaceId(), business.getAddress())
+                    : null;
+            double[] dropCoords = resolveCoords(order.getDeliveryAddressPlaceId(), order.getDeliveryAddress());
+            if (bizCoords != null && dropCoords != null) {
+                bizToDeliveryEta = etaMinutes(bizCoords[0], bizCoords[1], dropCoords[0], dropCoords[1]);
+            }
+        } catch (Exception e) {
+            logger.warn("[DELIVERY] biz→delivery ETA calc failed for order #{}: {}", order.getId(), e.getMessage());
+        }
+        String etaLine = (bizToDeliveryEta != null)
+                ? "⏱️ זמן נסיעה מהעסק ללקוח: ~" + bizToDeliveryEta + " דק'"
+                : "";
+
+// Send confirmation to driver with order details
         String driverConfirmation ="""
-        🔥 קיבלת משלוח!
-        🆔 מספר הזמנה: %s
-        שם העסק:%s
-        📍 כתובת מסירה: %s
-        
-        בואו נתחיל 🚀
-        """.formatted(
+🔥 קיבלת משלוח!
+🆔 מספר הזמנה: %s
+שם העסק:%s
+%s
+
+בואו נתחיל 🚀
+""".formatted(
                 order.getId(),
                 businessName,
-                order.getDeliveryAddress()
+                etaLine
         ) + pickupNav;
 
         whatsappService.sendInteractiveButtonsSafe(

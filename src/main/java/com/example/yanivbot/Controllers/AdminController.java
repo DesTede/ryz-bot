@@ -44,6 +44,7 @@ public class AdminController {
     private final BusinessRepository businessRepo;
     private final ConversationService convoService;
     private final GooglePlacesService placesService;
+    private final RatingService ratingService;
 
     public AdminController(DriverService driverService,
                            BotConfigService botConfigService,
@@ -51,7 +52,7 @@ public class AdminController {
                            DeliveryOrderRepository deliveryOrderRepo,
                            DriverRepository driverRepo,
                            CustomerRepository customerRepo,
-                           BusinessRepository businessRepo, ConversationService convoService, GooglePlacesService placesService) {
+                           BusinessRepository businessRepo, ConversationService convoService, GooglePlacesService placesService, RatingService ratingService) {
         this.driverService = driverService;
         this.botConfigService = botConfigService;
         this.taxiOrderRepo = taxiOrderRepo;
@@ -61,6 +62,7 @@ public class AdminController {
         this.businessRepo = businessRepo;
         this.convoService = convoService;
         this.placesService = placesService;
+        this.ratingService = ratingService;
     }
 
     // =========================================================
@@ -365,10 +367,36 @@ public class AdminController {
                 .findByPickedUpByAndDeliveryStatusIn(phone,
                         List.of(DeliveryStatus.ASSIGNED, DeliveryStatus.PICKED_UP,
                                 DeliveryStatus.DELIVERING, DeliveryStatus.DELIVERED));
+
         Map<String, Object> result = new HashMap<>();
         result.put("taxi", taxiOrders);
         result.put("delivery", deliveryOrders);
         return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/drivers/{phone}/ratings")
+    public ResponseEntity<List<Map<String, Object>>> getDriverRatings(
+            @RequestHeader(value = "X-Admin-Key", required = false) String key,
+            @PathVariable String phone) {
+        if (!isAuthorized(key)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        try {
+            List<Rating> ratings = ratingService.getRecentForDriver(phone);
+            List<Map<String, Object>> result = ratings.stream().map(r -> {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id", r.getId());
+                m.put("stars", r.getStars());
+                m.put("comment", r.getComment());
+                m.put("orderId", r.getOrderId());
+                m.put("orderType", r.getOrderType());
+                m.put("createdAt", r.getCreatedAt());
+                return m;
+            }).collect(Collectors.toList());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            logger.error("Error fetching ratings for driver {}: {}",
+                    PhoneNumberUtil.maskPhoneNumber(phone), e.getMessage(), e);
+            return ResponseEntity.status(500).build();
+        }
     }
 
     // =========================================================

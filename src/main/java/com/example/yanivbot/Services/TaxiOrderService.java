@@ -7,6 +7,7 @@ import com.example.yanivbot.Handlers.MessageRouter;
 import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
+import com.example.yanivbot.Repositories.DriverRepository;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
@@ -33,10 +34,11 @@ public class TaxiOrderService {
     private final GeoCodingService geoCodingService;
     private final CustomerService customerService;
     private final ShortLinkService shortLinkService;
+    private final DriverRepository driverRepo;
     
 
     public TaxiOrderService(ConversationService convoService, TaxiOrderRepository taxiOrderRepo, WhatsappService whatsappService,
-                            DriverService driverService, GeoCodingService geoCodingService, CustomerService customerService, ShortLinkService shortLinkService) {
+                            DriverService driverService, GeoCodingService geoCodingService, CustomerService customerService, ShortLinkService shortLinkService, DriverRepository driverRepo) {
         this.convoService = convoService;
         this.taxiOrderRepo = taxiOrderRepo;
         this.whatsappService = whatsappService;
@@ -44,6 +46,7 @@ public class TaxiOrderService {
         this.geoCodingService = geoCodingService;
         this.customerService = customerService;
         this.shortLinkService = shortLinkService;
+        this.driverRepo = driverRepo;
     }
 
     /**
@@ -55,6 +58,11 @@ public class TaxiOrderService {
         existing.addAll(taxiOrderRepo.findByPhoneAndStatus(customerPhone, TaxiOrderStatus.ASSIGNED));
         existing.addAll(taxiOrderRepo.findByPhoneAndStatus(customerPhone, TaxiOrderStatus.CONFIRMED));
         return !existing.isEmpty();
+    }
+
+    /** Read-only lookup used by the rating flow in MessageRouter. */
+    public TaxiOrder findByIdForRating(long orderId) {
+        return taxiOrderRepo.findById(orderId).orElse(null);
     }
 
     public boolean createTaxiOrder(String customerPhone, String pickUp, String pickUpPlaceId,
@@ -260,7 +268,31 @@ public class TaxiOrderService {
         String customerMsg = "✅ הנסיעה הסתיימה בהצלחה\nתודה שבחרת לנסוע ב־RYZ 🙌 🚙";
 
         whatsappService.sendSafeText(order.getPhone(), customerMsg);
-        
+
+        // Send rating prompt as a 5-row list message
+        try {
+            Driver driver = driverRepo.findByPhone(driverPhone).orElse(null);
+            String driverName = (driver != null && driver.getName() != null) ? driver.getName() : "הנהג";
+
+            java.util.List<WhatsappService.InteractiveButton> rows = java.util.List.of(
+                    new WhatsappService.InteractiveButton("rate_taxi_" + orderId + "_1", "⭐", "גרוע מאוד"),
+                    new WhatsappService.InteractiveButton("rate_taxi_" + orderId + "_2", "⭐⭐", "גרוע"),
+                    new WhatsappService.InteractiveButton("rate_taxi_" + orderId + "_3", "⭐⭐⭐", "סביר"),
+                    new WhatsappService.InteractiveButton("rate_taxi_" + orderId + "_4", "⭐⭐⭐⭐", "טוב"),
+                    new WhatsappService.InteractiveButton("rate_taxi_" + orderId + "_5", "⭐⭐⭐⭐⭐", "מעולה")
+            );
+
+            whatsappService.sendInteractiveList(
+                    order.getPhone(),
+                    "איך הייתה הנסיעה עם " + driverName + "?",
+                    "דרג עכשיו",
+                    "בחר דירוג",
+                    rows
+            );
+        } catch (Exception e) {
+            logger.warn("Could not send rating prompt for taxi order #{}: {}", orderId, e.getMessage());
+        }
+
         return "🏁 נסיעה #" + orderId + " הסתיימה\nהמערכת סימנה אותך כפנוי לנסיעה הבאה 👍";
     }
 

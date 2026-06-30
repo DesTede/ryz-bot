@@ -349,8 +349,13 @@ public class DriverLocationController {
         Driver driver = driverRepo.findDriverByPhone(phone).orElse(null);
 
         if (driver == null) {
-            logger.warn("App location update for unknown driver: {}", phone);
+            logger.warn("App location update for unknown driver: {}", PhoneNumberUtil.maskPhoneNumber(phone));
             return ResponseEntity.notFound().build();
+        }
+
+        if (!driver.isActive()) {
+            logger.warn("Rejected location update for off-shift driver: {}", PhoneNumberUtil.maskPhoneNumber(phone));
+            return ResponseEntity.status(403).build();
         }
 
         Double lat = body.get("lat");

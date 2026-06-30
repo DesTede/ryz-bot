@@ -41,8 +41,9 @@ public class MessageRouter {
     private final CustomerService customerService;
     private final WhatsappService whatsappService;
     private final BotConfigService botConfigService;
-    private final TaxiOrderService taxiOrderService; 
+    private final TaxiOrderService taxiOrderService;
     private final DeliveryOrderService deliveryOrderService;
+    private final RatingService ratingService;
 
     private static final String WELCOME_MESSAGE = """
               ברוכים הבאים ל־RYZ — מזמינים נסיעה תוך שניות בוואטסאפ ⚡
@@ -68,7 +69,10 @@ public class MessageRouter {
                          DriverService driverService,
                          CustomerService customerService,
                          WhatsappService whatsappService,
-                         BotConfigService botConfigService, TaxiOrderService taxiOrderService, DeliveryOrderService deliveryOrderService) {
+                         BotConfigService botConfigService,
+                         TaxiOrderService taxiOrderService,
+                         DeliveryOrderService deliveryOrderService,
+                         RatingService ratingService) {
         this.taxiHandler = taxiHandler;
         this.deliveryHandler = deliveryHandler;
         this.businessHandler = businessHandler;
@@ -82,6 +86,7 @@ public class MessageRouter {
         this.botConfigService = botConfigService;
         this.taxiOrderService = taxiOrderService;
         this.deliveryOrderService = deliveryOrderService;
+        this.ratingService = ratingService;
     }
 
     /**
@@ -92,7 +97,6 @@ public class MessageRouter {
         String phone = message.getPhone();
         ConversationState state = convo.getState();
 
-        
 
         logger.info("========== ROUTE START ==========");
         logger.info("Phone: {}", phone);
@@ -140,12 +144,24 @@ public class MessageRouter {
         // Business owner cancelling a delivery order
         if (txt.startsWith("delivery_cancel_business_")) {
             try {
-                long orderId = Long.parseLong(txt.replace("taxi_cancel_customer_", ""));
-                return taxiOrderService.cancelOrderByCustomer(orderId, phone);
+                long orderId = Long.parseLong(txt.replace("delivery_cancel_business_", ""));
+                return deliveryOrderService.cancelDeliveryOrderByBusiness(orderId, phone);
             } catch (NumberFormatException e) {
-                logger.warn("Invalid taxi cancel button payload: {}", txt);
+                logger.warn("Invalid delivery cancel button payload: {}", txt);
                 return null;
             }
+        }
+
+        // ===== RATING — customer tapped a star in the post-ride list =====
+        // Format: rate_taxi_{orderId}_{stars}
+        if (txt.startsWith("rate_taxi_")) {
+            return handleTaxiRatingSelection(convo, phone, txt);
+        }
+
+        // ===== RATING — customer tapped "Skip" on the comment prompt =====
+        // Format: rate_skip_comment_{ratingId}
+        if (txt.startsWith("rate_skip_comment_")) {
+            return handleRatingCommentSkip(convo, phone, txt);
         }
 
         // Reset conversation if user sends "00" or "התחל מחדש"
@@ -173,14 +189,19 @@ public class MessageRouter {
                 convoService.updateLastMessageTime(convo);
                 convoService.save(convo);
                 return """
-                ⏱️ עבר קצת זמן, אז איפסנו את השיחה
-                שלח כל הודעה כדי להתחיל מחדש 🚀
-                """;
+                        ⏱️ עבר קצת זמן, אז איפסנו את השיחה
+                        שלח כל הודעה כדי להתחיל מחדש 🚀
+                        """;
             }
         }
 
         // Update 24h window on every inbound message
         convoService.updateLastMessageTime(convo);
+
+        // ===== AWAITING_RATING_COMMENT — customer typing a comment after low rating =====
+        if (state == ConversationState.AWAITING_RATING_COMMENT) {
+            return handleRatingCommentText(convo, phone, txt);
+        }
 
         // ===== START STATE =====
         if (state == ConversationState.START) {
@@ -221,28 +242,6 @@ public class MessageRouter {
             if (driver != null) {
                 logger.info("User is a DRIVER (active={}, showing driver menu)", driver.isActive());
 
-                // Off-shift driver chose to order a ride as a customer - switch into customer mode.
-                // Blocked while on an active shift so they don't drop out of driver mode mid-shift.
-                if (txt.equals("driver_order_ride")) {
-                    if (driver.isActive()) {
-                        logger.info("Active driver tried to order a ride - must end shift first");
-                        return "⚠️ אתה במשמרת פעילה. כדי להזמין נסיעה כלקוח, סיים קודם את המשמרת.";
-                    }
-                    logger.info("Driver chose to order a ride - switching to customer mode");
-                    Customer existingCustomer = customerService.getCustomer(phone);
-                    String customerName = (existingCustomer != null && existingCustomer.getName() != null
-                            && !existingCustomer.getName().isEmpty())
-                            ? existingCustomer.getName()
-                            : driver.getName();
-                    if (existingCustomer == null) {
-                        customerService.registerNewCustomer(phone, customerName);
-                    }
-                    convoService.saveTempData(convo, customerName);
-                    convoService.updateState(convo, ConversationState.START_MENU);
-                    showServiceMenu(phone, customerName);
-                    return null;
-                }
-
                 if (txt.startsWith("taxi_claim_") || txt.startsWith("delivery_claim_") ||
                         txt.startsWith("taxi_arrived_") || txt.startsWith("taxi_complete_") || txt.startsWith("taxi_cancel_driver_") ||
                         txt.startsWith("delivery_pickup_") || txt.startsWith("delivery_delivering_") || txt.startsWith("delivery_complete_") ||
@@ -267,30 +266,6 @@ public class MessageRouter {
                 if (txt.equals("התחל משמרת") || txt.equals("driver_start_shift") ||
                         txt.equals("סיים משמרת") || txt.equals("driver_end_shift")) {
                     logger.info("Driver attempting to start/end shift, routing to DriverHandler");
-                    String driverResponse = driverHandler.handleMessage(convo, message);
-                    if (driverResponse != null) {
-                        return driverResponse;
-                    }
-                    return null;
-                }
-
-                // Check if driver just ended shift - treat as customer for non-shift, non-order commands
-                if (convo.getTempData() != null && convo.getTempData().equals("END_SHIFT")) {
-                    logger.info("Driver has ended shift, treating non-shift message as customer");
-                    convoService.saveTempData(convo, "");
-                    // Fall through to customer logic below
-                } else {
-                    // Driver is active/normal (not in END_SHIFT state)
-                    // Send driver welcome message with buttons ONLY on first message (no tempData)
-                    if (convo.getTempData() == null || convo.getTempData().isEmpty()) {
-                        logger.info("Sending driver welcome message with buttons");
-                        sendDriverWelcomeMenu(phone);
-                        convoService.saveTempData(convo, "DRIVER_WELCOME_SENT");
-                        return null;
-                    }
-
-                    // Welcome was already sent, now route to DriverHandler to handle commands
-                    logger.info("Driver welcome already sent, routing to DriverHandler");
                     String driverResponse = driverHandler.handleMessage(convo, message);
                     if (driverResponse != null) {
                         return driverResponse;
@@ -471,8 +446,7 @@ public class MessageRouter {
                     phone,
                     DRIVER_WELCOME_MESSAGE,
                     new WhatsappService.InteractiveButton("driver_start_shift", "🟢 התחל משמרת"),
-                    new WhatsappService.InteractiveButton("driver_end_shift", "🔴 סיים משמרת"),
-                    new WhatsappService.InteractiveButton("driver_order_ride", "🚕 הזמן נסיעה")
+                    new WhatsappService.InteractiveButton("driver_end_shift", "🔴 סיים משמרת")
             );
             logger.info("Driver welcome menu sent successfully");
         } catch (Exception e) {
@@ -480,4 +454,146 @@ public class MessageRouter {
             whatsappService.sendSafeText(phone, DRIVER_WELCOME_MESSAGE);
         }
     }
+
+    // =========================================================
+    // RATING FLOW HELPERS (taxi)
+    // =========================================================
+
+    /**
+     * Handle a customer's star selection from the post-ride list message.
+     * Payload format: rate_taxi_{orderId}_{stars}
+     * - Creates the Rating row (idempotent via orderId+orderType uniqueness check)
+     * - On stars <= 3: prompts for an optional comment (with Skip button) and sets
+     *   state AWAITING_RATING_COMMENT, preserving the customer's name in tempData
+     *   via format "RATING_COMMENT:{ratingId}:{originalTempData}".
+     * - On stars >= 4: thanks the customer and returns.
+     */
+    private String handleTaxiRatingSelection(Conversation convo, String phone, String txt) {
+        try {
+            String payload = txt.substring("rate_taxi_".length()); // e.g. "42_5"
+            int sep = payload.lastIndexOf('_');
+            if (sep <= 0) {
+                logger.warn("Malformed rate_taxi payload: {}", txt);
+                return null;
+            }
+            long orderId = Long.parseLong(payload.substring(0, sep));
+            int stars = Integer.parseInt(payload.substring(sep + 1));
+
+            com.example.yanivbot.Entities.TaxiOrder order =
+                    taxiOrderService.findByIdForRating(orderId);
+            if (order == null) {
+                logger.warn("rate_taxi: order #{} not found", orderId);
+                return null;
+            }
+            if (!phone.equals(order.getPhone())) {
+                logger.warn("rate_taxi: phone {} does not match order #{} customer",
+                        PhoneNumberUtil.maskPhoneNumber(phone), orderId);
+                return null;
+            }
+            if (order.getDriverPhone() == null) {
+                logger.warn("rate_taxi: order #{} has no driver assigned", orderId);
+                return null;
+            }
+
+            com.example.yanivbot.Entities.Rating rating = ratingService.createRating(
+                    order.getDriverPhone(), phone, orderId,
+                    RatingService.ORDER_TYPE_TAXI, stars, null);
+
+            if (rating == null) {
+                // Duplicate or invalid — silent ack
+                return "תודה! כבר קיבלנו את הדירוג שלך עבור נסיעה זו 🙏";
+            }
+
+            if (stars <= 3) {
+                // Preserve any existing tempData (typically customer name) so we can restore it
+                String original = convo.getTempData() == null ? "" : convo.getTempData();
+                convoService.saveTempData(convo, "RATING_COMMENT:" + rating.getId() + ":" + original);
+                convoService.updateState(convo, ConversationState.AWAITING_RATING_COMMENT);
+
+                whatsappService.sendInteractiveButtonsSafe(
+                        phone,
+                        "תודה על הדירוג 🙏\nרוצה לספר לנו מה לא היה בסדר? (אופציונלי)",
+                        new WhatsappService.InteractiveButton("rate_skip_comment_" + rating.getId(), "⏭️ דלג")
+                );
+                return null;
+            } else {
+                return "תודה רבה על הדירוג! נשמח לראות אותך שוב ב־RYZ 💙";
+            }
+        } catch (NumberFormatException e) {
+            logger.warn("Invalid rate_taxi payload: {}", txt);
+            return null;
+        } catch (Exception e) {
+            logger.error("Error handling rate_taxi: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    /**
+     * Customer typed free text while in AWAITING_RATING_COMMENT.
+     * tempData format: "RATING_COMMENT:{ratingId}:{originalTempData}"
+     */
+    private String handleRatingCommentText(Conversation convo, String phone, String txt) {
+        try {
+            String temp = convo.getTempData() == null ? "" : convo.getTempData();
+            if (!temp.startsWith("RATING_COMMENT:")) {
+                logger.warn("AWAITING_RATING_COMMENT but tempData malformed: '{}' — resetting", temp);
+                convoService.updateState(convo, ConversationState.START);
+                convoService.saveTempData(convo, "");
+                return null;
+            }
+            String rest = temp.substring("RATING_COMMENT:".length()); // "{ratingId}:{original}"
+            int colon = rest.indexOf(':');
+            if (colon < 0) {
+                logger.warn("AWAITING_RATING_COMMENT tempData missing ':' separator: '{}'", temp);
+                convoService.updateState(convo, ConversationState.START);
+                convoService.saveTempData(convo, "");
+                return null;
+            }
+            long ratingId = Long.parseLong(rest.substring(0, colon));
+            String original = rest.substring(colon + 1);
+
+            // Truncate to a sane comment length to protect DB
+            String comment = txt.length() > 1000 ? txt.substring(0, 1000) : txt;
+            ratingService.addComment(ratingId, comment);
+
+            // Restore prior tempData (usually customer name) and reset state
+            convoService.saveTempData(convo, original);
+            convoService.updateState(convo, ConversationState.START);
+
+            return "תודה רבה על המשוב! נשתמש בו כדי להשתפר 💙";
+        } catch (Exception e) {
+            logger.error("Error handling rating comment text: {}", e.getMessage(), e);
+            convoService.updateState(convo, ConversationState.START);
+            convoService.saveTempData(convo, "");
+            return null;
+        }
+    }
+
+    /**
+     * Customer tapped "Skip" on the comment prompt.
+     * Payload format: rate_skip_comment_{ratingId}
+     */
+    private String handleRatingCommentSkip(Conversation convo, String phone, String txt) {
+        try {
+            String temp = convo.getTempData() == null ? "" : convo.getTempData();
+            String original = "";
+            if (temp.startsWith("RATING_COMMENT:")) {
+                String rest = temp.substring("RATING_COMMENT:".length());
+                int colon = rest.indexOf(':');
+                if (colon >= 0) {
+                    original = rest.substring(colon + 1);
+                }
+            }
+            convoService.saveTempData(convo, original);
+            convoService.updateState(convo, ConversationState.START);
+            return "תודה רבה! 💙";
+        } catch (Exception e) {
+            logger.error("Error handling rating comment skip: {}", e.getMessage(), e);
+            convoService.updateState(convo, ConversationState.START);
+            convoService.saveTempData(convo, "");
+            return null;
+        }
+    }
 }
+
+  

@@ -14,7 +14,6 @@ public class Conversation {
     @Id
     private String phone;
     
-    
     @Enumerated(EnumType.STRING)
     private ConversationState state;
 

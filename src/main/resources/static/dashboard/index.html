@@ -1095,6 +1095,17 @@
     </div>
 </div>
 
+<!-- MODAL: Driver Ratings -->
+<div class="modal-overlay" id="driver-ratings-modal">
+    <div class="modal" style="width:560px;max-width:95vw">
+        <h3>דירוגים — <span id="driver-ratings-name"></span></h3>
+        <div id="driver-ratings-list" style="max-height:420px;overflow-y:auto"></div>
+        <div class="modal-actions" style="margin-top:16px">
+            <button class="btn-secondary" onclick="closeModal('driver-ratings-modal')">סגור</button>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL: Add Driver -->
 <div class="modal-overlay" id="add-driver-modal">
     <div class="modal">
@@ -1169,8 +1180,8 @@
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px;width:360px;max-width:90vw">
         <div style="font-size:18px;font-weight:700;margin-bottom:6px">כניסת מנהלים</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:20px">הכנס את מפתח הגישה שלך</div>
-        <div class="modal-label">מפתח גישה</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:20px">הקלד סיסמא</div>
+        <div class="modal-label">סיסמא</div>
         <input class="modal-input" id="login-key-input" type="password" placeholder="••••••••••••••••••••"/>
         <div id="login-error" style="color:var(--danger);font-size:12px;min-height:18px;margin-bottom:12px;font-family:var(--mono)"></div>
         <button class="btn-primary" style="width:100%;padding:12px" onclick="submitLogin()">כניסה</button>
@@ -1686,6 +1697,10 @@
         const grid = document.getElementById('drivers-grid');
         grid.innerHTML = drivers.length ? drivers.map(d => {
             const busy = driverBusyPhones.has(d.phone);
+            const hasRatings = (d.ratingCount || 0) > 0;
+            const ratingLabel = hasRatings
+                ? `★ ${Number(d.ratingAvg).toFixed(1)} (${d.ratingCount})`
+                : 'ללא דירוגים';
             return `<div class="driver-card ${d.active?'':'inactive'}">
     <div class="driver-card-header">
       <div>
@@ -1699,6 +1714,7 @@
       ${d.carType?`<span class="badge badge-muted">${carTypeLabel(d.carType)}</span>`:''}
       ${d.carModel?`<span class="badge badge-muted">${d.carModel}</span>`:''}
       ${d.carColor?`<span class="badge badge-muted">${d.carColor}</span>`:''}
+      <span class="badge ${hasRatings ? 'badge-green' : 'badge-muted'}" style="cursor:pointer" onclick="openDriverRatings('${d.phone}','${(d.name||d.phone).replace(/'/g,'')}')">${ratingLabel}</span>
     </div>
     ${d.locationUpdatedAt?`<div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:8px">📍 עדכון אחרון: ${minutesAgo(d.locationUpdatedAt)} לפני</div>`:''}
     <div class="driver-actions">
@@ -1718,7 +1734,8 @@
             (formatPhone(d.phone)||'').includes(q) ||
             (d.carModel||'').toLowerCase().includes(q) ||
             (d.carColor||'').toLowerCase().includes(q) ||
-            (carTypeLabel(d.carType)||'').toLowerCase().includes(q)
+            (carTypeLabel(d.carType)||'').toLowerCase().includes(q) ||
+            (d.ratingAvg != null && Number(d.ratingAvg).toFixed(1).includes(q))
         );
     }
 
@@ -1782,6 +1799,35 @@
         document.querySelectorAll('#driver-orders-modal .tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='taxi')||(i===1&&tab==='delivery')));
         document.getElementById('driver-taxi-orders').style.display    = tab==='taxi'     ? 'block' : 'none';
         document.getElementById('driver-delivery-orders').style.display= tab==='delivery' ? 'block' : 'none';
+    }
+
+    async function openDriverRatings(phone, name) {
+        document.getElementById('driver-ratings-name').textContent = name;
+        document.getElementById('driver-ratings-list').innerHTML = '<div class="empty">טוען...</div>';
+        document.getElementById('driver-ratings-modal').classList.add('open');
+        try {
+            const ratings = await api(`/admin/drivers/${phone}/ratings`);
+            if (!ratings.length) {
+                document.getElementById('driver-ratings-list').innerHTML = '<div class="empty">אין דירוגים עדיין</div>';
+                return;
+            }
+            document.getElementById('driver-ratings-list').innerHTML = ratings.map(r => {
+                const stars = '⭐'.repeat(r.stars);
+                const typeLabel = r.orderType === 'TAXI' ? '🚕' : '🛵';
+                const safeComment = r.comment
+                    ? String(r.comment).replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                    : '';
+                return `<div style="padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                        <span style="font-size:16px">${stars}</span>
+                        <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${typeLabel} #${r.orderId} · ${fmtDate(r.createdAt)}</span>
+                    </div>
+                    ${safeComment ? `<div style="font-size:13px;color:var(--text);margin-top:6px">${safeComment}</div>` : ''}
+                </div>`;
+            }).join('');
+        } catch(e) {
+            document.getElementById('driver-ratings-list').innerHTML = '<div class="empty">שגיאה בטעינת דירוגים</div>';
+        }
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -2072,7 +2118,7 @@
     async function submitLogin() {
         const input = document.getElementById('login-key-input').value.trim();
         const err = document.getElementById('login-error');
-        if (!input) { err.textContent = 'הכנס מפתח גישה'; return; }
+        if (!input) { err.textContent = 'הקלד סיסמא'; return; }
 
         // Test the key against a real endpoint
         try {
@@ -2080,7 +2126,7 @@
                 headers: { 'X-Admin-Key': input }
             });
             if (res.status === 403) {
-                err.textContent = '❌ מפתח שגוי';
+                err.textContent = '❌ סיסמא לא נכונה';
                 return;
             }
             // Key is valid

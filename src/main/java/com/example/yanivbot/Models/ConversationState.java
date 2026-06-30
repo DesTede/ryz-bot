@@ -30,5 +30,6 @@ public enum ConversationState {
     BUSINESS_MENU,                          // Business owner main menu
 
     // Driver location
-    AWAITING_DRIVER_LOCATION                // Driver sharing location on shift start
-}
+    AWAITING_DRIVER_LOCATION,                // Driver sharing location on shift start
+    AWAITING_RATING_COMMENT
+    }

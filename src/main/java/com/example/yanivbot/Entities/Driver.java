@@ -26,17 +26,19 @@ public class Driver {
     private double longitude;
     private LocalDateTime locationUpdatedAt;
     private LocalDateTime staleLocationAlertedAt;
+    private Double ratingAvg;
+    private int ratingCount;
 
     @Enumerated(EnumType.STRING)
     private DriverType type;
 
     @Enumerated(EnumType.STRING)
     private CarType carType;
-
     private String carColor;
     private String carModel;
-
     private String locationToken;
+    
+    
     public Driver() {
     }
 
@@ -157,5 +159,21 @@ public class Driver {
 
     public void setStaleLocationAlertedAt(LocalDateTime staleLocationAlertedAt) {
         this.staleLocationAlertedAt = staleLocationAlertedAt;
+    }
+
+    public Double getRatingAvg() {
+        return ratingAvg;
+    }
+
+    public void setRatingAvg(Double ratingAvg) {
+        this.ratingAvg = ratingAvg;
+    }
+
+    public int getRatingCount() {
+        return ratingCount;
+    }
+
+    public void setRatingCount(int ratingCount) {
+        this.ratingCount = ratingCount;
     }
 }
