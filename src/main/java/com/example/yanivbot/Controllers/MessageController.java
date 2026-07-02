@@ -71,9 +71,10 @@ public class MessageController {
         // responses. Insert-first on the message id; a duplicate PK means we've already
         // handled this message, so skip it (prevents duplicate orders/claims).
         String messageId = message.getMessageId();
+        ProcessedMessage processed = null;
         if (messageId != null && !messageId.isBlank()) {
             try {
-                processedMessageRepo.saveAndFlush(new ProcessedMessage(messageId));
+                processed = processedMessageRepo.saveAndFlush(new ProcessedMessage(messageId));
             } catch (DataIntegrityViolationException e) {
                 logger.info("Duplicate webhook message {} ignored", messageId);
                 return;
@@ -93,9 +94,6 @@ public class MessageController {
             convo.setNudgedAt(0);
             convoService.save(convo);
 
-            // Send response only if handler returned something
-            // Some handlers (like those sending interactive buttons) return null because
-            // they already sent the message directly via WhatsApp
             if (reply != null && !reply.isEmpty()) {
                 logger.info("Sending reply to {}: {}", message.getPhone(), reply);
                 whatsappService.sendText(message.getPhone(), reply);
@@ -104,6 +102,16 @@ public class MessageController {
             }
         } catch (Exception e) {
             logger.error("Error handling message from {}: {}", message.getPhone(), e.getMessage(), e);
+            // Processing failed — remove the idempotency record so Meta's automatic retry
+            // can reprocess this message instead of it being skipped as a duplicate.
+            if (processed != null) {
+                try {
+                    processedMessageRepo.delete(processed);
+                    logger.info("Rolled back processed-message record {} after failure", messageId);
+                } catch (Exception cleanupEx) {
+                    logger.warn("Could not roll back processed-message record {}: {}", messageId, cleanupEx.getMessage());
+                }
+            }
             whatsappService.sendSafeText(message.getPhone(), "❌ משהו השתבש. אנא נסה שוב.");
         }
     }

@@ -115,7 +115,12 @@ public class GeoCodingService {
             Map<?, ?> distanceMap = (Map<?, ?>) element.get("distance");
             if (distanceMap == null) return null;
 
+            // Prefer traffic-aware duration, but fall back to plain duration when Google
+            // has no live traffic data for the route (common off-peak / certain areas).
             Map<?, ?> durationMap = (Map<?, ?>) element.get("duration_in_traffic");
+            if (durationMap == null) {
+                durationMap = (Map<?, ?>) element.get("duration");
+            }
             if (durationMap == null)
                 return null;
 
@@ -125,7 +130,7 @@ public class GeoCodingService {
             if (distanceValue instanceof Number && durationValue instanceof Number) {
                 double distanceKm = ((Number) distanceValue).doubleValue() / 1000.0;
                 double durationMinutes = ((Number) durationValue).doubleValue() / 60.0;
-                logger.error("Distance: {}km | Duration: {}min", distanceKm, durationMinutes);
+                logger.debug("Distance: {}km | Duration: {}min", distanceKm, durationMinutes);
                 return new TripInfo(distanceKm, durationMinutes);
             }
 
@@ -156,8 +161,14 @@ public class GeoCodingService {
             Map<?, ?> element = (Map<?, ?>) elements.get(0);
             if (!"OK".equals(element.get("status"))) return null;
 
+            // NEW
             Map<?, ?> distanceMap = (Map<?, ?>) element.get("distance");
+            // Prefer traffic-aware duration, fall back to plain duration when Google has
+            // no live traffic data for the route (consistent with getTripInfo).
             Map<?, ?> durationMap = (Map<?, ?>) element.get("duration_in_traffic");
+            if (durationMap == null) {
+                durationMap = (Map<?, ?>) element.get("duration");
+            }
             if (distanceMap == null || durationMap == null) return null;
 
             double distanceKm = ((Number) distanceMap.get("value")).doubleValue() / 1000.0;
@@ -277,13 +288,19 @@ public class GeoCodingService {
 
             List<double[]> orderedStops = new ArrayList<>();
             orderedStops.add(origin);
-            if (optimizedIndices != null && waypoints.size() > 1) {
+            if (waypoints.size() > 1) {
                 List<double[]> intermediates = new ArrayList<>(waypoints.subList(0, waypoints.size() - 1));
-                for (Object idx : optimizedIndices) {
-                    int i = ((Number) idx).intValue();
-                    if (i >= 0 && i < intermediates.size()) {
-                        orderedStops.add(intermediates.get(i));
+                if (optimizedIndices != null && !optimizedIndices.isEmpty()) {
+                    for (Object idx : optimizedIndices) {
+                        int i = ((Number) idx).intValue();
+                        if (i >= 0 && i < intermediates.size()) {
+                            orderedStops.add(intermediates.get(i));
+                        }
                     }
+                } else {
+                    // No optimization data returned — preserve original stop order
+                    // rather than dropping the intermediate stops entirely.
+                    orderedStops.addAll(intermediates);
                 }
             }
             orderedStops.add(destination);

@@ -410,7 +410,10 @@ public class DeliveryConversationHandler implements ConversationHandler {
             return null; 
         }
 
-        return "❌ שגיאה בעיבוד הנתונים. אנא נסה שנית.";
+        // NEW
+        convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_PHONE);
+        convoService.saveTempData(convo, "");
+        return "❌ שגיאה בעיבוד הנתונים.\nאנא התחילו מחדש - מה מספר הטלפון של הלקוח?";
     }
 
     /**

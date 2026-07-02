@@ -169,9 +169,12 @@ public class OrderMonitorService {
             logger.error("Failed to send admin alert for taxi order #{}: {}", order.getId(), e.getMessage(), e);
         }
 
-        // Notify customer
-        whatsappService.sendSafeText(order.getPhone(),
-                "⚠️ טרם נמצא נהג להזמנתך. אנו ממשיכים לחפש...");
+        // Notify customer — with a cancel button so they can drop the order and re-order later
+        whatsappService.sendInteractiveButtonsSafe(
+                order.getPhone(),
+                "⚠️ עוד לא מצאנו נהג להזמנה שלך. אנו ממשיכים לחפש...",
+                new WhatsappService.InteractiveButton("taxi_cancel_customer_" + order.getId(), "🚫 בטל הזמנה")
+        );
 
         order.setAdminLastAlertedAt(LocalDateTime.now());
         taxiOrderRepo.save(order);
@@ -247,16 +250,19 @@ public class OrderMonitorService {
             logger.error("Failed to send admin alert for delivery order #{}: {}", order.getId(), e.getMessage(), e);
         }
 
-        // Notify business owner
-        whatsappService.sendSafeText(order.getBusinessPhone(),
-                "⚠️ טרם נמצא שליח להזמנה מס" + order.getId() + ". אנו ממשיכים לחפש...");
+        // Notify business owner — with a cancel button so they can drop the order and re-order later
+        whatsappService.sendInteractiveButtonsSafe(
+                order.getBusinessPhone(),
+                "⚠️ עוד לא מצאנו שליח להזמנה מס" + order.getId() + ". אנו ממשיכים לחפש...",
+                new WhatsappService.InteractiveButton("delivery_cancel_business_" + order.getId(), "🚫 בטל הזמנה")
+        );
 
         order.setAdminLastAlertedAt(LocalDateTime.now());
         deliveryOrderRepo.save(order);
     }
 
     // Runs every 5 minutes — notifies customer if driver location is stale during an active taxi or delivery order
-    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
+//    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
     public void checkStaleDriverLocation() {
         LocalDateTime staleThreshold = LocalDateTime.now().minusMinutes(DRIVER_STALE_LOCATION_MINUTES);
 

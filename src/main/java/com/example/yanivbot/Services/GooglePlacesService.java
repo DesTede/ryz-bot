@@ -44,14 +44,22 @@ public class GooglePlacesService {
             logger.info("Places API request for: {}", input);
 
             // 3. Pass the template URL and the parameter map together
-            Map response = restTemplate.getForObject(url, Map.class, params);
+            // NEW
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class, params);
             logger.info("Places API response status: {}", response != null ? response.get("status") : "null");
-            List<Map> predictions = (List<Map>) response.get("predictions");
+
             List<PlaceSuggestion> suggestions = new ArrayList<>();
+            if (response == null) {
+                return suggestions;
+            }
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> predictions = (List<Map<String, Object>>) response.get("predictions");
 
             if (predictions != null) {
                 for (int i = 0; i < Math.min(9, predictions.size()); i++) {
-                    Map prediction = predictions.get(i);
+                    Map<String, Object> prediction = predictions.get(i);
                     String placeId = (String) prediction.get("place_id");
                     String description = (String) prediction.get("description");
                     suggestions.add(new PlaceSuggestion(placeId, description));

@@ -10,7 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -23,6 +24,7 @@ import javax.crypto.spec.SecretKeySpec;
 @RequestMapping("/webhook")
 public class WhatsAppWebhookController {
     private static final Logger logger = LoggerFactory.getLogger(WhatsAppWebhookController.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     
     @Autowired
     private WhatsappService whatsappService;
@@ -89,8 +91,8 @@ public class WhatsAppWebhookController {
         try {
             logger.debug("Webhook payload received from Meta");
 
-            Map<String, Object> payload = new com.fasterxml.jackson.databind.ObjectMapper()
-                    .readValue(rawBody, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+            Map<String, Object> payload = OBJECT_MAPPER
+                    .readValue(rawBody, new TypeReference<>() {});
 
             // Parse incoming message using WhatsappService
             IncomingMessage incomingMessage = whatsappService.parseIncomingMessage(payload);
