@@ -107,7 +107,16 @@ public class DriverService {
      * Get all active drivers of a specific type
      */
     public List<Driver> getActiveDrivers(DriverType type) {
-        return driverRepo.findByActiveAndTypeIn(true, List.of(type, DriverType.BOTH));
+        List<Driver> drivers = driverRepo.findByActiveAndTypeIn(true, List.of(type, DriverType.BOTH));
+        // Never dispatch real orders to the reviewer/demo account. This is the single
+        // chokepoint all dispatch + pool-building paths route through.
+        String demoPhone = System.getenv("DEMO_DRIVER_PHONE");
+        if (demoPhone != null && !demoPhone.isBlank()) {
+            drivers = drivers.stream()
+                    .filter(d -> !demoPhone.equals(d.getPhone()))
+                    .toList();
+        }
+        return drivers;
     }
 
     /**

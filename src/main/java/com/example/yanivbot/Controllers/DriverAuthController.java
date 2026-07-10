@@ -50,6 +50,12 @@ public class DriverAuthController {
             return ResponseEntity.badRequest().body(Map.of("error", "Phone is required"));
         }
 
+        // Reviewer demo account — skip real OTP delivery; fixed code accepted at verify.
+        String demoPhone = System.getenv("DEMO_DRIVER_PHONE");
+        if (demoPhone != null && demoPhone.equals(phone)) {
+            return ResponseEntity.ok(Map.of("message", "OTP sent"));
+        }
+        
         Driver driver = driverService.findByPhone(phone);
         if (driver == null) {
             logger.warn("OTP requested for unknown driver phone: {}", PhoneNumberUtil.maskPhoneNumber(phone));
@@ -89,6 +95,19 @@ public class DriverAuthController {
 
         if (phone == null || code == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Phone and code are required"));
+        }
+
+        // Reviewer demo bypass — env-gated, single demo phone + fixed code only.
+        String demoPhone = System.getenv("DEMO_DRIVER_PHONE");
+        String demoCode  = System.getenv("DEMO_DRIVER_OTP");
+        if (demoPhone != null && demoCode != null
+                && demoPhone.equals(phone) && demoCode.equals(code)) {
+            if (driverService.findByPhone(phone) == null) {
+                return ResponseEntity.status(403).body(Map.of("error", "Demo driver not provisioned"));
+            }
+            String token = jwtService.generateToken(phone);
+            logger.info("Demo driver authenticated via reviewer bypass");
+            return ResponseEntity.ok(Map.of("token", token));
         }
 
         DriverOtp otp = otpRepo.findTopByPhoneOrderByExpiresAtDesc(phone).orElse(null);

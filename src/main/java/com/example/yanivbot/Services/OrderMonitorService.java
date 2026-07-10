@@ -286,13 +286,13 @@ public class OrderMonitorService {
                 continue;
             }
 
-            if (order.isCustomerAlertedStaleLocation()) continue; // already alerted this episode
-
-            whatsappService.sendSafeText(order.getPhone(),
-                    "⚠️ המיקום לא מתעדכן כרגע, הנהג בדרכו אליך 🚗");
-            order.setCustomerAlertedStaleLocation(true);
-            taxiOrderRepo.save(order);
-            logger.info("Stale location alert sent to customer for taxi order #{}", order.getId());
+            // ------Customer stale-location alert for taxi intentionally disabled — no message sent-----
+//            if (order.isCustomerAlertedStaleLocation()) continue; // already alerted this episode
+//            whatsappService.sendSafeText(order.getPhone(),
+//                    "⚠️ המיקום לא מתעדכן כרגע, הנהג בדרכו אליך 🚗");
+//            order.setCustomerAlertedStaleLocation(true);
+//            taxiOrderRepo.save(order);
+//            logger.info("Stale location alert sent to customer for taxi order #{}", order.getId());
         }
 
         // --- Delivery orders ---
