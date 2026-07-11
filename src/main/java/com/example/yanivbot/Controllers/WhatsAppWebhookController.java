@@ -84,7 +84,7 @@ public class WhatsAppWebhookController {
             String status = rawBody.contains("\"read\"") ? "read"
                     : rawBody.contains("\"delivered\"") ? "delivered"
                     : rawBody.contains("\"sent\"") ? "sent" : "status";
-            logger.debug("Webhook [{}] — status update only, skipping", status);
+            logger.info("Webhook [{}] — status update only, skipping", status);
         } else {
             logger.debug("Webhook received — processing message");
         }
