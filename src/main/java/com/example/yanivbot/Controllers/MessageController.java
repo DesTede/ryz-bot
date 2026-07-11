@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -57,6 +58,7 @@ public class MessageController {
      * NOTE: Some handlers send messages directly via WhatsApp and return null.
      * Only send a reply if the handler returns a non-null/non-empty string.
      */
+    @Async
     public void handleMetaMessage(IncomingMessage message) {
         if (message == null) {
             return;
