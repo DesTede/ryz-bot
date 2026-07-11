@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +26,10 @@ import javax.crypto.spec.SecretKeySpec;
 public class WhatsAppWebhookController {
     private static final Logger logger = LoggerFactory.getLogger(WhatsAppWebhookController.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    
+    // Cache to track processed messages (Message ID -> Timestamp) to avoid race conditions
+    private final java.util.concurrent.ConcurrentHashMap<String, Long> processedMessageIds = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long DEBOUNCE_WINDOW_MS = 6000; // 6 seconds window
     
     @Autowired
     private WhatsappService whatsappService;
@@ -106,7 +111,21 @@ public class WhatsAppWebhookController {
             String messageText = incomingMessage.getText();
 
             logger.info("Message received from {}: {}", PhoneNumberUtil.maskPhoneNumber(phoneNumber), messageText);
-
+            
+            // Extract unique message ID from the WhatsApp payload to deduplicate concurrent requests
+            String msgId = incomingMessage.getMessageId();
+            if (msgId != null) {
+                long now = System.currentTimeMillis();
+                if (processedMessageIds.containsKey(msgId)) {
+                    long elapsed = now - processedMessageIds.get(msgId);
+                    if (elapsed < DEBOUNCE_WINDOW_MS) {
+                        logger.warn("[WEBHOOK] Ignored duplicate request for message ID: {} (elapsed: {}ms)", msgId, elapsed);
+                        return ResponseEntity.ok().build(); // Return 200 OK so Meta doesn't retry
+                    }
+                }
+                processedMessageIds.put(msgId, now);
+            }
+            
             // Route to MessageController to process the message
             // MessageController.processMessage handles all the bot logic
             messageController.handleMetaMessage(incomingMessage);
@@ -118,6 +137,12 @@ public class WhatsAppWebhookController {
         }
     }
 
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 30000)
+    public void cleanExpiredMessageIds() {
+        long now = System.currentTimeMillis();
+        processedMessageIds.entrySet().removeIf(entry -> (now - entry.getValue()) > DEBOUNCE_WINDOW_MS);
+    }
+    
     private boolean isValidSignature(String signature, String rawBody) {
         if (signature == null || !signature.startsWith("sha256=")) {
             logger.warn("Missing or malformed X-Hub-Signature-256 header");
@@ -138,4 +163,5 @@ public class WhatsAppWebhookController {
             return false;
         }
     }
+    
 }
