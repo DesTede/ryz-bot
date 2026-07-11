@@ -307,7 +307,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
                 logger.info("[DELIVERY] Ready time: {} minutes", minutes);
             } catch (NumberFormatException e) {
                 logger.warn("[DELIVERY] Invalid ready time input: '{}'", txt);
-                return "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו:\nאו הקלידו זמן הכנה";
+                return "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו:\nאו הקלידו זמן הכנה(הקלד מספר בלבד)";
             }
         }
 
