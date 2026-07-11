@@ -68,9 +68,11 @@ public class DeliveryOrderService {
 
     public void createDeliveryOrder(String businessPhone, String customerName, String customerPhone, String address, String addressPlaceId,
                                     int readyInMinutes, double price, String notes) {
+        
         customerService.saveOrUpdateCustomer(customerPhone, customerName);
 
         DeliveryOrder order = new DeliveryOrder();
+        
         order.setBusinessPhone(businessPhone);
         order.setCustomerPhone(PhoneNumberUtil.normalizePhone(customerPhone));
         order.setDeliveryAddress(address);
@@ -79,6 +81,7 @@ public class DeliveryOrderService {
         order.setDeliveryFee(price);
         order.setNotes(notes);
         order.setDeliveryStatus(DeliveryStatus.CREATED);
+        order.setDispatched(true); // Set this property BEFORE saving
 
         // IMPORTANT: Save order FIRST and flush to DB before broadcasting
         deliveryOrderRepo.save(order);
@@ -95,8 +98,8 @@ public class DeliveryOrderService {
 
         logger.info("Broadcasting order #{} to drivers...", order.getId());
         broadcastToDrivers(order);
-        order.setDispatched(true);
-        deliveryOrderRepo.save(order);
+//        order.setDispatched(true);
+//        deliveryOrderRepo.save(order);
     }
     
     
