@@ -28,10 +28,6 @@ public class WhatsAppWebhookController {
     private static final Logger logger = LoggerFactory.getLogger(WhatsAppWebhookController.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     
-    // Cache to track processed messages (Message ID -> Timestamp) to avoid race conditions
-    private final java.util.concurrent.ConcurrentHashMap<String, Long> processedMessageIds = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final long DEBOUNCE_WINDOW_MS = 6000; // 6 seconds window
-    
     @Autowired
     private WhatsappService whatsappService;
     
@@ -112,25 +108,7 @@ public class WhatsAppWebhookController {
             String messageText = incomingMessage.getText();
 
             logger.info("Message received from {}: {}", PhoneNumberUtil.maskPhoneNumber(phoneNumber), messageText);
-
-            // Extract unique message ID from the WhatsApp payload to deduplicate concurrent requests
-            String msgId = incomingMessage.getMessageId();
-            if (msgId != null) {
-                long now = System.currentTimeMillis();
-
-                // Atomically attempt to add the ID. Returns the existing timestamp if it was already there.
-                Long previousTimestamp = processedMessageIds.putIfAbsent(msgId, now);
-
-                if (previousTimestamp != null) {
-                    long elapsed = now - previousTimestamp;
-                    if (elapsed < DEBOUNCE_WINDOW_MS) {
-                        logger.warn("[WEBHOOK] Ignored duplicate concurrent request for message ID: {} (elapsed: {}ms)", msgId, elapsed);
-                        return ResponseEntity.ok().build(); // Return 200 OK so Meta stops retrying
-                    }
-                    // If it somehow bypassed the window (e.g., long-term retry), update the timestamp
-                    processedMessageIds.put(msgId, now);
-                }
-            }
+            
             
             // Route to MessageController to process the message
             // MessageController.processMessage handles all the bot logic
@@ -141,12 +119,6 @@ public class WhatsAppWebhookController {
             logger.error("Error processing webhook: {}", e.getMessage(), e);
             return ResponseEntity.ok().build();
         }
-    }
-
-    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 30000)
-    public void cleanExpiredMessageIds() {
-        long now = System.currentTimeMillis();
-        processedMessageIds.entrySet().removeIf(entry -> (now - entry.getValue()) > DEBOUNCE_WINDOW_MS);
     }
     
     private boolean isValidSignature(String signature, String rawBody) {

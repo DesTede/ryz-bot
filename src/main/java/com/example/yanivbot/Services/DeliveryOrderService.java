@@ -81,7 +81,6 @@ public class DeliveryOrderService {
         order.setDeliveryFee(price);
         order.setNotes(notes);
         order.setDeliveryStatus(DeliveryStatus.CREATED);
-        order.setDispatched(true); // Set this property BEFORE saving
 
         // IMPORTANT: Save order FIRST and flush to DB before broadcasting
         deliveryOrderRepo.save(order);
@@ -98,8 +97,13 @@ public class DeliveryOrderService {
 
         logger.info("Broadcasting order #{} to drivers...", order.getId());
         broadcastToDrivers(order);
-//        order.setDispatched(true);
-//        deliveryOrderRepo.save(order);
+        order.setDispatched(true);
+        order.setDispatched(true);
+        try {
+            deliveryOrderRepo.save(order);
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            logger.warn("Delivery order #{} dispatch flag already set by concurrent thread — ignoring", order.getId());
+        }
     }
     
     
