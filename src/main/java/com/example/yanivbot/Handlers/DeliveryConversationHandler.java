@@ -512,7 +512,7 @@ public class DeliveryConversationHandler implements ConversationHandler {
     }
 
     private void showReadyTimeButton(String phone) {
-        String bodyText = "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו: \nאו הקלידו זמן הכנה";
+        String bodyText = "⏱️ בעוד כמה דקות ההזמנה תהיה מוכנה?\nאם ההזמנה מוכנה עכשיו לחצו: \nאו הקלידו זמן הכנה(הקלד מספר בלבד)";
 
         whatsappService.sendInteractiveButtonsSafe(
                 phone,
