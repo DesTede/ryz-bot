@@ -3,7 +3,11 @@ package com.example.yanivbot.Repositories;
 import com.example.yanivbot.Entities.DeliveryOrder;
 import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.DeliveryStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -40,5 +44,8 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
 
     Optional<DeliveryOrder> findFirstByBusinessPhoneAndCustomerPhoneOrderByCreatedAtDesc(
             String businessPhone, String customerPhone);
-    
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT d FROM DeliveryOrder d WHERE d.id = :id")
+    Optional<DeliveryOrder> findByIdWithLock(@Param("id") Long id);
 }

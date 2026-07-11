@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -111,19 +112,24 @@ public class WhatsAppWebhookController {
             String messageText = incomingMessage.getText();
 
             logger.info("Message received from {}: {}", PhoneNumberUtil.maskPhoneNumber(phoneNumber), messageText);
-            
+
             // Extract unique message ID from the WhatsApp payload to deduplicate concurrent requests
             String msgId = incomingMessage.getMessageId();
             if (msgId != null) {
                 long now = System.currentTimeMillis();
-                if (processedMessageIds.containsKey(msgId)) {
-                    long elapsed = now - processedMessageIds.get(msgId);
+
+                // Atomically attempt to add the ID. Returns the existing timestamp if it was already there.
+                Long previousTimestamp = processedMessageIds.putIfAbsent(msgId, now);
+
+                if (previousTimestamp != null) {
+                    long elapsed = now - previousTimestamp;
                     if (elapsed < DEBOUNCE_WINDOW_MS) {
-                        logger.warn("[WEBHOOK] Ignored duplicate request for message ID: {} (elapsed: {}ms)", msgId, elapsed);
-                        return ResponseEntity.ok().build(); // Return 200 OK so Meta doesn't retry
+                        logger.warn("[WEBHOOK] Ignored duplicate concurrent request for message ID: {} (elapsed: {}ms)", msgId, elapsed);
+                        return ResponseEntity.ok().build(); // Return 200 OK so Meta stops retrying
                     }
+                    // If it somehow bypassed the window (e.g., long-term retry), update the timestamp
+                    processedMessageIds.put(msgId, now);
                 }
-                processedMessageIds.put(msgId, now);
             }
             
             // Route to MessageController to process the message
