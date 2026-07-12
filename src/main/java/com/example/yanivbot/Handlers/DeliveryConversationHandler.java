@@ -7,6 +7,7 @@ import com.example.yanivbot.Services.ConversationService;
 import com.example.yanivbot.Services.DeliveryOrderService;
 import com.example.yanivbot.Services.GooglePlacesService;
 import com.example.yanivbot.Services.WhatsappService;
+import com.example.yanivbot.Utils.PhoneNumberUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -111,15 +112,23 @@ public class DeliveryConversationHandler implements ConversationHandler {
      * Stage 1: Customer Phone (now first step) - validate and look up previous order
      */
     private String handleCustomerPhone(Conversation convo, IncomingMessage message) {
-        String customerPhone = message.getText().trim();
-        logger.info("[DELIVERY] Stage 1: Validating phone: '{}'", customerPhone);
+        String rawInput = message.getText().trim();
+        logger.info("[DELIVERY] Stage 1: Validating phone: '{}'", PhoneNumberUtil.maskPhoneNumber(rawInput));
 
         // Validate: must be 10 digits
-        if (!customerPhone.matches("\\d{10}")) {
-            logger.warn("[DELIVERY] ❌ Phone validation FAILED: '{}' (not 10 digits)", customerPhone);
+        if (!PhoneNumberUtil.isValidPhoneNumber(rawInput)) {
+            logger.warn("[DELIVERY] ❌ Phone validation FAILED: '{}'", rawInput);
             return "❌ מספר הטלפון לא תקין. אנא הקלידו מספר טלפון בן 10 ספרות.";
         }
+        
+//        if (!customerPhone.matches("\\d{10}")) {
+//            logger.warn("[DELIVERY] ❌ Phone validation FAILED: '{}' (not 10 digits)", PhoneNumberUtil.maskPhoneNumber(customerPhone));
+//            return "❌ מספר הטלפון לא תקין. אנא הקלידו מספר טלפון בן 10 ספרות.";
+//        }
 
+        String customerPhone = PhoneNumberUtil.normalizePhone(rawInput);
+        logger.info("[DELIVERY] Normalized phone to: '{}'", PhoneNumberUtil.maskPhoneNumber(customerPhone));
+        
         // Look up previous order details for this customer at this business
         String businessPhone = message.getPhone();
         String[] prevDetails = deliveryOrderService.getPreviousCustomerDetails(businessPhone, customerPhone);
@@ -200,7 +209,15 @@ public class DeliveryConversationHandler implements ConversationHandler {
 
         if (!isYes) {
             logger.warn("[DELIVERY] User typed free text '{}' instead of pressing a confirmation button", txt);
-            return "לא זיהיתי את התשובה 🤔\nאנא לחצו על אחד הכפתורים: ✅ כן או ❌ לא";
+            whatsappService.sendSafeText(message.getPhone(),
+                    "לא זיהיתי את התשובה 🤔\nאנא אשרו או שנו את הפרטים עם הכפתורים למטה\n(או שלחו \"התחל מחדש\" לאיפוס השיחה)");
+            whatsappService.sendInteractiveButtonsSafe(
+                    message.getPhone(),
+                    "📋 הלקוח הזה הזמין אצלכם בעבר:\n👤 שם: " + prevName + "\n📍 כתובת: " + prevAddress + "\nהפרטים עדיין נכונים?",
+                    new WhatsappService.InteractiveButton("customer_confirm_yes", "✅ כן, נכון"),
+                    new WhatsappService.InteractiveButton("customer_confirm_no", "❌ לא, שנה")
+            );
+            return null;
         }
 
         logger.info("[DELIVERY] ✅ Customer confirmed previous details");
@@ -468,7 +485,28 @@ public class DeliveryConversationHandler implements ConversationHandler {
 
         if (!isYes) {
             logger.warn("[DELIVERY] User typed free text '{}' instead of pressing a confirmation button", txt);
-            return "לא זיהיתי את התשובה 🤔\nאנא לחצו על אחד הכפתורים: ✅ כן - אשר או ❌ לא - בטל";
+            String[] parts = tempData.split("\\|", -1);
+            if (parts.length >= 7) {
+                String customerName = parts[0];
+                String customerPhone = parts[1];
+                String address = parts[2];
+                int readyInMinutes = Integer.parseInt(parts[4]);
+                double price = Double.parseDouble(parts[5]);
+                String notesStr = parts[6];
+                String confirmation = buildConfirmationMessage(customerName, customerPhone, address, readyInMinutes, price, notesStr);
+                whatsappService.sendSafeText(message.getPhone(),
+                        "לא זיהיתי את התשובה 🤔\nאנא אשרו או בטלו את ההזמנה עם הכפתורים למטה\n(או שלחו \"התחל מחדש\" לאיפוס השיחה)");
+                whatsappService.sendInteractiveButtonsSafe(
+                        message.getPhone(),
+                        confirmation,
+                        new WhatsappService.InteractiveButton("delivery_confirm_yes", "אישור משלוח ✅"),
+                        new WhatsappService.InteractiveButton("delivery_confirm_no", "ביטול ❌")
+                );
+            } else {
+                whatsappService.sendSafeText(message.getPhone(),
+                        "לא זיהיתי את התשובה 🤔\nאנא לחצו על אחד הכפתורים: ✅ אישור משלוח או ❌ ביטול\n(או שלחו \"התחל מחדש\" לאיפוס השיחה)");
+            }
+            return null;
         }
 
         String[] parts = tempData.split("\\|", -1);

@@ -2,11 +2,13 @@ package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Entities.DeliveryOrder;
 import com.example.yanivbot.Entities.Driver;
+import com.example.yanivbot.Entities.Business;
 import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.CarType;
 import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.DriverType;
 import com.example.yanivbot.Models.TaxiOrderStatus;
+import com.example.yanivbot.Repositories.BusinessRepository;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import com.example.yanivbot.Repositories.DriverRepository;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
@@ -37,14 +39,16 @@ public class DriverService {
     private final DeliveryOrderRepository deliveryOrderRepo;
     private final WhatsappService whatsappService;
     private final ConversationService convoService;
+    private final BusinessRepository businessRepo;
 
     public DriverService(DriverRepository driverRepo, TaxiOrderRepository taxiOrderRepo, DeliveryOrderRepository deliveryOrderRepo,
-                         WhatsappService whatsappService, ConversationService convoService) {
+                         WhatsappService whatsappService, ConversationService convoService, BusinessRepository businessRepo) {
         this.driverRepo = driverRepo;
         this.taxiOrderRepo = taxiOrderRepo;
         this.deliveryOrderRepo = deliveryOrderRepo;
         this.whatsappService = whatsappService;
         this.convoService = convoService;
+        this.businessRepo = businessRepo;
     }
 
     /**
@@ -462,14 +466,18 @@ public class DriverService {
                 return;
             }
             logger.warn("No drivers available for taxi order #{} - alerting admins", orderId);
+            String customerPhoneLocal = PhoneNumberUtil.toLocalFormat(order.getPhone());
             String adminMessage = "🚨 *אין נהגים פנויים!*\n" +
                     "נוצרה הזמנת מונית חדשה (#" + order.getId() + ") אבל אין אף נהג זמין כרגע במערכת 😰\n\n" +
                     "📍 *איסוף:* " + order.getPickUpLocation() + "\n" +
                     "🎯 *יעד:* " + order.getDestination() + "\n" +
-                    "📞 *לקוח:* " + order.getPhone();
+                    "📞 *לקוח:* " + customerPhoneLocal;
             notifyAdminsSmartMessage(adminMessage, "no_taxi_driver_available_admin",
-                    List.of(String.valueOf(order.getId()), order.getPickUpLocation(),
-                            order.getDestination(), order.getPhone()));
+                    List.of(String.valueOf(
+                            order.getId()),
+                            order.getPickUpLocation(),
+                            order.getDestination(),
+                            customerPhoneLocal));
             order.setAdminAlertedNoDrivers(true);
             taxiOrderRepo.save(order);
         } else {
@@ -484,14 +492,22 @@ public class DriverService {
                 return;
             }
             logger.warn("No drivers available for delivery order #{} - alerting admins", orderId);
+            String businessName = businessRepo.findByPhone(order.getBusinessPhone())
+                    .map(Business::getName)
+                    .orElse("העסק");
+            String businessPhoneLocal = PhoneNumberUtil.toLocalFormat(order.getBusinessPhone());
             String adminMessage = "🚨 *אין שליחים פנויים!*\n" +
                     "נוצר משלוח חדש (#" + order.getId() + ") אבל אין אף שליח זמין כרגע במערכת 😰\n\n" +
+                    "🏪 *בית עסק:* " + businessName + "\n" +
                     "📍 *כתובת למשלוח:* " + order.getDeliveryAddress() + "\n" +
-                    "📞 *טלפון העסק:* " + order.getBusinessPhone();
-            
+                    "📞 *טלפון העסק:* " + businessPhoneLocal;
+
             notifyAdminsSmartMessage(adminMessage, "no_delivery_driver_available_admin",
-                    List.of(String.valueOf(order.getId()), order.getDeliveryAddress(),
-                            order.getBusinessPhone()));
+                    List.of(String.valueOf(
+                            order.getId()), 
+                            businessName,
+                            order.getDeliveryAddress(),
+                            businessPhoneLocal));
             order.setAdminAlertedNoDrivers(true);
             deliveryOrderRepo.save(order);
         }

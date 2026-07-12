@@ -90,11 +90,15 @@ public class TaxiOrderService {
         return true;
     }
 
-    public void broadcastToDrivers(TaxiOrder order) {
+    /**
+     * Builds the standard taxi dispatch message shown to drivers. Used for both the initial
+     * broadcast and every radius-expansion resend, so the format is always identical.
+     */
+    public String buildTaxiDispatchMessage(TaxiOrder order) {
         String fareText = (order.getEstimatedFare() != null)
                 ? String.format("₪%.0f", order.getEstimatedFare())
                 : "לא זמין";
-        String msg = """
+        return """
         🚖 נסיעה חדשה זמינה עבורך
         🆔 מספר הזמנה: %s
         📍 נקודת איסוף: %s
@@ -108,6 +112,10 @@ public class TaxiOrderService {
                 (order.getNotes() == null || order.getNotes().isEmpty()) ? "אין" : order.getNotes(),
                 fareText
         );
+    }
+    
+    public void broadcastToDrivers(TaxiOrder order) {
+        String msg = buildTaxiDispatchMessage(order);
 
         double[] coords = (order.getPickUpPlaceId() != null && !order.getPickUpPlaceId().isEmpty())
                 ? geoCodingService.geocodeByPlaceId(order.getPickUpPlaceId())

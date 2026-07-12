@@ -1570,7 +1570,12 @@
         taxiTb.innerHTML = '<tr class="loading-row"><td colspan="9">טוען... <span class="spinner"></span></td></tr>';
         delTb.innerHTML  = '<tr class="loading-row"><td colspan="10">טוען... <span class="spinner"></span></td></tr>';
         try {
-            const [taxi, del] = await Promise.all([api('/admin/orders/taxi'), api('/admin/orders/delivery')]);
+            // Ensure the business phone->name lookup is populated before rendering delivery orders
+            const businessesPromise = (window.allBusinesses && window.allBusinesses.length)
+                ? Promise.resolve(window.allBusinesses)
+                : api('/admin/businesses').then(list => { allBusinesses = list; window.allBusinesses = list; return list; }).catch(() => []);
+
+            const [taxi, del] = await Promise.all([api('/admin/orders/taxi'), api('/admin/orders/delivery'), businessesPromise]);
             allTaxiOrders = taxi;
             allDeliveryOrders = del;
             renderTaxiOrders(taxi);
@@ -1601,7 +1606,7 @@
     }
 
     function getBusinessNameByPhone(phone) {
-        if (!window.allBusinesses) return phone; // Fallback to phone if list isn't loaded yet
+        if (allBusinesses) return phone; // Fallback to phone if list isn't loaded yet
         const biz = window.allBusinesses.find(b => b.phone === phone || b.businessPhone === phone);
         return biz ? biz.name : phone; // Fallback to phone if business isn't found
     }
@@ -1879,6 +1884,7 @@
         tb.innerHTML = '<tr class="loading-row"><td colspan="5">טוען... <span class="spinner"></span></td></tr>';
         try {
             allBusinesses = await api('/admin/businesses');
+            window.allBusinesses = allBusinesses; // keep global lookup in sync for other pages (e.g. delivery orders table)
             const q = (document.getElementById('biz-search')?.value || '').trim().toLowerCase();
             const list = q ? filterBusinessList(allBusinesses, q) : allBusinesses;
             renderBusinesses(list);

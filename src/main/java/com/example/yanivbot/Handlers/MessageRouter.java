@@ -47,7 +47,7 @@ public class MessageRouter {
 
     private static final String WELCOME_MESSAGE = """
               ברוכים הבאים ל־RYZ — מזמינים נסיעה תוך שניות בוואטסאפ ⚡
-            (לחץ 00 לאתחול)
+            (לאיפוס שלחו "התחל מחדש")
             אז איך קוראים לך?""";
     private static final String DRIVER_WELCOME_MESSAGE = """
             💡 ברוכים הבאים למערכת הנהגים של RYZ!
@@ -165,7 +165,7 @@ public class MessageRouter {
         }
 
         // Reset conversation if user sends "00" or "התחל מחדש"
-        if (txt.equals("00") || txt.equals("התחל מחדש")) {
+        if (txt.equals("התחל מחדש") || txt.equals("איפוס")) {
             logger.info("Reset signal received: '{}'", txt);
             convoService.updateState(convo, ConversationState.START);
             convoService.saveTempData(convo, "");

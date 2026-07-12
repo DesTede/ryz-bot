@@ -125,7 +125,11 @@ public class DeliveryOrderService {
         return "✅ ההזמנה בוטלה בהצלחה.\nנשמח לשרת אותך שוב ב־RYZ 💙";
     }
 
-    public void broadcastToDrivers(DeliveryOrder order) {
+    /**
+     * Builds the standard delivery dispatch message shown to drivers. Used for both the initial
+     * broadcast and every radius-expansion resend, so the format is always identical.
+     */
+    public String buildDeliveryDispatchMessage(DeliveryOrder order) {
         String businessName = "RYZ";
         Business businessEntity = null;
         try {
@@ -138,7 +142,7 @@ public class DeliveryOrderService {
             logger.warn("Could not fetch business name...", e);
         }
 
-        // Resolve delivery coords (used for both dispatch radius + aerial distance)
+        // Resolve delivery coords (used for aerial distance)
         double[] coords = (order.getDeliveryAddressPlaceId() != null && !order.getDeliveryAddressPlaceId().isEmpty())
                 ? geoCodingService.geocodeByPlaceId(order.getDeliveryAddressPlaceId())
                 : geoCodingService.geocode(order.getDeliveryAddress());
@@ -169,7 +173,7 @@ public class DeliveryOrderService {
             destInfo = "📍 אזור מסירה: " + order.getDeliveryAddress();
         }
 
-        String msg = """
+        return """
         🚚 הזמנת משלוח חדשה
         בית עסק: %s
         📞 טלפון העסק: %s
@@ -182,9 +186,17 @@ public class DeliveryOrderService {
                 PhoneNumberUtil.toLocalFormat(order.getBusinessPhone()),
                 destInfo,
                 order.getDeliveryFee(),
-//                (order.getNotes() == null || order.getNotes().isEmpty()) ? "אין" : order.getNotes(),
                 order.getId()
         );
+    }
+
+    public void broadcastToDrivers(DeliveryOrder order) {
+        String msg = buildDeliveryDispatchMessage(order);
+
+        // Resolve delivery coords again for dispatch radius origin
+        double[] coords = (order.getDeliveryAddressPlaceId() != null && !order.getDeliveryAddressPlaceId().isEmpty())
+                ? geoCodingService.geocodeByPlaceId(order.getDeliveryAddressPlaceId())
+                : geoCodingService.geocode(order.getDeliveryAddress());
 
         if (coords != null) {
             driverService.dispatchDeliveryToClosestDrivers(msg, coords[0], coords[1],
@@ -196,7 +208,7 @@ public class DeliveryOrderService {
                     order.getId());
         }
     }
-
+    
     /**
      * Driver claims a delivery order
      * Rules:

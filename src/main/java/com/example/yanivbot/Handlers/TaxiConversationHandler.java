@@ -325,7 +325,16 @@ public class TaxiConversationHandler implements ConversationHandler {
 
         if (!isYes) {
             logger.warn("User typed free text '{}' instead of pressing a confirmation button", txt);
-            return "לא זיהיתי את התשובה 🤔\nאנא לחצו על אחד הכפתורים: ✅ כן - אשר או ❌ לא - בטל";
+            String[] parts = convo.getTempData().split("\\|", -1);
+            String carType = parts[0];
+            String pickupLocation = parts[1];
+            String destination = parts[3];
+            String notes = parts.length > 5 ? parts[5] : "";
+            Double estimatedFare = (parts.length > 6 && !parts[6].isEmpty()) ? Double.parseDouble(parts[6]) : null;
+            whatsappService.sendSafeText(message.getPhone(),
+                    "לא זיהיתי את התשובה 🤔\nאנא אשרו או בטלו את ההזמנה עם הכפתורים למטה\n(או שלחו \"התחל מחדש\" לאיפוס השיחה)");
+            showConfirmationButtons(message.getPhone(), carType, pickupLocation, destination, notes, estimatedFare);
+            return null;
         }
 
         String orderData = convo.getTempData();

@@ -52,7 +52,6 @@ public class BusinessConversationHandler implements ConversationHandler {
         }
 
         if (txt.equals("business_delivery_option") || txt.equals("2")) {
-            // Business owner creating delivery - start with customer phone
             convoService.updateState(convo, ConversationState.DELIVERY_CUSTOMER_PHONE);
             return "📞 מה מספר הטלפון של הלקוח?";
         }
@@ -71,7 +70,7 @@ public class BusinessConversationHandler implements ConversationHandler {
         String bodyText = greeting + "\n" +
                 "ניהול משלוחים ונסיעות בקלות ובמהירות ⚡" +
                 "\nמה תרצו לעשות? 👇\n" +
-                "(לחץ 00 לאתחול מחדש)";
+                "(לאיפוס שלחו \"התחל מחדש\")";
         
         whatsappService.sendInteractiveButtonsSafe(
                 phone,

@@ -1,12 +1,14 @@
 package com.example.yanivbot.Services;
 
 import com.example.yanivbot.Entities.Conversation;
+import com.example.yanivbot.Entities.Business;
 import com.example.yanivbot.Entities.DeliveryOrder;
 import com.example.yanivbot.Entities.Driver;
 import com.example.yanivbot.Entities.TaxiOrder;
 import com.example.yanivbot.Models.ConversationState;
 import com.example.yanivbot.Models.DeliveryStatus;
 import com.example.yanivbot.Models.TaxiOrderStatus;
+import com.example.yanivbot.Repositories.BusinessRepository;
 import com.example.yanivbot.Repositories.DeliveryOrderRepository;
 import com.example.yanivbot.Repositories.TaxiOrderRepository;
 import com.example.yanivbot.Utils.PhoneNumberUtil;
@@ -32,6 +34,9 @@ public class OrderMonitorService {
     private final BusinessOwnerService businessOwnerService;
     private final GeoCodingService geoCodingService;
     private final ConversationService convoService;
+    private final BusinessRepository businessRepo;
+    private final TaxiOrderService taxiOrderService;
+    private final DeliveryOrderService deliveryOrderService;
     
     @Value("${monitor.taxi.alert.minutes}")
     private int TAXI_ALERT_MINUTES;
@@ -62,7 +67,7 @@ public class OrderMonitorService {
                                WhatsappService whatsappService,
                                DriverService driverService,
                                BusinessOwnerService businessOwnerService,
-                               GeoCodingService geoCodingService, ConversationService convoService) {
+                               GeoCodingService geoCodingService, ConversationService convoService, BusinessRepository businessRepo, TaxiOrderService taxiOrderService, DeliveryOrderService deliveryOrderService) {
         this.taxiOrderRepo = taxiOrderRepo;
         this.deliveryOrderRepo = deliveryOrderRepo;
         this.whatsappService = whatsappService;
@@ -70,6 +75,9 @@ public class OrderMonitorService {
         this.businessOwnerService = businessOwnerService;
         this.geoCodingService = geoCodingService;
         this.convoService = convoService;
+        this.businessRepo = businessRepo;
+        this.taxiOrderService = taxiOrderService;
+        this.deliveryOrderService = deliveryOrderService;
     }
 
     // Runs every 30 seconds — expands unclaimed orders to the next radius, or alerts admin once max radius is exhausted.
@@ -98,21 +106,10 @@ public class OrderMonitorService {
 
             // Not yet at max radius — try to expand to the next ring (cascade instantly skips empty rings)
             if (currentIndex >= 0 && currentIndex < lastIndex) {
-                String msg = """
-                                     🚖 נסיעה חדשה זמינה עבורך
-                        🆔 מספר הזמנה: %s
-                        📍 נקודת איסוף: %s
-                        🎯 יעד הנסיעה: %s
-                        📝 פרטים נוספים: %s
-                        """.formatted(
-                        order.getId(),
-                        order.getPickUpLocation(),
-                        order.getDestination(),
-                        (order.getNotes() == null || order.getNotes().isEmpty()) ? "אין" : order.getNotes()
-                );
+                String msg = taxiOrderService.buildTaxiDispatchMessage(order);
                 String orderDetails = "📍 מאיפה: " + order.getPickUpLocation() + "\n" +
                         "🎯 לאן: " + order.getDestination() + "\n" +
-                        "📞 לקוח: " + order.getPhone();
+                        "📞 לקוח: " + PhoneNumberUtil.toLocalFormat(order.getPhone());
 
                 boolean expanded = driverService.expandTaxiDispatch(order.getId(), currentIndex + 1, msg, orderDetails, order.getRequestedCarType());
                 if (expanded) {
@@ -138,14 +135,14 @@ public class OrderMonitorService {
         if (lastAlert != null && lastAlert.isAfter(LocalDateTime.now().minusMinutes(ADMIN_REPEAT_ALERT_MINUTES))) {
             return; // alerted recently
         }
-
         logger.warn("Taxi order #{} exhausted all radii - alerting admins", order.getId());
-
+        
+        String customerPhoneLocal = PhoneNumberUtil.toLocalFormat(order.getPhone());
         String adminMsg = "⏰ *מונית מחכה יותר מדי זמן!* (#" + order.getId() + ")\n" +
                 "עברנו על כל אזורי החיפוש ואף נהג עדיין לא לקח את הנסיעה 😱\n\n" +
                 "📍 *איסוף:* " + order.getPickUpLocation() + "\n" +
                 "🎯 *יעד:* " + order.getDestination() + "\n" +
-                "📞 *לקוח:* " + order.getPhone();
+                "📞 *לקוח:* " + customerPhoneLocal;
 
         try {
             whatsappService.notifyAdminsSmartMessage(
@@ -156,7 +153,7 @@ public class OrderMonitorService {
                             String.valueOf(TAXI_ALERT_MINUTES),
                             order.getPickUpLocation(),
                             order.getDestination(),
-                            order.getPhone()
+                            customerPhoneLocal
                     ),
                     convoService
             );
@@ -198,9 +195,9 @@ public class OrderMonitorService {
             int lastIndex = driverService.getRadiusStepCount() - 1;
 
             if (currentIndex >= 0 && currentIndex < lastIndex) {
-                String msg = buildDispatchMessage(order);
+                String msg = deliveryOrderService.buildDeliveryDispatchMessage(order);
                 String orderDetails = "📍 כתובת: " + order.getDeliveryAddress() + "\n" +
-                        "📞 עסק: " + order.getBusinessPhone();
+                        "📞 עסק: " + PhoneNumberUtil.toLocalFormat(order.getBusinessPhone());
 
                 boolean expanded = driverService.expandDeliveryDispatch(order.getId(), currentIndex + 1, msg, orderDetails);
                 if (expanded) {
@@ -225,11 +222,17 @@ public class OrderMonitorService {
         }
 
         logger.warn("Delivery order #{} exhausted all radii - alerting admins", order.getId());
+        
+        String businessName = businessRepo.findByPhone(order.getBusinessPhone())
+                .map(Business::getName)
+                .orElse("העסק");
+        String businessPhoneLocal = PhoneNumberUtil.toLocalFormat(order.getBusinessPhone());
 
         String adminMsg = "\uD83C\uDF55\uD83C\uDF54 *משלוח תקוע באוויר!* (#" + order.getId() + ")\n" +
                 "עברנו על כל אזורי החיפוש וההזמנה עדיין לא נאספה ⏳\n\n" +
+                "🏪 *בית עסק:* " + businessName + "\n" +
                 "📍 *כתובת למשלוח:* " + order.getDeliveryAddress() + "\n" +
-                "📞 טלפון העסק: " + order.getBusinessPhone();
+                "📞 טלפון העסק: " + businessPhoneLocal;
 
         try {
             whatsappService.notifyAdminsSmartMessage(
@@ -237,8 +240,9 @@ public class OrderMonitorService {
                     "delivery_order_delayed_admin",
                     List.of(String.valueOf(order.getId()),
                             String.valueOf(DELIVERY_ALERT_MINUTES),
+                            businessName,
                             order.getDeliveryAddress(),
-                            order.getBusinessPhone()),
+                            businessPhoneLocal),
                     convoService
             );
             whatsappService.notifyAdminsInteractiveButtons(
@@ -380,32 +384,7 @@ public class OrderMonitorService {
                     PhoneNumberUtil.maskPhoneNumber(driver.getPhone()));
         }
     }
-
-
-    private String buildDispatchMessage(DeliveryOrder order) {
-        return """
-                📦 משלוח חדש!
-                🆔 %d
-                📍 כתובת: %s
-                ⏱️ מוכן בעוד: %d דקות
-                💰 לגבות: %.2f₪
-                📝 הערות: %s
-
-                ללקיחת ההזמנה שלח: משלוח %d
-                לאחר איסוף שלח: איסוף %d
-                לאחר מסירה שלח: נמסר %d
-                """.formatted(
-                order.getId(),
-                order.getDeliveryAddress(),
-                order.getReadyInMinutes(),
-                order.getDeliveryFee(),
-                order.getNotes() != null ? order.getNotes() : "אין",
-                order.getId(),
-                order.getId(),
-                order.getId()
-        );
-    }
-
+    
     /**
      * Runs every 5 minutes — nudges customers who abandoned mid-flow between 20–30 minutes ago.
      * Sends a friendly reminder within the 24hr window before the hard reset kicks in.
