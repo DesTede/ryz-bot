@@ -1600,11 +1600,17 @@
   </tr>`).join('') : '<tr><td colspan="10" class="empty">אין הזמנות</td></tr>';
     }
 
+    function getBusinessNameByPhone(phone) {
+        if (!window.allBusinesses) return phone; // Fallback to phone if list isn't loaded yet
+        const biz = window.allBusinesses.find(b => b.phone === phone || b.businessPhone === phone);
+        return biz ? biz.name : phone; // Fallback to phone if business isn't found
+    }
+    
     function renderDeliveryOrders(orders) {
         const tb = document.getElementById('all-delivery-tbody');
         tb.innerHTML = orders.length ? orders.map(o => `<tr>
     <td><span style="font-family:var(--mono)">#${o.id}</span></td>
-    <td style="font-family:var(--mono);font-size:12px">${o.businessName}</td>
+    <td style="font-family:var(--mono);font-size:12px">${getBusinessNameByPhone(o.businessName)}</td>
     <td style="font-family:var(--mono);font-size:12px">${formatPhone(o.customerPhone)}</td>
     <td style="font-size:12px;color:var(--muted)">${truncate(o.deliveryAddress,20)}</td>
     <td style="font-family:var(--mono);font-size:12px">${o.pickedUpBy ? formatPhone(o.pickedUpBy) : '—'}</td>
