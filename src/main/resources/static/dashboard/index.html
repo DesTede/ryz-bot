@@ -1604,10 +1604,10 @@
         const tb = document.getElementById('all-delivery-tbody');
         tb.innerHTML = orders.length ? orders.map(o => `<tr>
     <td><span style="font-family:var(--mono)">#${o.id}</span></td>
-    <td style="font-family:var(--mono);font-size:12px">${o.businessPhone}</td>
-    <td style="font-family:var(--mono);font-size:12px">${o.customerPhone}</td>
+    <td style="font-family:var(--mono);font-size:12px">${o.businessName}</td>
+    <td style="font-family:var(--mono);font-size:12px">${formatPhone(o.customerPhone)}</td>
     <td style="font-size:12px;color:var(--muted)">${truncate(o.deliveryAddress,20)}</td>
-    <td style="font-family:var(--mono);font-size:12px">${o.pickedUpBy||'—'}</td>
+    <td style="font-family:var(--mono);font-size:12px">${o.pickedUpBy ? formatPhone(o.pickedUpBy) : '—'}</td>
     <td>${deliveryStatusBadge(o.deliveryStatus)}</td>
     <td style="font-family:var(--mono)">₪${o.deliveryFee}</td>
     <td style="font-size:12px;color:var(--muted)">${truncate(o.notes,18)}</td>
