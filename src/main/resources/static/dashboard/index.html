@@ -1585,11 +1585,11 @@
         const tb = document.getElementById('all-taxi-tbody');
         tb.innerHTML = orders.length ? orders.map(o => `<tr>
     <td><span style="font-family:var(--mono)">#${o.id}</span></td>
-    <td style="font-family:var(--mono);font-size:12px">${o.phone}</td>
+    <td style="font-family:var(--mono);font-size:12px">${formatPhone(o.phone)}</td>
     <td style="font-size:12px;color:var(--muted)">${truncate(o.pickUpLocation,20)}</td>
     <td style="font-size:12px;color:var(--muted)">${truncate(o.destination,20)}</td>
     <td style="font-size:12px">${carTypeLabel(o.requestedCarType)||'—'}</td>
-    <td style="font-family:var(--mono);font-size:12px">${o.driverPhone||'—'}</td>
+    <td style="font-family:var(--mono);font-size:12px">${o.driverPhone ? formatPhone(o.driverPhone) : '—'}</td>
     <td>${taxiStatusBadge(o.status)}</td>
     <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${fmtDate(o.createdAt)}</td>
     <td style="font-family:var(--mono);font-size:11px">${fmtDuration(o.claimedAt, o.arrivedAt)}</td>
@@ -1610,7 +1610,7 @@
         const tb = document.getElementById('all-delivery-tbody');
         tb.innerHTML = orders.length ? orders.map(o => `<tr>
     <td><span style="font-family:var(--mono)">#${o.id}</span></td>
-    <td style="font-family:var(--mono);font-size:12px">${getBusinessNameByPhone(o.businessName)}</td>
+    <td style="font-family:var(--mono);font-size:12px">${getBusinessNameByPhone(o.businessPhone)}</td>
     <td style="font-family:var(--mono);font-size:12px">${formatPhone(o.customerPhone)}</td>
     <td style="font-size:12px;color:var(--muted)">${truncate(o.deliveryAddress,20)}</td>
     <td style="font-family:var(--mono);font-size:12px">${o.pickedUpBy ? formatPhone(o.pickedUpBy) : '—'}</td>
