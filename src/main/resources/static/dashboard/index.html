@@ -1606,7 +1606,7 @@
     }
 
     function getBusinessNameByPhone(phone) {
-        if (allBusinesses) return phone; // Fallback to phone if list isn't loaded yet
+        if (window.allBusinesses) return phone; // Fallback to phone if list isn't loaded yet
         const biz = window.allBusinesses.find(b => b.phone === phone || b.businessPhone === phone);
         return biz ? biz.name : phone; // Fallback to phone if business isn't found
     }
