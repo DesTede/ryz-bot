@@ -1606,9 +1606,15 @@
     }
 
     function getBusinessNameByPhone(phone) {
-        if (window.allBusinesses) return phone; // Fallback to phone if list isn't loaded yet
-        const biz = window.allBusinesses.find(b => b.phone === phone || b.businessPhone === phone);
-        return biz ? biz.name : phone; // Fallback to phone if business isn't found
+        if (!window.allBusinesses || !window.allBusinesses.length) {
+            return phone;
+        }
+
+        const biz = window.allBusinesses.find(
+            b => b.phone === phone || b.businessPhone === phone
+        );
+
+        return biz ? biz.name : phone;
     }
     
     function renderDeliveryOrders(orders) {
