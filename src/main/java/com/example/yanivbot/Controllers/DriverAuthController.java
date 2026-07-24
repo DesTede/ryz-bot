@@ -56,16 +56,15 @@ public class DriverAuthController {
 //            return ResponseEntity.ok(Map.of("message", "OTP sent"));
 //        }
 
-        // *** UPDATED LEGITIMATE TESTER BYPASS FOR OTP SENDING ***
-        // Skip sending SMS if it is the special demo phone OR a registered test phone.
-        String demoPhoneVar = System.getenv("DEMO_DRIVER_PHONE");
-        boolean isOriginalAdminDemo = (demoPhoneVar != null && demoPhoneVar.equals(phone));
+        // *** DEMO PHONE BYPASS FOR OTP SENDING ***
+        // Skip sending SMS only for the fixed set of demo/reviewer phone numbers.
+        java.util.Set<String> demoPhones = java.util.Set.of(
+                "972500000000", "972500000001", "972500000002",
+                "972500000003", "972500000004", "972500000005"
+        );
 
-        // We check if the phone exists in our database.
-        boolean isRegisteredProvisionedTester = (driverService.findByPhone(phone) != null);
-
-        if (isOriginalAdminDemo || isRegisteredProvisionedTester) {
-            logger.info("Skipping real OTP delivery for authorized test number: " + phone);
+        if (demoPhones.contains(phone)) {
+            logger.info("Skipping real OTP delivery for demo phone: " + phone);
             // Maintain identical app behavior ("OTP sent"), but actually do nothing.
             return ResponseEntity.ok(Map.of("message", "OTP sent"));
         }
@@ -126,38 +125,20 @@ public class DriverAuthController {
 //            return ResponseEntity.ok(Map.of("token", token));
 //        }
 
-        // *** UPDATED LEGITIMATE TESTER BYPASS FOR OTP VERIFICATION ***
-// Retrieve existing gated variables
-        String demoPhoneVar = System.getenv("DEMO_DRIVER_PHONE"); // e.g., 972500000000
-        String demoCodeVar  = System.getenv("DEMO_DRIVER_OTP");   // e.g., 461982
+        // *** DEMO PHONE BYPASS FOR OTP VERIFICATION ***
+        java.util.Set<String> demoPhones = java.util.Set.of(
+                "972500000000", "972500000001", "972500000002",
+                "972500000003", "972500000004", "972500000005"
+        );
+        String demoCodeVar = System.getenv("DEMO_DRIVER_OTP"); // e.g., 461982
 
-// Step 1: Does the entered code match the fixed bypass code?
-        if (demoCodeVar != null && demoCodeVar.equals(code)) {
-
-            // Step 2: The code is correct. Now, is this phone number authorized to use it?
-
-            // Check A: Is it the original Super Demo admin number?
-            boolean isOriginalAdminDemo = (demoPhoneVar != null && demoPhoneVar.equals(phone));
-
-            // Check B: Is it one of the unique test numbers we added to the DB?
-            boolean isProvisionedTester = (driverService.findByPhone(phone) != null);
-
-            if (isOriginalAdminDemo || isProvisionedTester) {
-                // Validation complete. Generate unique JWT token for THIS unique phone number.
-                String token = jwtService.generateToken(phone);
-
-                if (isOriginalAdminDemo) {
-                    logger.info("Admin demo driver ('{}') authenticated via fixed OTP bypass.", phone);
-                } else {
-                    logger.info("Provisioned database tester authenticated via fixed OTP bypass. Phone: '{}'", phone);
-                }
-
-                return ResponseEntity.ok(Map.of("token", token));
-            } else {
-                // The code was correct (the secret handshake), but this user isn't in our club.
-                logger.warn("Unauthorized attempt to use fixed OTP bypass code with phone: '{}'", phone);
-                return ResponseEntity.status(403).body(Map.of("error", "Phone number not authorized for demo mode."));
+        if (demoCodeVar != null && demoCodeVar.equals(code) && demoPhones.contains(phone)) {
+            if (driverService.findByPhone(phone) == null) {
+                return ResponseEntity.status(403).body(Map.of("error", "Demo driver not provisioned"));
             }
+            String token = jwtService.generateToken(phone);
+            logger.info("Demo driver ('{}') authenticated via fixed OTP bypass.", phone);
+            return ResponseEntity.ok(Map.of("token", token));
         }
         
         
